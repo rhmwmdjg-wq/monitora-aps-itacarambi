@@ -209,6 +209,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:#f3f8f5}
 .cloudpill.ok{color:var(--brand-deep);background:#e9f6ef;border-color:#cfe9da}.cloudpill.pend{color:#8a6a00;background:#fff8e1;border-color:#f1e0a6}.cloudpill.err{color:#a3332b;background:#fdecea;border-color:#f3c9c4}
 @media (max-width:700px){.cloudpill{font-size:0;padding:7px 10px}.cloudpill::first-letter{font-size:14px}}
 @media print{#cloudPill,#gate{display:none!important}}
+.modo-equipe #impBtn,.modo-equipe #goImp2,.modo-equipe #bkNow,.modo-equipe #toImp,.modo-equipe #gi,.modo-equipe [data-del],.modo-equipe [data-go=cadastro],.modo-equipe [data-go=imp],.modo-equipe [data-go=config],.modo-equipe [data-go=equipes],.modo-equipe [data-go=esus]{display:none!important}
 </style>
 <script src="supabase.min.js"></script></head>
 <body><div class="overlay" id="ovl"></div>
@@ -291,9 +292,98 @@ const KV={db:null,
 /* Estado persistido */
 const S={pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[]};
 const SKEYS=Object.keys(S);
+/* ===================== Acesso por equipe (painel somente consulta) ===================== */
+const PERFIL={papel:'admin',equipe:''};
+const isEquipe=()=>PERFIL.papel==='equipe';
+let _avisoConsulta=0;
+function avisoConsulta(){if(Date.now()-_avisoConsulta>8000){_avisoConsulta=Date.now();toast('👁 Acesso de consulta: alterações não são salvas.')}}
+
+function snapshotEquipe(eqId){
+ const e=DB.eqById[eqId];const ine=e&&e.ine?onlyDig(e.ine):'';
+ const sameIne=x=>!!ine&&onlyDig(x||'')===ine;
+ const pes=new Set();for(const p of DB.pes.values())if(famOf(p).eq===eqId)pes.add(p.cod);
+ const imports=[],rk=new Set();
+ for(const imp of S.imports){const rows=imp.rows.filter(r=>sameIne(r.ine));if(!rows.length)continue;
+  imports.push({...imp,ines:[e.ine],rows});for(const r of rows){rk.add(rowKey(r));const mm=matchRow(r);if(mm.p)pes.add(mm.p.cod)}}
+ const cns=new Set();for(const c of pes){const p=DB.pes.get(c);if(p&&p.cns)cns.add(p.cns)}
+ const keep=x=>sameIne(x.ine)||(!!x.cns&&cns.has(x.cns));
+ const fams=new Set();for(const c of pes){const p=DB.pes.get(c);if(p)fams.add(p.fam)}
+ const pick=(o,set)=>Object.fromEntries(Object.entries(o||{}).filter(([k])=>set.has(k)));
+ const dados={...S,
+  pEdit:pick(S.pEdit,pes),fEdit:pick(S.fEdit,fams),pNew:S.pNew.filter(p=>pes.has(p.cod)),fNew:S.fNew.filter(f=>fams.has(f.cod)),
+  eqCfg:{[eqId]:S.eqCfg[eqId]||{}},links:Object.fromEntries(Object.entries(S.links||{}).filter(([,v])=>pes.has(v))),
+  imports,log:[],lastBackup:new Date().toISOString(),
+  visits:(S.visits||[]).filter(keep),atends:(S.atends||[]).filter(keep),atendsOdonto:(S.atendsOdonto||[]).filter(keep),
+  coletivas:(S.coletivas||[]).filter(x=>sameIne(x.ine)),consumo:(S.consumo||[]).filter(keep),procedimentos:(S.procedimentos||[]).filter(keep),
+  mkEdit:Object.fromEntries(Object.entries(S.mkEdit||{}).filter(([k])=>rk.has(k.split('|')[0]))),
+  visitsLog:[],eSusLog:[],atendsLog:[],coletivasLog:[],consumoLog:[],procedimentosLog:[]};
+ return{sistema:'aps-itacarambi',tipo:'painel-equipe',equipe:eqId,geradoEm:new Date().toISOString(),
+  base:{...BASE,eq:BASE.eq.filter(x=>x.id===eqId),f:BASE.f.filter(r=>fams.has(r[0])),p:BASE.p.filter(r=>pes.has(r[0]))},dados};
+}
+const PAINEL={timer:null,busy:false,last:'',
+ agendar(){if(isEquipe())return;clearTimeout(this.timer);this.timer=setTimeout(()=>this.publicar(),20000)},
+ async publicar(manual){if(isEquipe())return;if(this.busy){if(manual)toast('Os painéis já estão sendo atualizados…');return}this.busy=true;
+  try{let i=0;for(const e of DB.eq){i++;if(manual)toast(`Atualizando painel ${i}/${DB.eq.length}: ${esc(e.nome)}…`,2500);
+    const blob=await CLOUD.gz(snapshotEquipe(e.id));
+    const{error}=await CLOUD.sb.storage.from(CLOUD.bucket).upload(`equipes/${e.id}/painel.json.gz`,blob,{upsert:true,contentType:'application/octet-stream',cacheControl:'0'});if(error)throw error}
+   this.last=new Date().toISOString();await KV.set('__painelLast',this.last);if(manual)toast('✓ Painéis das equipes atualizados');if(UI.view==='acessos')render()}
+  catch(e){console.warn('Painéis',e);if(manual)toast('Não foi possível atualizar os painéis: '+esc(e.message||e))}
+  finally{this.busy=false}},
+ async existe(){const{data}=await CLOUD.sb.storage.from(CLOUD.bucket).list('equipes',{limit:100});return!!(data&&data.length)}
+};
+async function carregarPainelEquipe(){
+ gateProgress('Carregando painel da equipe…',0,0);
+ const r=await fetch(`${CLOUD.url}/storage/v1/object/authenticated/${CLOUD.bucket}/equipes/${encodeURIComponent(PERFIL.equipe)}/painel.json.gz?t=${Date.now()}`,{headers:{Authorization:'Bearer '+await CLOUD.token(),apikey:CLOUD.key},cache:'no-store'});
+ if(r.status===400||r.status===404)return false;if(!r.ok)throw new Error('Falha ao carregar o painel ('+r.status+')');
+ const j=await CLOUD.ungz(await r.blob());BASE=j.base;Object.assign(S,j.dados);PERFIL.geradoEm=j.geradoEm;return true;
+}
+function prepararModoEquipe(){
+ document.body.classList.add('modo-equipe');
+ NAV.length=0;NAV.push({t:'Equipe '+(DB.eq[0]?DB.eq[0].nome.replace('Equipe ',''):PERFIL.equipe),items:[['home','O que fazer agora','home'],['ind','Indicadores','chart'],['rel','Relatórios','chart'],['acs','Visitas dos ACS','team'],['atend','Atendimentos e-SUS','chart']]});
+ UI.rel.eq=PERFIL.equipe;
+ const f=document.querySelector('aside .foot');if(f)f.innerHTML=`Painel da <b>${esc(DB.eq[0]?DB.eq[0].nome:PERFIL.equipe)}</b> · somente consulta<br>Dados atualizados em ${PERFIL.geradoEm?new Date(PERFIL.geradoEm).toLocaleString('pt-BR'):'—'}<br>Coordenação da Atenção Primária`;
+}
+function wireEquipe(){const pill=$('#cloudPill');pill.className='cloudpill ok';pill.textContent='👁 '+(DB.eq[0]?DB.eq[0].nome:'Equipe')+' · consulta';
+ pill.onclick=()=>{const md=openModal('Acesso da equipe',`<div class="small">Conectado como <b>${esc(CLOUD.email)}</b><br>Equipe: <b>${esc(DB.eq[0]?DB.eq[0].nome:PERFIL.equipe)}</b><br>Dados atualizados em: <b>${PERFIL.geradoEm?new Date(PERFIL.geradoEm).toLocaleString('pt-BR'):'—'}</b></div><p class="mini">Este acesso é somente para consulta dos indicadores, relatórios e monitoramento da sua equipe. Os dados são atualizados pela Coordenação da Atenção Primária.</p><div class="bar" style="margin-top:12px"><button class="btn pri" id="eqRel">⟳ Recarregar dados</button><button class="btn danger" id="eqOut">Sair</button></div>`);
+  $('#eqRel',md.bg).onclick=()=>location.reload();$('#eqOut',md.bg).onclick=sair}}
+
+/* ===================== Tela do administrador: acessos das equipes ===================== */
+async function vAcessos(m){
+ const link=location.origin+location.pathname;
+ m.innerHTML=head('Acessos das equipes','Cada equipe entra pelo mesmo link com o próprio e-mail e vê somente os indicadores, relatórios e monitoramento da sua equipe (somente consulta).')+
+ `<div class="grid g3">
+  <div class="card"><h3>Liberar um acesso</h3>
+   <label style="margin-top:6px">E-mail da pessoa<input type="text" id="acEm" placeholder="nome@exemplo.com" inputmode="email"></label>
+   <label style="margin-top:10px">Acesso<select id="acEq">${DB.eq.map(e=>`<option value="${e.id}">${esc(e.nome)} (somente consulta)</option>`).join('')}<option value="__admin">Coordenação (acesso total)</option></select></label>
+   <button class="btn pri" id="acAdd" style="margin-top:12px">＋ Liberar acesso</button></div>
+  <div class="card"><h3>Como a pessoa entra</h3><ol class="small" style="padding-left:18px;margin:6px 0">
+   <li>Abre o link: <a href="${link}" target="_blank">${esc(link)}</a></li><li>Digita o e-mail liberado e cria uma senha em <b>"Primeiro acesso? Criar senha"</b>.</li><li>Clica no link de confirmação que chega no e-mail.</li><li>Volta ao link e clica em <b>Entrar</b>.</li></ol>
+   <button class="btn sm" id="acCopy">📋 Copiar mensagem para enviar</button></div>
+  <div class="card"><h3>Painéis das equipes</h3><p class="small">Os painéis são atualizados automaticamente alguns segundos depois de cada alteração sua (importações, edições etc.).</p>
+   <p class="mini">Última atualização: <b>${PAINEL.last?new Date(PAINEL.last).toLocaleString('pt-BR'):'ainda não publicada'}</b></p>
+   <button class="btn" id="acPub">⟳ Atualizar painéis agora</button></div></div>
+  <div class="card" style="margin-top:14px"><h3>Pessoas com acesso</h3><div id="acList" class="small muted">Carregando…</div></div>`;
+ $('#acCopy').onclick=()=>{const t=`Olá! Seu acesso ao Monitora APS (painel da sua equipe) foi liberado.\n1) Abra: ${link}\n2) Digite seu e-mail e uma senha (mínimo 6 caracteres) e clique em "Primeiro acesso? Criar senha".\n3) Confirme pelo link que chegará no seu e-mail.\n4) Volte ao endereço e clique em Entrar.`;navigator.clipboard.writeText(t).then(()=>toast('Mensagem copiada ✓'),()=>prompt('Copie a mensagem:',t))};
+ $('#acPub').onclick=()=>PAINEL.publicar(true);
+ $('#acAdd').onclick=async()=>{const email=$('#acEm').value.trim().toLowerCase(),v=$('#acEq').value;
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Digite um e-mail válido');return}
+  const row=v==='__admin'?{email,papel:'admin',equipe:null}:{email,papel:'equipe',equipe:v};
+  const{error}=await CLOUD.sb.from('usuarios_autorizados').upsert(row);if(error){toast('Erro: '+esc(error.message));return}
+  toast('Acesso liberado ✓');logAction('Acesso liberado',email+' → '+(v==='__admin'?'Coordenação':v));listarAcessos()};
+ listarAcessos();
+}
+async function listarAcessos(){const box=$('#acList');if(!box)return;
+ const{data,error}=await CLOUD.sb.from('usuarios_autorizados').select('email,papel,equipe,criado_em').order('papel').order('equipe').order('email');
+ if(error){box.textContent='Erro ao carregar: '+error.message;return}
+ box.classList.remove('muted');
+ box.innerHTML=`<div class="tw"><table><thead><tr><th>E-mail</th><th>Acesso</th><th>Liberado em</th><th></th></tr></thead><tbody>${data.map(u=>`<tr><td>${esc(u.email)}</td><td>${u.papel==='admin'?'<b>Coordenação (total)</b>':eqChip(u.equipe)+' <span class="mini">consulta</span>'}</td><td class="mini">${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):''}</td><td>${u.email.toLowerCase()===CLOUD.email.toLowerCase()?'<span class="mini">você</span>':`<button class="btn sm danger" data-del="${esc(u.email)}">Remover</button>`}</td></tr>`).join('')}</tbody></table></div>`;
+ box.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{const em=b.dataset.del;if(!confirm('Remover o acesso de '+em+'?'))return;
+  const{error}=await CLOUD.sb.from('usuarios_autorizados').delete().eq('email',em);if(error){toast('Erro: '+esc(error.message));return}toast('Acesso removido');logAction('Acesso removido',em);listarAcessos()});
+}
+
 async function loadState(){for(const k of SKEYS){const v=await KV.get(k);if(v!==undefined)S[k]=v}}
-async function save(...keys){for(const k of(keys.length?keys:SKEYS)){await KV.set(k,S[k]);CLOUD.mark(k)}}
-function logAction(acao,detalhe){S.log.unshift({quando:new Date().toISOString(),acao,detalhe,por:CLOUD.email||''});if(S.log.length>3000)S.log.length=3000;save('log')}
+async function save(...keys){if(isEquipe()){avisoConsulta();return}for(const k of(keys.length?keys:SKEYS)){await KV.set(k,S[k]);CLOUD.mark(k)}}
+function logAction(acao,detalhe){if(isEquipe())return;S.log.unshift({quando:new Date().toISOString(),acao,detalhe,por:CLOUD.email||''});if(S.log.length>3000)S.log.length=3000;save('log')}
 
 const CLOUD={
  url:'https://bgvwaamwgcathojxtjqf.supabase.co',
@@ -325,6 +415,7 @@ const CLOUD={
    }
    const after=await this.list();for(const f in after)if(!this.meta[f]||!this.dirty.has(f.replace('.json.gz','')))this.meta[f]=after[f];
    await this.persistMeta();this.online=true;
+   PAINEL.agendar();
    if(conflito)toast('⚠️ Outro aparelho também alterou dados ao mesmo tempo. Ficou valendo a versão mais recente (a sua).',7000);
    this.setState(this.dirty.size?'pend':'ok');
   }catch(e){console.warn('Envio para a nuvem falhou',e);this.online=navigator.onLine;await this.persistMeta();this.setState('err');clearTimeout(this.timer);this.timer=setTimeout(()=>this.push(),30000)}
@@ -386,7 +477,7 @@ function telaPacoteInicial(){return new Promise(ok=>{
   BASE=j.base;await KV.set('__base',BASE);if(j.dados)Object.assign(S,j.dados);for(const k of SKEYS)await KV.set(k,S[k]);
   await CLOUD.pushAll((i,n)=>gateProgress('Enviando dados para a nuvem…',i,n));ok()}catch(x){$('#pkm',g).innerHTML='<b style="color:var(--re)">'+esc(x.message||'Arquivo inválido')+'</b>'}};
 })}
-async function sair(){if(CLOUD.dirty.size&&!confirm('Ainda há alterações não enviadas para a nuvem. Sair mesmo assim? (elas continuam salvas neste aparelho)'))return;await CLOUD.sb.auth.signOut();location.reload()}
+async function sair(){if(CLOUD.dirty.size&&!confirm('Ainda há alterações não enviadas para a nuvem. Sair mesmo assim? (elas continuam salvas neste aparelho)'))return;await CLOUD.sb.auth.signOut();if(!CLOUD.dirty.size)await KV.clear();location.reload()}
 
 async function iniciar(){
  try{await KV.open()}catch(e){toast('Atenção: o navegador bloqueou o armazenamento local.',8000)}
@@ -401,8 +492,13 @@ async function iniciar(){
  await loadState();BASE=(await KV.get('__base'))||null;
  let offline=false;
  try{
-  const{data:aut,error:ea}=await CLOUD.sb.from('usuarios_autorizados').select('email').limit(1);
+  let{data:aut,error:ea}=await CLOUD.sb.from('usuarios_autorizados').select('email,papel,equipe').ilike('email',CLOUD.email).limit(1);
+  if(ea&&/papel|equipe|column/i.test(ea.message||'')){({data:aut,error:ea}=await CLOUD.sb.from('usuarios_autorizados').select('email').ilike('email',CLOUD.email).limit(1))}
   if(ea)throw ea;
+  if(aut&&aut.length&&aut[0].papel==='equipe'){PERFIL.papel='equipe';PERFIL.equipe=aut[0].equipe;
+   const ok=await carregarPainelEquipe();
+   if(!ok){gate(`<h2>Painel ainda não disponível</h2><p class="small">O painel da sua equipe ainda não foi publicado pela Coordenação. Tente novamente mais tarde.</p><div class="bar"><button class="btn pri" onclick="location.reload()">Tentar de novo</button><button class="btn" onclick="sair()">Sair</button></div>`);return}
+   gateClose();buildDB();prepararModoEquipe();wireChrome();wireEquipe();render();return}
   if(!aut||!aut.length){await CLOUD.sb.auth.signOut();gate(`<h2>Acesso não autorizado</h2><p class="small">O e-mail <b>${esc(CLOUD.email)}</b> ainda não foi liberado para usar o sistema. Peça à Coordenação da Atenção Primária para incluir seu e-mail na lista de usuários autorizados.</p><button class="btn" onclick="location.reload()">Voltar</button>`);return}
   if(CLOUD.dirty.size)await CLOUD.push();
   await CLOUD.pull((i,n)=>gateProgress('Baixando dados da nuvem…',i,n));
@@ -411,6 +507,8 @@ async function iniciar(){
   await telaPacoteInicial()}
  gateClose();
  buildDB();wireChrome();wireCloud();render();
+ PAINEL.last=(await KV.get('__painelLast'))||'';
+ if(!offline)PAINEL.existe().then(x=>{if(!x)PAINEL.publicar()}).catch(()=>{});
  CLOUD.setState(offline?'off':(CLOUD.dirty.size?'pend':'ok'));
  if(offline)toast('Sem internet: usando a cópia salva neste aparelho. As alterações serão enviadas quando a conexão voltar.',7000);
 }
@@ -572,13 +670,13 @@ function allComps(){return[...new Set(S.imports.map(i=>i.comp))].sort()}
 const NAV=[
  {t:'Acompanhar',items:[['home','O que fazer agora','home'],['ind','Indicadores','chart'],['rel','Relatórios','chart']]},
  {t:'Dados',items:[['imp','Importar planilhas SIAPS','upload'],['acs','Visitas dos ACS','team'],['atend','Atendimentos e-SUS','chart'],['coletiva','Atividade Coletiva','chart'],['consumo','Consumo Alimentar','chart'],['esus','Cadastros e-SUS','users'],['cadastro','Famílias e pessoas','users'],['equipes','Equipes e profissionais','team']]},
- {t:'Sistema',items:[['config','Dados e backup','cog']]}
+ {t:'Sistema',items:[['acessos','Acessos das equipes','users'],['config','Dados e backup','cog']]}
 ];
 const UI={view:'home',cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'}};
 function nav(){$('#nav').innerHTML=NAV.map(g=>`<div class="navgroup">${g.t}</div>`+g.items.map(([k,t,i])=>`<button class="nav ${UI.view===k?'on':''}" data-v="${k}">${ico(i)}<span>${t}</span></button>`).join('')).join('');
   $$('#nav .nav').forEach(b=>b.onclick=()=>{UI.view=b.dataset.v;render();closeSide()})}
 function closeSide(){$('#side').classList.remove('open');$('#ovl').classList.remove('on')}
-function render(){nav();const m=$('main');m.innerHTML='';({home:vHome,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig})[UI.view](m);window.scrollTo(0,0)}
+function render(){if(isEquipe()&&!['home','ind','rel','acs','atend'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0)}
 function head(t,sub,actions=''){return `<div class="top"><div><h1>${t}</h1><p>${sub}</p></div><div class="bar noprint">${actions}</div></div>`}
 function ativos(){return[...DB.pes.values()].filter(p=>p.situacao==='Ativo')}
 const eqName=id=>DB.eqById[id]?DB.eqById[id].nome:('INE '+id);

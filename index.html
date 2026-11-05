@@ -525,6 +525,66 @@ function wireCloud(){
  window.addEventListener('beforeunload',e=>{if(CLOUD.dirty.size||CLOUD.busy){e.preventDefault();e.returnValue=''}});
 }
 
+
+/* ===================== Planilha de cadastros individuais por ACS ===================== */
+const XLSXW={
+ crcT:null,
+ crc(u8){if(!this.crcT){this.crcT=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;this.crcT[n]=c>>>0}}let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=this.crcT[(c^u8[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0},
+ zip(files){const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+  for(const[name,txt]of files){const nb=enc.encode(name),data=enc.encode(txt),crc=this.crc(data);
+   const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,nb.length,true);
+   parts.push(new Uint8Array(h.buffer),nb,data);
+   const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,nb.length,true);c.setUint32(42,off,true);
+   cen.push(new Uint8Array(c.buffer),nb);off+=30+nb.length+data.length}
+  const cs=cen.reduce((a,b)=>a+b.length,0);const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})},
+ x:s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,''),
+ col:i=>{let s='';i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s},
+ serial(iso){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');if(!m)return null;return Math.round((Date.UTC(+m[1],+m[2]-1,+m[3])-Date.UTC(1899,11,30))/864e5)},
+ /* sheets: [{nome, cab:[...], larguras:[...], tipos:['s','d',...], linhas:[[...]]}] */
+ gerar(sheets){
+  const sh=sheets.map((s,si)=>{const nCols=s.cab.length,last=s.linhas.length+1;
+   const row=(r,vals,hdr)=>`<row r="${r}">`+vals.map((v,ci)=>{const ref=this.col(ci)+r;
+    if(hdr)return`<c r="${ref}" s="1" t="inlineStr"><is><t>${this.x(v)}</t></is></c>`;
+    if(s.tipos[ci]==='d'){const n=this.serial(v);return n==null?(v?`<c r="${ref}" s="3" t="inlineStr"><is><t>${this.x(v)}</t></is></c>`:`<c r="${ref}" s="3"/>`):`<c r="${ref}" s="2"><v>${n}</v></c>`}
+    return`<c r="${ref}" s="3" t="inlineStr"><is><t xml:space="preserve">${this.x(v)}</t></is></c>`}).join('')+'</row>';
+   return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"${si===0?' tabSelected="1"':''}><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>${s.larguras.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${row(1,s.cab,true)}${s.linhas.map((l,i)=>row(i+2,l,false)).join('')}</sheetData><autoFilter ref="A1:${this.col(nCols-1)}${last}"/></worksheet>`});
+  const files=[
+   ['[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sh.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`],
+   ['_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+   ['xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s,i)=>`<sheet name="${this.x(s.nome)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><definedNames>${sheets.map((s,i)=>`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${this.x(s.nome).replace(/'/g,"''")}'!$A$1:$${this.col(s.cab.length-1)}$${s.linhas.length+1}</definedName>`).join('')}</definedNames></workbook>`],
+   ['xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+   ['xl/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F6B41"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`],
+   ...sh.map((x,i)=>[`xl/worksheets/sheet${i+1}.xml`,x])];
+  return this.zip(files)},
+ baixar(nomeArq,sheets){const a=document.createElement('a');a.href=URL.createObjectURL(this.gerar(sheets));a.download=nomeArq;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
+};
+const acsNomeMA=(eq,ma)=>{const c=S.eqCfg[eq]&&S.eqCfg[eq].maAcs&&S.eqCfg[eq].maAcs[ma];const d=DB.ma[eq+'-'+ma];return(c&&c.nome)||(d&&d.acs)||('Microárea '+ma)};
+function pessoasDoACS(eq,ma,soAtivos){const out=[];for(const p of DB.pes.values()){const f=famOf(p);if(f.eq!==eq||String(f.ma)!==String(ma))continue;if(soAtivos&&p.situacao!=='Ativo')continue;out.push(p)}
+ return out.sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR'))}
+function abaACS(eq,ma,soAtivos){const ps=pessoasDoACS(eq,ma,soAtivos);
+ return{nome:('MA '+ma+' '+acsNomeMA(eq,ma)).replace(/[\[\]:*?\/\\]/g,' ').slice(0,31),cab:['Nome do paciente','Data de nascimento','Nome da mãe'],larguras:[48,20,48],tipos:['s','d','s'],
+  linhas:ps.map(p=>[String(p.nome||'').toUpperCase(),p.nasc||'',String(p.mae||'').toUpperCase()])}}
+function modalPlanilhaACS(){
+ const eqs=DB.eq;if(!eqs.length){toast('Nenhuma equipe disponível');return}
+ const eq0=(UI.cad.eq&&DB.eqById[UI.cad.eq])?UI.cad.eq:eqs[0].id;
+ const md=openModal('Planilha de cadastros por ACS',`<div class="small" style="margin-bottom:10px">Gera uma planilha Excel com <b>Nome do paciente, Data de nascimento e Nome da mãe</b> de todos os cadastros individuais vinculados à microárea do agente comunitário de saúde escolhido.</div>
+  <label>Equipe<select id="pxEq">${eqs.map(e=>`<option value="${e.id}" ${e.id===eq0?'selected':''}>${esc(e.nome)}</option>`).join('')}</select></label>
+  <label style="margin-top:10px">Agente comunitário de saúde<select id="pxMa"></select></label>
+  <label style="margin-top:10px;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="pxAt" checked> Somente pessoas ativas (sem "Mudou-se", "Óbito" etc.)</label>
+  <p class="mini" id="pxInfo" style="margin:10px 0 0"></p>`,async()=>{
+   const eq=$('#pxEq',md.bg).value,ma=$('#pxMa',md.bg).value,at=$('#pxAt',md.bg).checked;const e=DB.eqById[eq];
+   const slug=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
+   if(ma==='__ALL'){const abas=e.mas.map(x=>abaACS(eq,x[0],at));XLSXW.baixar(`cadastros_ACS_${slug(e.nome)}_todas_microareas.xlsx`,abas)}
+   else XLSXW.baixar(`cadastros_ACS_${slug(acsNomeMA(eq,ma))}_${slug(e.nome)}_MA${ma}.xlsx`,[abaACS(eq,ma,at)]);
+   logAction('Planilha por ACS baixada',e.nome+' · '+(ma==='__ALL'?'todas as microáreas':'MA '+ma+' · '+acsNomeMA(eq,ma)));toast('Planilha gerada ✓')},null,'📥 Baixar planilha');
+ const fillMa=()=>{const e=DB.eqById[$('#pxEq',md.bg).value];$('#pxMa',md.bg).innerHTML=e.mas.map(x=>`<option value="${x[0]}">MA ${x[0]} · ${esc(acsNomeMA(e.id,x[0]))}</option>`).join('')+`<option value="__ALL">Todos os ACS da equipe (uma aba para cada)</option>`;info()};
+ const info=()=>{const eq=$('#pxEq',md.bg).value,ma=$('#pxMa',md.bg).value,at=$('#pxAt',md.bg).checked;const e=DB.eqById[eq];
+  const ps=ma==='__ALL'?e.mas.flatMap(x=>pessoasDoACS(eq,x[0],at)):pessoasDoACS(eq,ma,at);const cm=ps.filter(p=>p.mae).length;
+  $('#pxInfo',md.bg).innerHTML=`<b>${ps.length.toLocaleString('pt-BR')}</b> pessoa(s) · ${cm.toLocaleString('pt-BR')} com nome da mãe preenchido.`};
+ $('#pxEq',md.bg).onchange=fillMa;$('#pxMa',md.bg).onchange=info;$('#pxAt',md.bg).onchange=info;fillMa();
+}
+
 /* ===================== Base de dados em memória ===================== */
 const DB={eq:[],eqById:{},fam:new Map(),pes:new Map(),byCPF:new Map(),byCNS:new Map(),byDOB:new Map(),members:new Map(),ma:{}};
 function buildDB(){
@@ -845,7 +905,7 @@ async function aplicarCondicoes(){const cont={hiper:0,dia:0,gest:0};const alvo={
  await save('pEdit','pNew');logAction('Condições de saúde aplicadas ao cadastro',`hipertensos=${cont.hiper} diabéticos=${cont.dia} gestantes=${cont.gest}`);buildDB();toast(`${n} cadastro(s) atualizado(s) ✓`);refreshSoft()}
 function vCadastro(m){const c=UI.cad;  const eqOpts=`<option value="">Todas as equipes</option>${DB.eq.map(e=>`<option value="${e.id}" ${c.eq===e.id?'selected':''}>${e.nome}</option>`).join('')}`;
   const maOpts=c.eq?`<option value="">Todas as microáreas</option>${DB.eqById[c.eq].mas.map(x=>`<option value="${x[0]}" ${c.ma===x[0]?'selected':''}>MA ${x[0]} · ${esc(x[2])}</option>`).join('')}`:'<option value="">Microárea</option>';
-  m.innerHTML=head('Famílias e pessoas','Busque por nome, CPF, CNS ou endereço. Clique numa pessoa para ver e atualizar os dados.',`<button class="btn" id="condBtn">Condições do SIAPS</button><button class="btn" id="dupBtn">Duplicidades</button><button class="btn" id="novaP">+ Nova pessoa</button><button class="btn" id="novaF">+ Nova família</button><button class="btn" id="expCad">Exportar Excel</button>`)+
+  m.innerHTML=head('Famílias e pessoas','Busque por nome, CPF, CNS ou endereço. Clique numa pessoa para ver e atualizar os dados.',`<button class="btn" id="condBtn">Condições do SIAPS</button><button class="btn" id="dupBtn">Duplicidades</button><button class="btn" id="novaP">+ Nova pessoa</button><button class="btn" id="novaF">+ Nova família</button><button class="btn" id="cadAcsXls">📥 Planilha por ACS</button><button class="btn" id="expCad">Exportar Excel</button>`)+
   `<div class="card"><div class="bar" style="margin-bottom:12px">
     <input type="search" id="q" placeholder="Nome, CPF, CNS, logradouro…" value="${esc(c.q)}" style="flex:1;min-width:220px">
     <select id="fEq">${eqOpts}</select><select id="fMa" ${c.eq?'':'disabled'}>${maOpts}</select>
@@ -858,7 +918,7 @@ function vCadastro(m){const c=UI.cad;  const eqOpts=`<option value="">Todas as e
   $('#fEq').onchange=e=>{c.eq=e.target.value;c.ma='';c.page=0;render()};
   $('#fMa').onchange=e=>{c.ma=e.target.value;up()};$('#fFx').onchange=e=>{c.faixa=e.target.value;up()};$('#fFl').onchange=e=>{c.flag=e.target.value;up()};
   $$('[data-modo]',m).forEach(b=>b.onclick=()=>{c.modo=b.dataset.modo;c.page=0;render()});
-  $('#novaP').onclick=()=>modalPessoaEdit(null);$('#novaF').onclick=()=>modalFamilia(null);$('#expCad').onclick=exportCadastro;$('#dupBtn').onclick=mostraDuplicidades;$('#condBtn').onclick=aplicarCondicoes;
+  $('#novaP').onclick=()=>modalPessoaEdit(null);$('#novaF').onclick=()=>modalFamilia(null);$('#expCad').onclick=exportCadastro;$('#cadAcsXls').onclick=modalPlanilhaACS;$('#dupBtn').onclick=mostraDuplicidades;$('#condBtn').onclick=aplicarCondicoes;
   cadList();
 }
 function filtPessoas(){const c=UI.cad;const q=norm(c.q),qd=onlyDig(c.q);const gsF=gruposSets();
@@ -1225,14 +1285,14 @@ function vRel(m){const s=UI.rel;const comps=allComps();if(!comps.includes(s.comp
   if(s.tipo==='busca'){const vdSel=`<select id="relVd"><option value="">Visitas: todas</option>${[['30','Sem visita há 30+ dias'],['60','Sem visita há 60+ dias'],['90','Sem visita há 90+ dias'],['180','Sem visita há 180+ dias'],['nunca','Nunca visitado']].map(([v,t])=>`<option value="${v}" ${s.vdias===v?'selected':''}>${t}</option>`).join('')}</select>`;extra=`<select id="relCod">${IND_ORDER.map(c=>`<option value="${c}" ${s.cod===c?'selected':''}>${c} ${IND[c].curto}</option>`).join('')}</select>`+eqAll+vdSel;}
   if(s.tipo==='ficha')extra=`<input type="search" id="relPq" placeholder="Nome ou CPF…" value="${esc(s.pq||'')}" style="min-width:240px">`;
   const quadriSel=`<select id="relQ"><option value="">Todos os quadrimestres</option>${quads.map(q=>`<option value="${q}" ${s.quadri===q?'selected':''}>${quadriLabel(q)}</option>`).join('')}</select>`;
-  m.innerHTML=head('Relatórios','Relatórios prontos para imprimir ou salvar em PDF (formato A4).',`<button class="btn pri" id="relPrint">🖨 Imprimir / Salvar PDF</button>`)+
+  m.innerHTML=head('Relatórios','Relatórios prontos para imprimir ou salvar em PDF (formato A4).',`<button class="btn" id="relAcsXls">📥 Planilha por ACS</button><button class="btn pri" id="relPrint">🖨 Imprimir / Salvar PDF</button>`)+
    `<div class="card noprint"><div class="bar">
      <select id="relTipo">${[['gestao','Resumo para a gestão'],['consolidado','Consolidado (quadrimestre)'],['equipe','Relatório por equipe'],['busca','Busca ativa por ACS'],['familias','Famílias por microárea'],['atvcoletiva','Atividade coletiva (educação em saúde)'],['ficha','Ficha da pessoa']].map(([v,t])=>`<option value="${v}" ${s.tipo===v?'selected':''}>${t}</option>`).join('')}</select>
      <select id="relComp">${comps.length?comps.map(c=>`<option value="${c}" ${c===s.comp?'selected':''}>Competência ${compLabel(c)}</option>`).join(''):'<option>Sem competências</option>'}</select>
      ${['gestao','consolidado','equipe','busca','atvcoletiva'].includes(s.tipo)?quadriSel:''}${extra}</div>
      <p class="mini" style="margin:10px 0 0">Dica: na janela de impressão escolha "Salvar como PDF" para gerar o arquivo, ou imprima direto em folha A4.</p></div>
     <div class="card" style="margin-top:14px" id="relOut"></div>`;
-  $('#relPrint').onclick=()=>imprimir();
+  $('#relPrint').onclick=()=>imprimir();$('#relAcsXls').onclick=modalPlanilhaACS;
   $('#relTipo').onchange=e=>{s.tipo=e.target.value;render()};
   $('#relComp').onchange=e=>{s.comp=e.target.value;render()};
   if($('#relQ'))$('#relQ').onchange=e=>{s.quadri=e.target.value;render()};

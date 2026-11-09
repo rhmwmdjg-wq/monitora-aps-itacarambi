@@ -419,39 +419,85 @@ function wireEquipe(){const pill=$('#cloudPill');pill.className='cloudpill ok';p
   $('#eqRel',md.bg).onclick=()=>location.reload();$('#eqOut',md.bg).onclick=sair}}
 
 /* ===================== Tela do administrador: acessos das equipes ===================== */
+/* Chama a função segura do servidor (só a Coordenação consegue usar) */
+async function acessoAPI(corpo){const{data}=await CLOUD.sb.auth.getSession();const tk=data&&data.session&&data.session.access_token;if(!tk)throw new Error('Faça login novamente.');
+ const r=await fetch(`${CLOUD.url}/functions/v1/acesso-equipe`,{method:'POST',headers:{'Content-Type':'application/json',apikey:CLOUD.key,Authorization:'Bearer '+tk},body:JSON.stringify(corpo)});
+ let j={};try{j=await r.json()}catch(e){}if(!r.ok||j.erro)throw new Error(j.erro||('Erro '+r.status));return j}
+function gerarSenha(){const L='abcdefghjkmnpqrstuvwxyz',N='23456789';const pick=s=>s[Math.floor(crypto.getRandomValues(new Uint32Array(1))[0]/4294967296*s.length)];
+ return 'Aps'+Array.from({length:4},()=>pick(L)).join('')+Array.from({length:3},()=>pick(N)).join('')}
+const acessoNome=(papel,equipe)=>papel==='admin'?'Coordenação (acesso total)':(DB.eqById[equipe]?DB.eqById[equipe].nome:'Equipe')+' (somente consulta)';
+function msgAcesso(email,senha,papel,equipe){const link=location.origin+location.pathname.replace(/teste\.html$/,'');
+ return senha?`Olá! Seu acesso ao Monitora APS foi liberado — ${acessoNome(papel,equipe)}.\n1) Abra: ${link}\n2) E-mail: ${email}\n3) Senha: ${senha}\n4) Clique em Entrar.\nGuarde a senha com cuidado e não compartilhe.`
+ :`Olá! Seu acesso ao Monitora APS (painel da sua equipe) foi liberado.\n1) Abra: ${link}\n2) Digite seu e-mail e uma senha (mínimo 6 caracteres) e clique em "Primeiro acesso? Criar senha".\n3) Confirme pelo link que chegará no seu e-mail.\n4) Volte ao endereço e clique em Entrar.`}
+function modalSenhaPronta(email,senha,papel,equipe){const t=msgAcesso(email,senha,papel,equipe);
+ const md=openModal('Acesso pronto ✓',`<p style="margin:0 0 10px">A pessoa já pode entrar com estes dados — não precisa criar senha nem confirmar e-mail.</p>
+  <div class="card" style="box-shadow:none;background:var(--soft)"><div class="small"><b>Acesso:</b> ${esc(acessoNome(papel,equipe))}</div><div class="small"><b>E-mail:</b> ${esc(email)}</div><div class="small"><b>Senha:</b> <code style="font-size:15px;font-weight:700">${esc(senha)}</code></div></div>
+  <p class="mini" style="margin:10px 0 0">Esta senha não fica salva no sistema e não aparece de novo. Copie agora e envie à pessoa por um canal seguro. Se perder, é só definir outra.</p>`,
+  ()=>{navigator.clipboard.writeText(t).then(()=>toast('Mensagem copiada ✓'),()=>prompt('Copie a mensagem:',t));return false},null,'📋 Copiar mensagem');
+ const c=$('#mCancel',md.bg);if(c)c.textContent='Fechar'}
+function modalDefinirSenha(email,papel,equipe){
+ const md=openModal('Definir senha',`<p style="margin:0 0 10px">Nova senha para <b>${esc(email)}</b> — ${esc(acessoNome(papel,equipe))}.</p>
+  <label class="fld">Senha (mínimo 6 caracteres)<div class="bar" style="flex-wrap:nowrap"><input type="text" id="dsSenha" value="${gerarSenha()}" autocomplete="off" spellcheck="false" style="flex:1"><button class="btn" id="dsGer" type="button">Gerar outra</button></div></label>
+  <p class="mini" style="margin:8px 0 0">Se a pessoa já usava outra senha, ela deixa de valer.</p>`,
+  async()=>{const senha=$('#dsSenha',md.bg).value.trim();if(senha.length<6){toast('A senha precisa ter pelo menos 6 caracteres');return false}
+   const ok=$('#mOk',md.bg);ok.disabled=true;ok.textContent='Salvando…';
+   try{await acessoAPI({acao:'definir_senha',email,senha})}catch(e){toast('Erro: '+esc(e.message));ok.disabled=false;ok.textContent='Salvar senha';return false}
+   logAction('Senha definida pela Coordenação',email);setTimeout(()=>modalSenhaPronta(email,senha,papel,equipe),50);listarAcessos()},null,'Salvar senha');
+ $('#dsGer',md.bg).onclick=()=>{$('#dsSenha',md.bg).value=gerarSenha()}}
 async function vAcessos(m){
- const link=location.origin+location.pathname;
+ const link=location.origin+location.pathname.replace(/teste\.html$/,'');
  m.innerHTML=head('Acessos das equipes','Cada equipe entra pelo mesmo link com o próprio e-mail e vê somente os indicadores, relatórios e monitoramento da sua equipe (somente consulta).')+
  `<div class="grid g3">
   <div class="card"><h3>Liberar um acesso</h3>
    <label class="fld">E-mail da pessoa<input type="email" id="acEm" placeholder="nome@exemplo.com" inputmode="email" autocomplete="off"></label>
    <label class="fld">Acesso<select id="acEq"><option value="" selected disabled>Selecione…</option>${DB.eq.map(e=>`<option value="${e.id}">${esc(e.nome)} (somente consulta)</option>`).join('')}<option value="__admin">Coordenação (acesso total)</option></select></label>
+   <div class="fld">Senha
+    <label class="small" style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin-top:2px"><input type="radio" name="acModo" value="eu" checked style="margin-top:3px"><span><b>Eu defino a senha agora</b><br><span class="mini">A pessoa já entra direto, sem confirmar e-mail.</span></span></label>
+    <div class="bar" id="acSenhaBox" style="flex-wrap:nowrap;margin:2px 0 4px 24px"><input type="text" id="acSenha" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><button class="btn sm" id="acGer" type="button">Gerar</button></div>
+    <label class="small" style="display:flex;gap:8px;align-items:flex-start;font-weight:400"><input type="radio" name="acModo" value="pessoa" style="margin-top:3px"><span>A pessoa cria a própria senha<br><span class="mini">Ela recebe um link de confirmação no e-mail.</span></span></label>
+   </div>
    <button class="btn pri" id="acAdd" style="margin-top:12px">＋ Liberar acesso</button></div>
   <div class="card"><h3>Como a pessoa entra</h3><ol class="small" style="padding-left:18px;margin:6px 0">
-   <li>Abre o link: <a href="${link}" target="_blank">${esc(link)}</a></li><li>Digita o e-mail liberado e cria uma senha em <b>"Primeiro acesso? Criar senha"</b>.</li><li>Clica no link de confirmação que chega no e-mail.</li><li>Volta ao link e clica em <b>Entrar</b>.</li></ol>
-   <button class="btn sm" id="acCopy">📋 Copiar mensagem para enviar</button></div>
+   <li>Abre o link: <a href="${link}" target="_blank">${esc(link)}</a></li><li><b>Se você definiu a senha:</b> digita o e-mail e a senha que você passou e clica em <b>Entrar</b>.</li><li><b>Se ela cria a senha:</b> digita o e-mail, uma senha, clica em <b>"Primeiro acesso? Criar senha"</b> e confirma pelo link do e-mail.</li></ol>
+   <button class="btn sm" id="acCopy">📋 Copiar instruções (a pessoa cria a senha)</button></div>
   <div class="card"><h3>Painéis das equipes</h3><p class="small">Os painéis são atualizados automaticamente alguns segundos depois de cada alteração sua (importações, edições etc.).</p>
    <p class="mini">Última atualização: <b>${PAINEL.last?new Date(PAINEL.last).toLocaleString('pt-BR'):'ainda não publicada'}</b></p>
    <button class="btn" id="acPub">⟳ Atualizar painéis agora</button></div></div>
   <div class="card" style="margin-top:14px"><h3>Pessoas com acesso</h3><div id="acList" class="small muted">Carregando…</div></div>`;
- $('#acCopy').onclick=()=>{const t=`Olá! Seu acesso ao Monitora APS (painel da sua equipe) foi liberado.\n1) Abra: ${link}\n2) Digite seu e-mail e uma senha (mínimo 6 caracteres) e clique em "Primeiro acesso? Criar senha".\n3) Confirme pelo link que chegará no seu e-mail.\n4) Volte ao endereço e clique em Entrar.`;navigator.clipboard.writeText(t).then(()=>toast('Mensagem copiada ✓'),()=>prompt('Copie a mensagem:',t))};
+ $('#acSenha').value=gerarSenha();
+ $('#acGer').onclick=()=>{$('#acSenha').value=gerarSenha()};
+ $$('[name=acModo]',m).forEach(r=>r.onchange=()=>{$('#acSenhaBox').hidden=$('[name=acModo]:checked',m).value!=='eu'});
+ $('#acCopy').onclick=()=>{const t=msgAcesso('','', '','');navigator.clipboard.writeText(t).then(()=>toast('Mensagem copiada ✓'),()=>prompt('Copie a mensagem:',t))};
  $('#acPub').onclick=()=>PAINEL.publicar(true);
- $('#acAdd').onclick=async()=>{const email=$('#acEm').value.trim().toLowerCase(),v=$('#acEq').value;
+ $('#acAdd').onclick=async()=>{const email=$('#acEm').value.trim().toLowerCase(),v=$('#acEq').value,modo=$('[name=acModo]:checked',m).value,senha=$('#acSenha').value.trim();
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Digite um e-mail válido');$('#acEm').focus();return}
   if(!v){toast('Escolha qual acesso liberar');$('#acEq').focus();return}
-  const row=v==='__admin'?{email,papel:'admin',equipe:null}:{email,papel:'equipe',equipe:v};
-  const{error}=await CLOUD.sb.from('usuarios_autorizados').upsert(row);if(error){toast('Erro: '+esc(error.message));return}
-  toast('Acesso liberado ✓');logAction('Acesso liberado',email+' → '+(v==='__admin'?'Coordenação':v));$('#acEm').value='';$('#acEq').value='';listarAcessos()};
+  const papel=v==='__admin'?'admin':'equipe',equipe=v==='__admin'?null:v;
+  if(modo==='eu'&&senha.length<6){toast('A senha precisa ter pelo menos 6 caracteres');$('#acSenha').focus();return}
+  const bt=$('#acAdd');bt.disabled=true;
+  try{
+   if(modo==='eu')await acessoAPI({acao:'definir_senha',email,senha,papel,equipe});
+   else{const{error}=await CLOUD.sb.from('usuarios_autorizados').upsert({email,papel,equipe});if(error)throw error}
+  }catch(e){toast('Erro: '+esc(e.message));bt.disabled=false;return}
+  bt.disabled=false;
+  logAction('Acesso liberado',email+' → '+(v==='__admin'?'Coordenação':v)+(modo==='eu'?' (senha definida pela Coordenação)':''));
+  $('#acEm').value='';$('#acEq').value='';$('#acSenha').value=gerarSenha();listarAcessos();
+  if(modo==='eu')modalSenhaPronta(email,senha,papel,equipe);else toast('Acesso liberado ✓ — envie as instruções para a pessoa')};
  listarAcessos();
 }
 async function listarAcessos(){const box=$('#acList');if(!box)return;
  const{data,error}=await CLOUD.sb.from('usuarios_autorizados').select('email,papel,equipe,criado_em').order('papel').order('equipe').order('email');
  if(error){box.textContent='Erro ao carregar: '+error.message;return}
+ let sit=null;try{sit=(await acessoAPI({acao:'situacao'})).usuarios||{}}catch(e){sit=null}
+ const ult=em=>{if(!sit)return '<span class="mini">—</span>';const k=em.toLowerCase();if(!(k in sit))return '<span class="tag gray">sem senha ainda</span>';return sit[k]?`<span class="mini">${new Date(sit[k]).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</span>`:'<span class="tag">ainda não entrou</span>'};
  box.classList.remove('muted');
- box.innerHTML=`<div class="tw"><table><thead><tr><th>E-mail</th><th>Acesso</th><th>Liberado em</th><th></th></tr></thead><tbody>${data.map(u=>`<tr><td>${esc(u.email)}</td><td>${u.papel==='admin'?'<b>Coordenação (total)</b>':eqChip(u.equipe)+' <span class="mini">consulta</span>'}</td><td class="mini">${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):''}</td><td>${u.email.toLowerCase()===CLOUD.email.toLowerCase()?'<span class="mini">você</span>':`<button class="btn sm danger" data-del="${esc(u.email)}">Remover</button>`}</td></tr>`).join('')}</tbody></table></div>`;
+ box.innerHTML=`<div class="tw"><table><thead><tr><th>E-mail</th><th>Acesso</th><th>Liberado em</th><th>Último acesso</th><th></th></tr></thead><tbody>${data.map(u=>{const eu=u.email.toLowerCase()===CLOUD.email.toLowerCase();return `<tr><td>${esc(u.email)}</td><td>${u.papel==='admin'?'<b>Coordenação (total)</b>':eqChip(u.equipe)+' <span class="mini">consulta</span>'}</td><td class="mini">${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):''}</td><td>${ult(u.email)}</td><td style="white-space:nowrap">${eu?'<span class="mini">você</span>':`<button class="btn sm" data-pw="${esc(u.email)}">Definir senha</button> <button class="btn sm danger" data-del="${esc(u.email)}">Remover</button>`}</td></tr>`}).join('')}</tbody></table></div>
+  ${sit?'':'<p class="mini" style="margin:8px 0 0">Não consegui consultar o último acesso agora.</p>'}`;
+ box.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{const u=data.find(x=>x.email===b.dataset.pw)||{};modalDefinirSenha(u.email,u.papel,u.equipe)});
  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const em=b.dataset.del,u=data.find(x=>x.email===em)||{};
-  const md=openModal('Remover acesso?',`<p style="margin:0 0 8px"><b>${esc(em)}</b> não vai mais conseguir entrar no Monitora APS.</p><p class="small muted" style="margin:0">Acesso atual: ${u.papel==='admin'?'Coordenação (total)':esc(eqName(u.equipe))+' · consulta'}. Para devolver o acesso, basta liberar o e-mail de novo.</p>`,
-   async()=>{const{error}=await CLOUD.sb.from('usuarios_autorizados').delete().eq('email',em);if(error){toast('Erro: '+esc(error.message));return false}toast('Acesso removido');logAction('Acesso removido',em);listarAcessos()},null,'Remover acesso');
+  const md=openModal('Remover acesso?',`<p style="margin:0 0 8px"><b>${esc(em)}</b> não vai mais conseguir entrar no Monitora APS.</p><p class="small muted" style="margin:0">Acesso atual: ${u.papel==='admin'?'Coordenação (total)':esc(eqName(u.equipe))+' · consulta'}. A senha também é apagada. Para devolver o acesso, basta liberar o e-mail de novo.</p>`,
+   async()=>{try{await acessoAPI({acao:'remover',email:em})}catch(e){const{error}=await CLOUD.sb.from('usuarios_autorizados').delete().eq('email',em);if(error){toast('Erro: '+esc(error.message));return false}}
+    toast('Acesso removido');logAction('Acesso removido',em);listarAcessos()},null,'Remover acesso');
   const ok=$('#mOk',md.bg);if(ok)ok.className='btn danger'});
 }
 

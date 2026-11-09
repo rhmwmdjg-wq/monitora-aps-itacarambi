@@ -56,7 +56,7 @@ main{padding:24px 26px 64px;min-width:0}
 .btn.danger:hover{background:#fdf3f2}
 .btn:disabled{opacity:.5;cursor:default}
 .btn.icon{padding:8px 10px}
-input[type=text],input[type=date],input[type=search],select,textarea{border:1px solid #d6dfd9;border-radius:9px;padding:8px 11px;background:#fff;min-width:0}
+input[type=text],input[type=email],input[type=date],input[type=search],select,textarea{border:1px solid #d6dfd9;border-radius:9px;padding:8px 11px;background:#fff;min-width:0}
 input:focus,select:focus,textarea:focus{outline:2px solid #a9dcbf;border-color:var(--brand);outline-offset:0}
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--soft);color:var(--ink2);white-space:nowrap}
@@ -209,6 +209,65 @@ tr.click{cursor:pointer} tr.click:hover td{background:#f3f8f5}
 .cloudpill.ok{color:var(--brand-deep);background:#e9f6ef;border-color:#cfe9da}.cloudpill.pend{color:#8a6a00;background:#fff8e1;border-color:#f1e0a6}.cloudpill.err{color:#a3332b;background:#fdecea;border-color:#f3c9c4}
 @media (max-width:700px){.cloudpill{font-size:0;padding:7px 10px}.cloudpill::first-letter{font-size:14px}}
 @media print{#cloudPill,#gate{display:none!important}}
+/* ====== Usabilidade (nov/2026) ====== */
+[hidden]{display:none!important}
+/* Prioridades da tela inicial */
+.homegrid{display:grid;gap:14px;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:start;margin-top:14px}
+@media(max-width:1200px){.homegrid{grid-template-columns:1fr}}
+.action{align-items:flex-start;gap:12px}
+.action .rank{width:34px;height:34px;font-size:15px;border-radius:10px}
+.action .g b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14.5px;line-height:1.35}
+.action .meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;flex-wrap:wrap}
+.action .meta span{font-size:13px;color:var(--ink2)}
+.action .meta strong{color:var(--brand-deep);font-variant-numeric:tabular-nums}
+/* Campos com rótulo acima */
+.fld{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:var(--ink2);margin-top:10px}
+.fld input,.fld select{width:100%;font-weight:400}
+/* Tabela com rolagem única (cabeçalho e 1ª coluna fixos) */
+.tw.pg{max-height:none;overflow-x:auto;overflow-y:hidden}
+.tw.pg th:first-child,.stkhd th:first-child{position:sticky;left:0;z-index:3;background:#f7faf8;box-shadow:1px 0 0 var(--line)}
+.tw.pg tr:not(.grph)>td:first-child{position:sticky;left:0;z-index:2;background:#fff;box-shadow:1px 0 0 var(--line)}
+.tw.pg tr[style*="background"]>td:first-child{background:inherit}
+.tw.pg tr.click:hover>td:first-child{background:#f3f8f5}
+.tw.pg .stl{position:sticky;left:11px;display:inline-block}
+.tw.pg td.pac{min-width:210px;max-width:280px}
+.tw.pg td.addr{max-width:170px}
+.stkhd{position:fixed;z-index:25;overflow:hidden;display:none;background:#f7faf8;border:1px solid var(--line);border-top:0;box-shadow:0 6px 14px rgba(16,24,20,.08)}
+.stkhd table{border-collapse:collapse;table-layout:fixed}
+.stkhd th{position:static}
+.stkhd th:first-child{position:sticky}
+.stksb{position:fixed;bottom:0;z-index:25;overflow-x:auto;overflow-y:hidden;height:15px;display:none;background:rgba(245,247,246,.92);border-top:1px solid var(--line)}
+.stksb>div{height:1px}
+/* Menu suspenso "⋯ Mais" */
+.dd{position:relative;display:inline-block}
+.dd-menu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh2);padding:6px;min-width:230px;z-index:40;display:flex;flex-direction:column}
+.dd-menu button{border:0;background:none;text-align:left;padding:9px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--ink2)}
+.dd-menu button:hover{background:var(--soft);color:var(--brand-deep)}
+/* Filtros ativos como etiquetas */
+.fchip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 11px;border-radius:99px;font-size:12.5px;font-weight:600;background:#e9f6ef;color:var(--brand-deep);border:1px solid #cfe9da}
+.fchip button{border:0;background:none;cursor:pointer;color:inherit;font-size:15px;line-height:1;padding:0 4px;border-radius:99px}
+.fchip button:hover{background:#cfe9da}
+.linkbtn{border:0;background:none;color:var(--brand-deep);font-weight:600;cursor:pointer;font-size:12.5px;text-decoration:underline;padding:4px}
+.morebox{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+/* Botões rápidos de qualidade do cadastro */
+.qchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink2)}
+.qchip b{font-variant-numeric:tabular-nums;color:var(--ink)}
+.qchip:hover{border-color:#c8d6cd}
+.qchip.on{background:var(--brand);border-color:var(--brand);color:#fff}.qchip.on b{color:#fff}
+.qchip.warnq b{color:#a2342b}
+/* Competência global na barra do topo */
+.compsel{display:flex;flex-direction:column;line-height:1.15;border:1px solid var(--line);background:#fff;border-radius:11px;padding:4px 10px 5px}
+.compsel .cl{font-size:10.5px;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.compsel select{border:0;padding:0;font-weight:700;color:var(--brand-ink);background:transparent;cursor:pointer;font-size:13.5px}
+.compsel select:focus{outline:0}
+.compsel .cg{font-size:11px;color:var(--mute)}
+.searchbox{flex:1 1 170px;max-width:440px;width:auto;white-space:nowrap;overflow:hidden}
+.searchbox .lbl{overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media(max-width:1200px){.searchbox kbd{display:none}}
+@media(max-width:1200px){.cloudpill{font-size:0;padding:7px 10px}.cloudpill::first-letter{font-size:14px}}
+@media(max-width:700px){.compsel .cl,.compsel .cg{display:none}#orientBtn{display:none}}
+@media print{.stkhd,.stksb,#compBox{display:none!important}}
+
 .modo-equipe #impBtn,.modo-equipe #goImp2,.modo-equipe #bkNow,.modo-equipe #toImp,.modo-equipe #gi,.modo-equipe [data-del],.modo-equipe [data-go=cadastro],.modo-equipe [data-go=imp],.modo-equipe [data-go=config],.modo-equipe [data-go=equipes],.modo-equipe [data-go=esus]{display:none!important}
 </style>
 <script src="supabase.min.js"></script></head>
@@ -220,6 +279,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:#f3f8f5}
   <button class="btn icon" id="menuBtn" aria-label="Menu">☰</button>
   <div class="searchbox" id="searchBox" role="button" tabindex="0" aria-label="Buscar"><span>🔎</span><span class="lbl">Buscar pessoa, família, equipe…</span><kbd>Ctrl K</kbd></div>
   <div class="spacer"></div>
+  <div id="compBox"></div>
   <button class="cloudpill ok" id="cloudPill" title="Situação da sincronização com a nuvem">☁ Conectando…</button>
   <button class="btn" id="orientBtn" title="Alterna entre impressão retrato e paisagem">🖨 Retrato</button>
   <button class="btn pri" id="impBtn">⬆ Importar</button>
@@ -276,6 +336,17 @@ const ICON={
  chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
  cog:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.6 1.6 0 00-1-1.5 1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H3a2 2 0 110-4h.1a1.6 1.6 0 001.5-1 1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H9a1.6 1.6 0 001-1.5V3a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/>',
  upload:'<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+ todo:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h9"/>',
+ target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3"/>',
+ doc:'<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+ house:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
+ steth:'<path d="M6 3v6a4 4 0 008 0V3"/><path d="M10 13v3a5 5 0 0010 0v-2"/><circle cx="20" cy="12" r="2"/>',
+ group:'<circle cx="12" cy="7" r="3"/><circle cx="5" cy="10" r="2.2"/><circle cx="19" cy="10" r="2.2"/><path d="M7 20c0-2.8 2.2-5 5-5s5 2.2 5 5M1.5 19c0-2 1.6-3.6 3.5-3.6M22.5 19c0-2-1.6-3.6-3.5-3.6"/>',
+ apple:'<path d="M12 7c-1.5-1.3-4-1.6-5.6-.4C4.3 8.2 4.5 12 6 15s3.5 5.5 6 4.5c2.5 1 4.5-1.5 6-4.5s1.7-6.8-.4-8.4C16 5.4 13.5 5.7 12 7z"/><path d="M12 7c0-2 1-3.5 3-4"/>',
+ clip:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/>',
+ family:'<circle cx="8" cy="7" r="3"/><circle cx="16.5" cy="8.5" r="2.3"/><circle cx="12" cy="15" r="1.8"/><path d="M2.5 20c0-3 2.5-5.5 5.5-5.5M21.5 20c0-2.6-2.1-4.7-4.7-4.7M9 21c0-1.7 1.3-3 3-3s3 1.3 3 3"/>',
+ key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/>',
+ db:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
  alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>'};
 const ico=(n,s=18)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
 let PRINT_LANDSCAPE=false;
@@ -353,8 +424,8 @@ async function vAcessos(m){
  m.innerHTML=head('Acessos das equipes','Cada equipe entra pelo mesmo link com o próprio e-mail e vê somente os indicadores, relatórios e monitoramento da sua equipe (somente consulta).')+
  `<div class="grid g3">
   <div class="card"><h3>Liberar um acesso</h3>
-   <label style="margin-top:6px">E-mail da pessoa<input type="text" id="acEm" placeholder="nome@exemplo.com" inputmode="email"></label>
-   <label style="margin-top:10px">Acesso<select id="acEq">${DB.eq.map(e=>`<option value="${e.id}">${esc(e.nome)} (somente consulta)</option>`).join('')}<option value="__admin">Coordenação (acesso total)</option></select></label>
+   <label class="fld">E-mail da pessoa<input type="email" id="acEm" placeholder="nome@exemplo.com" inputmode="email" autocomplete="off"></label>
+   <label class="fld">Acesso<select id="acEq"><option value="" selected disabled>Selecione…</option>${DB.eq.map(e=>`<option value="${e.id}">${esc(e.nome)} (somente consulta)</option>`).join('')}<option value="__admin">Coordenação (acesso total)</option></select></label>
    <button class="btn pri" id="acAdd" style="margin-top:12px">＋ Liberar acesso</button></div>
   <div class="card"><h3>Como a pessoa entra</h3><ol class="small" style="padding-left:18px;margin:6px 0">
    <li>Abre o link: <a href="${link}" target="_blank">${esc(link)}</a></li><li>Digita o e-mail liberado e cria uma senha em <b>"Primeiro acesso? Criar senha"</b>.</li><li>Clica no link de confirmação que chega no e-mail.</li><li>Volta ao link e clica em <b>Entrar</b>.</li></ol>
@@ -366,10 +437,11 @@ async function vAcessos(m){
  $('#acCopy').onclick=()=>{const t=`Olá! Seu acesso ao Monitora APS (painel da sua equipe) foi liberado.\n1) Abra: ${link}\n2) Digite seu e-mail e uma senha (mínimo 6 caracteres) e clique em "Primeiro acesso? Criar senha".\n3) Confirme pelo link que chegará no seu e-mail.\n4) Volte ao endereço e clique em Entrar.`;navigator.clipboard.writeText(t).then(()=>toast('Mensagem copiada ✓'),()=>prompt('Copie a mensagem:',t))};
  $('#acPub').onclick=()=>PAINEL.publicar(true);
  $('#acAdd').onclick=async()=>{const email=$('#acEm').value.trim().toLowerCase(),v=$('#acEq').value;
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Digite um e-mail válido');return}
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Digite um e-mail válido');$('#acEm').focus();return}
+  if(!v){toast('Escolha qual acesso liberar');$('#acEq').focus();return}
   const row=v==='__admin'?{email,papel:'admin',equipe:null}:{email,papel:'equipe',equipe:v};
   const{error}=await CLOUD.sb.from('usuarios_autorizados').upsert(row);if(error){toast('Erro: '+esc(error.message));return}
-  toast('Acesso liberado ✓');logAction('Acesso liberado',email+' → '+(v==='__admin'?'Coordenação':v));listarAcessos()};
+  toast('Acesso liberado ✓');logAction('Acesso liberado',email+' → '+(v==='__admin'?'Coordenação':v));$('#acEm').value='';$('#acEq').value='';listarAcessos()};
  listarAcessos();
 }
 async function listarAcessos(){const box=$('#acList');if(!box)return;
@@ -377,8 +449,10 @@ async function listarAcessos(){const box=$('#acList');if(!box)return;
  if(error){box.textContent='Erro ao carregar: '+error.message;return}
  box.classList.remove('muted');
  box.innerHTML=`<div class="tw"><table><thead><tr><th>E-mail</th><th>Acesso</th><th>Liberado em</th><th></th></tr></thead><tbody>${data.map(u=>`<tr><td>${esc(u.email)}</td><td>${u.papel==='admin'?'<b>Coordenação (total)</b>':eqChip(u.equipe)+' <span class="mini">consulta</span>'}</td><td class="mini">${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):''}</td><td>${u.email.toLowerCase()===CLOUD.email.toLowerCase()?'<span class="mini">você</span>':`<button class="btn sm danger" data-del="${esc(u.email)}">Remover</button>`}</td></tr>`).join('')}</tbody></table></div>`;
- box.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{const em=b.dataset.del;if(!confirm('Remover o acesso de '+em+'?'))return;
-  const{error}=await CLOUD.sb.from('usuarios_autorizados').delete().eq('email',em);if(error){toast('Erro: '+esc(error.message));return}toast('Acesso removido');logAction('Acesso removido',em);listarAcessos()});
+ box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const em=b.dataset.del,u=data.find(x=>x.email===em)||{};
+  const md=openModal('Remover acesso?',`<p style="margin:0 0 8px"><b>${esc(em)}</b> não vai mais conseguir entrar no Monitora APS.</p><p class="small muted" style="margin:0">Acesso atual: ${u.papel==='admin'?'Coordenação (total)':esc(eqName(u.equipe))+' · consulta'}. Para devolver o acesso, basta liberar o e-mail de novo.</p>`,
+   async()=>{const{error}=await CLOUD.sb.from('usuarios_autorizados').delete().eq('email',em);if(error){toast('Erro: '+esc(error.message));return false}toast('Acesso removido');logAction('Acesso removido',em);listarAcessos()},null,'Remover acesso');
+  const ok=$('#mOk',md.bg);if(ok)ok.className='btn danger'});
 }
 
 async function loadState(){for(const k of SKEYS){const v=await KV.get(k);if(v!==undefined)S[k]=v}}
@@ -728,20 +802,55 @@ function allComps(){return[...new Set(S.imports.map(i=>i.comp))].sort()}
 
 /* ===================== Navegação ===================== */
 const NAV=[
- {t:'Acompanhar',items:[['home','O que fazer agora','home'],['ind','Indicadores','chart'],['rel','Relatórios','chart']]},
- {t:'Dados',items:[['imp','Importar planilhas SIAPS','upload'],['acs','Visitas dos ACS','team'],['atend','Atendimentos e-SUS','chart'],['coletiva','Atividade Coletiva','chart'],['consumo','Consumo Alimentar','chart'],['esus','Cadastros e-SUS','users'],['cadastro','Famílias e pessoas','users'],['equipes','Equipes e profissionais','team']]},
- {t:'Sistema',items:[['acessos','Acessos das equipes','users'],['config','Dados e backup','cog']]}
+ {t:'Acompanhar',items:[['home','O que fazer agora','todo'],['ind','Indicadores','target'],['rel','Relatórios','doc']]},
+ {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS','steth'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
+ {t:'Sistema',items:[['acessos','Acessos das equipes','key'],['config','Dados e backup','db']]}
 ];
-const UI={view:'home',cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'}};
+const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'}};
 function nav(){$('#nav').innerHTML=NAV.map(g=>`<div class="navgroup">${g.t}</div>`+g.items.map(([k,t,i])=>`<button class="nav ${UI.view===k?'on':''}" data-v="${k}">${ico(i)}<span>${t}</span></button>`).join('')).join('');
   $$('#nav .nav').forEach(b=>b.onclick=()=>{UI.view=b.dataset.v;render();closeSide()})}
 function closeSide(){$('#side').classList.remove('open');$('#ovl').classList.remove('on')}
-function render(){if(isEquipe()&&!['home','ind','rel','acs','atend'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0)}
+function render(){if(isEquipe()&&!['home','ind','rel','acs','atend'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0);compBar();stkQueue()}
 function head(t,sub,actions=''){return `<div class="top"><div><h1>${t}</h1><p>${sub}</p></div><div class="bar noprint">${actions}</div></div>`}
 function ativos(){return[...DB.pes.values()].filter(p=>p.situacao==='Ativo')}
 const eqName=id=>DB.eqById[id]?DB.eqById[id].nome:('INE '+id);
 const acsLinha=f=>{const m=DB.ma[f.eq+'-'+f.ma];const cfg=S.eqCfg[f.eq]||{};const a=cfg.maAcs&&cfg.maAcs[f.ma];const nome=m?m.acs:(a?a.nome:'');const cns=a?a.cns:'';return esc(nome||'—')+(cns?' <span class="mini">· CNS '+esc(cns)+'</span>':'')};
-const compAtual=()=>{const c=allComps();return c[c.length-1]||''};
+const compAtual=()=>{const c=allComps();return c.includes(UI.comp)?UI.comp:(c[c.length-1]||'')};
+const MES_PT={janeiro:1,fevereiro:2,'março':3,marco:3,abril:4,maio:5,junho:6,julho:7,agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+function geradoISO(t){t=String(t||'').toLowerCase();let m=t.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+ m=t.match(/(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})/);if(m&&MES_PT[m[2]])return `${m[3]}-${String(MES_PT[m[2]]).padStart(2,'0')}-${m[1].padStart(2,'0')}`;return ''}
+function geradoDe(comp){let best='';for(const i of S.imports)if(i.comp===comp){const d=geradoISO(i.gerado);if(d>best)best=d}return best}
+function compBar(){const box=$('#compBox');if(!box)return;const cs=allComps();if(!cs.length){box.innerHTML='';return}
+ const cur=compAtual(),g=geradoDe(cur);
+ box.innerHTML=`<label class="compsel" title="Competência usada em todo o sistema (início, indicadores e relatórios)"><span class="cl">Competência</span><select id="gComp" aria-label="Competência">${cs.slice().reverse().map(c=>`<option value="${c}" ${c===cur?'selected':''}>${compLabel(c)}</option>`).join('')}</select>${g?`<span class="cg" title="Data em que as listas desta competência foram geradas no SIAPS">SIAPS gerado em ${brDate(g).slice(0,5)}</span>`:''}</label>`;
+ $('#gComp').onchange=e=>{UI.comp=e.target.value;UI.ind.comp=UI.comp;UI.rel.comp=UI.comp;UI.ind.page=0;render()}}
+/* Menu suspenso "⋯ Mais" */
+function ddMenu(id,label,items){return `<div class="dd" id="${id}"><button class="btn" data-dd aria-haspopup="true">${label}</button><div class="dd-menu" hidden>${items.map(([i,t])=>`<button id="${i}">${t}</button>`).join('')}</div></div>`}
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-dd]');$$('.dd-menu').forEach(mn=>{if(!t||mn.previousElementSibling!==t)mn.hidden=true});if(t){const mn=t.nextElementSibling;mn.hidden=!mn.hidden}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$$('.dd-menu').forEach(mn=>mn.hidden=true)});
+/* Tabela com rolagem única pela página: cabeçalho e 1ª coluna ficam fixos */
+const STK={list:[],hd:null,sb:null,raf:0,lock:false};
+function stickyTable(tw){if(!tw)return;tw.classList.add('pg');STK.list=STK.list.filter(t=>document.body.contains(t));STK.list.push(tw);
+ tw.addEventListener('scroll',()=>{if(STK.lock)return;STK.lock=true;if(STK.hd&&STK.hd._tw===tw)STK.hd.scrollLeft=tw.scrollLeft;if(STK.sb&&STK.sb._tw===tw)STK.sb.scrollLeft=tw.scrollLeft;STK.lock=false},{passive:true});stkQueue()}
+function stkQueue(){if(!STK.raf)STK.raf=requestAnimationFrame(()=>{STK.raf=0;stkUpdate()})}
+function stkUpdate(){const tb=document.querySelector('.topbar'),top=tb?tb.getBoundingClientRect().bottom:0,vh=innerHeight;
+ STK.list=STK.list.filter(t=>document.body.contains(t));let ah=null,as=null;
+ for(const tw of STK.list){if(!tw.offsetParent)continue;const tbl=tw.querySelector('table');if(!tbl||!tbl.tHead)continue;const r=tw.getBoundingClientRect(),hh=tbl.tHead.offsetHeight;
+  if(!ah&&r.top<top&&r.bottom>top+hh+30)ah={tw,tbl,r};
+  if(!as&&tw.scrollWidth>tw.clientWidth+2&&r.top<vh-60&&r.bottom>vh)as={tw,tbl,r}}
+ let hd=STK.hd;
+ if(ah){if(!hd){hd=STK.hd=document.createElement('div');hd.className='stkhd noprint';document.body.appendChild(hd)}
+  const sig=ah.tbl.offsetWidth+'|'+ah.tw.clientWidth+'|'+ah.tbl.tHead.innerHTML.length;
+  if(hd._tw!==ah.tw||hd._sig!==sig){const ths=[...ah.tbl.tHead.rows[0].cells];
+   hd.innerHTML=`<table style="width:${ah.tbl.offsetWidth}px"><colgroup>${ths.map(th=>`<col style="width:${th.getBoundingClientRect().width}px">`).join('')}</colgroup>${ah.tbl.tHead.outerHTML}</table>`;hd._tw=ah.tw;hd._sig=sig}
+  hd.style.cssText=`display:block;top:${top}px;left:${ah.r.left+ah.tw.clientLeft}px;width:${ah.tw.clientWidth}px`;hd.scrollLeft=ah.tw.scrollLeft}
+ else if(hd)hd.style.display='none';
+ let sb=STK.sb;
+ if(as){if(!sb){sb=STK.sb=document.createElement('div');sb.className='stksb noprint';sb.innerHTML='<div></div>';document.body.appendChild(sb);
+   sb.addEventListener('scroll',()=>{if(STK.lock||!sb._tw)return;STK.lock=true;sb._tw.scrollLeft=sb.scrollLeft;if(STK.hd&&STK.hd._tw===sb._tw)STK.hd.scrollLeft=sb.scrollLeft;STK.lock=false},{passive:true})}
+  sb._tw=as.tw;sb.firstChild.style.width=as.tw.scrollWidth+'px';sb.style.cssText=`display:block;left:${as.r.left}px;width:${as.r.width}px`;sb.scrollLeft=as.tw.scrollLeft}
+ else if(sb)sb.style.display='none'}
+addEventListener('scroll',stkQueue,{passive:true});addEventListener('resize',stkQueue);
 const sitColor=s=>s==='Mudou-se'?'#d9a514':s==='Mudou de equipe'?'#2563eb':s==='Óbito'?'#6b7280':'';
 const MS_DAY=86400000;
 const addDays=(iso,n)=>iso?new Date(new Date(iso+'T00:00:00').getTime()+n*MS_DAY).toISOString().slice(0,10):'';
@@ -809,9 +918,9 @@ function vHome(m){
     <div class="card kpi"><span class="l">Cadastros sem CPF</span><span class="v">${fmt(semCpf)}</span><span class="s">${f1(pct(semCpf,P.length))}% — dificultam o cruzamento</span></div>
   </div>
   ${(backupDias()===null||backupDias()>7)?`<div class="warn noprint" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><span>⚠️ ${S.lastBackup?`Faz <b>${backupDias()} dias</b> que você não baixa um backup.`:'Você ainda não baixou nenhum backup.'} Guarde uma cópia em local seguro (LGPD).</span><button class="btn sm pri" id="bkNow">Baixar backup agora</button></div>`:''}
-  <div class="grid g2" style="margin-top:14px;align-items:start">
+  <div class="homegrid">
     <div class="card"><h3>Prioridades de busca ativa <small>maior impacto primeiro</small></h3>
-      ${prio.length?`<div class="quick">${prio.map((p,i)=>`<div class="action"><div class="rank">${i+1}</div><div class="g"><b>${p.cod} · ${IND[p.cod].curto} — ${eqName(p.eq)}</b><span>${fmt(p.pend)} pessoa(s) com pendência de ${fmt(p.den)} no indicador</span></div><div class="imp">+${f1(p.impacto)}<small>pontos potenciais</small></div><button class="btn sm pri" data-act="${p.cod}|${p.eq}">Abrir lista</button></div>`).join('')}</div>`:'<div class="empty">Importe as listas do SIAPS para o sistema priorizar a busca ativa.</div>'}
+      ${prio.length?`<div class="quick">${prio.map((p,i)=>`<div class="action"><div class="rank">${i+1}</div><div class="g"><b title="${esc(p.cod+' · '+IND[p.cod].nome+' — '+eqName(p.eq))}">${p.cod} · ${IND[p.cod].curto} — ${eqName(p.eq)}</b><div class="meta"><span title="${fmt(p.pend)} de ${fmt(p.den)} pessoas do indicador têm alguma pendência · pontos que o indicador pode ganhar">${fmt(p.pend)} pendentes · <strong>+${f1(p.impacto)} pts</strong></span><button class="btn sm pri" data-act="${p.cod}|${p.eq}">Abrir lista</button></div></div></div>`).join('')}</div>`:'<div class="empty">Importe as listas do SIAPS para o sistema priorizar a busca ativa.</div>'}
     </div>
     <div>
       <div class="card"><h3>Situação das importações</h3>
@@ -905,28 +1014,35 @@ async function aplicarCondicoes(){const cont={hiper:0,dia:0,gest:0};const alvo={
  await save('pEdit','pNew');logAction('Condições de saúde aplicadas ao cadastro',`hipertensos=${cont.hiper} diabéticos=${cont.dia} gestantes=${cont.gest}`);buildDB();toast(`${n} cadastro(s) atualizado(s) ✓`);refreshSoft()}
 function vCadastro(m){const c=UI.cad;  const eqOpts=`<option value="">Todas as equipes</option>${DB.eq.map(e=>`<option value="${e.id}" ${c.eq===e.id?'selected':''}>${e.nome}</option>`).join('')}`;
   const maOpts=c.eq?`<option value="">Todas as microáreas</option>${DB.eqById[c.eq].mas.map(x=>`<option value="${x[0]}" ${c.ma===x[0]?'selected':''}>MA ${x[0]} · ${esc(x[2])}</option>`).join('')}`:'<option value="">Microárea</option>';
-  m.innerHTML=head('Famílias e pessoas','Busque por nome, CPF, CNS ou endereço. Clique numa pessoa para ver e atualizar os dados.',`<button class="btn" id="condBtn">Condições do SIAPS</button><button class="btn" id="dupBtn">Duplicidades</button><button class="btn" id="novaP">+ Nova pessoa</button><button class="btn" id="novaF">+ Nova família</button><button class="btn" id="cadAcsXls">📥 Planilha por ACS</button><button class="btn" id="expCad">Exportar Excel</button>`)+
+  m.innerHTML=head('Famílias e pessoas','Busque por nome, CPF, CNS ou endereço. Clique numa pessoa para ver e atualizar os dados.',`<button class="btn pri" id="novaP">＋ Nova pessoa</button><button class="btn" id="novaF">＋ Nova família</button>${ddMenu('cadMais','⋯ Mais',[['condBtn','Aplicar condições do SIAPS'],['dupBtn','Ver duplicidades'],['cadAcsXls','Planilha por ACS'],['expCad','Exportar Excel']])}`)+
   `<div class="card"><div class="bar" style="margin-bottom:12px">
     <input type="search" id="q" placeholder="Nome, CPF, CNS, logradouro…" value="${esc(c.q)}" style="flex:1;min-width:220px">
     <select id="fEq">${eqOpts}</select><select id="fMa" ${c.eq?'':'disabled'}>${maOpts}</select>
     <select id="fFx"><option value="">Todas as idades</option>${[['c2','Menores de 2 anos'],['c9','2 a 9 anos'],['ad','10 a 59 anos'],['i60','60 anos ou mais'],['m2564','Mulheres 25–64 (verificar sexo)']].map(([v,t])=>`<option value="${v}" ${c.faixa===v?'selected':''}>${t}</option>`).join('')}</select>
-    <select id="fFl"><option value="">Sem filtro de qualidade</option>${[['hiper','Hipertensos (C5)'],['dia','Diabéticos (C4)'],['gest','Gestantes (C3)'],['cri2','Crianças <2 anos (C2)'],['idoso','Pessoas idosas (C6)'],['c7','Mulheres prev. câncer (C7)'],['c1','Mais acesso (C1)'],['semcpf','Sem CPF'],['cpfinv','CPF inválido'],['trunc','Nome cortado no relatório'],['edit','Alterados por mim'],['inat','Inativos (mudou/óbito)']].map(([v,t])=>`<option value="${v}" ${c.flag===v?'selected':''}>${t}</option>`).join('')}</select>
+    <select id="fFl" aria-label="Grupo ou situação"><option value="">Todos os grupos</option>${[['hiper','Hipertensos (C5)'],['dia','Diabéticos (C4)'],['gest','Gestantes (C3)'],['cri2','Crianças <2 anos (C2)'],['idoso','Pessoas idosas (C6)'],['c7','Mulheres prev. câncer (C7)'],['c1','Mais acesso (C1)'],['trunc','Nome cortado no relatório'],['edit','Alterados por mim'],['inat','Inativos (mudou/óbito)']].map(([v,t])=>`<option value="${v}" ${c.flag===v?'selected':''}>${t}</option>`).join('')}</select>
     <span class="tabs" style="margin:0;border:0">${['pessoas','familias'].map(k=>`<button class="tab ${c.modo===k?'on':''}" data-modo="${k}">${k==='pessoas'?'Pessoas':'Famílias'}</button>`).join('')}</span>
-   </div><div class="printonly">${prCab('Cadastro de famílias e pessoas',(c.eq?eqName(c.eq):'todas as equipes'))}</div><div id="cadRes"></div></div>`;
+   </div>${qualChips()}<div class="printonly">${prCab('Cadastro de famílias e pessoas',(c.eq?eqName(c.eq):'todas as equipes'))}</div><div id="cadRes"></div></div>`;
   const up=()=>{c.page=0;cadList()};
   $('#q').oninput=e=>{c.q=e.target.value;up()};
   $('#fEq').onchange=e=>{c.eq=e.target.value;c.ma='';c.page=0;render()};
   $('#fMa').onchange=e=>{c.ma=e.target.value;up()};$('#fFx').onchange=e=>{c.faixa=e.target.value;up()};$('#fFl').onchange=e=>{c.flag=e.target.value;up()};
   $$('[data-modo]',m).forEach(b=>b.onclick=()=>{c.modo=b.dataset.modo;c.page=0;render()});
+  $$('[data-qf]',m).forEach(b=>b.onclick=()=>{const k=b.dataset.qf;if(k==='naoloc'){Object.assign(UI.ind,{tab:'naoloc',eq:'ALL',ma:'',page:0});UI.view='ind';render();return}c.flag=c.flag===k?'':k;c.page=0;render()});
   $('#novaP').onclick=()=>modalPessoaEdit(null);$('#novaF').onclick=()=>modalFamilia(null);$('#expCad').onclick=exportCadastro;$('#cadAcsXls').onclick=modalPlanilhaACS;$('#dupBtn').onclick=mostraDuplicidades;$('#condBtn').onclick=aplicarCondicoes;
   cadList();
 }
+function qualChips(){const c=UI.cad,P=ativos(),comp=compAtual();
+  const semEq=P.filter(p=>!DB.eqById[famOf(p).eq]).length,semCpf=P.filter(p=>!p.cpf).length,cpfInv=P.filter(p=>p.cpf&&!cpfOk(p.cpf)).length;
+  let naoLoc=0;for(const imp of S.imports)if(imp.comp===comp)for(const r of imp.rows)if(!matchRow(r).p)naoLoc++;
+  const b=(k,t,n,tip)=>`<button class="qchip ${c.flag===k?'on':''} ${n?'warnq':''}" data-qf="${k}" aria-pressed="${c.flag===k}" title="${tip}">${t} <b>${fmt(n)}</b>${k==='naoloc'?' →':''}</button>`;
+  return `<div class="bar noprint" style="margin:-2px 0 12px"><span class="mini" style="font-weight:700">Qualidade do cadastro:</span>
+   ${b('semeq','Sem equipe',semEq,'Pessoas ativas sem equipe ou microárea')}${b('semcpf','Sem CPF',semCpf,'Pessoas ativas sem CPF — dificultam o cruzamento com o SIAPS')}${b('cpfinv','CPF inválido',cpfInv,'CPF com dígito verificador errado')}${comp?b('naoloc','Não localizados no SIAPS',naoLoc,'Pessoas das listas do SIAPS ('+compLabel(comp)+') que não foram encontradas no cadastro. Abre Indicadores › Não localizados.'):''}</div>`}
 function filtPessoas(){const c=UI.cad;const q=norm(c.q),qd=onlyDig(c.q);const gsF=gruposSets();
   return[...DB.pes.values()].filter(p=>{const f=famOf(p);
     if(c.flag==='inat'){if(p.situacao==='Ativo')return false}else if(p.situacao!=='Ativo')return false;
     if(c.eq&&f.eq!==c.eq)return false;if(c.ma&&f.ma!==c.ma)return false;
     if(c.faixa){const a=idade(p.nasc);if(c.faixa==='c2'&&!(a<2))return false;if(c.faixa==='c9'&&!(a>=2&&a<=9))return false;if(c.faixa==='ad'&&!(a>=10&&a<=59))return false;if(c.faixa==='i60'&&!(a>=60))return false;if(c.faixa==='m2564'&&!(a>=25&&a<=64&&p.sexo!=='M'))return false}
-    if(c.flag==='semcpf'&&p.cpf)return false;if(c.flag==='cpfinv'&&(!p.cpf||cpfOk(p.cpf)))return false;if(c.flag==='trunc'&&!p.trunc)return false;if(c.flag==='edit'&&!p.editado&&p.orig)return false;
+    if(c.flag==='semeq'&&DB.eqById[f.eq])return false;if(c.flag==='semcpf'&&p.cpf)return false;if(c.flag==='cpfinv'&&(!p.cpf||cpfOk(p.cpf)))return false;if(c.flag==='trunc'&&!p.trunc)return false;if(c.flag==='edit'&&!p.editado&&p.orig)return false;
     if(c.flag==='hiper'&&!p.hiper&&!gsF.C5.has(p.cod))return false;if(c.flag==='dia'&&!p.dia&&!gsF.C4.has(p.cod))return false;if(c.flag==='gest'&&!p.gest&&!gsF.C3.has(p.cod))return false;
     if(c.flag==='cri2'&&!gsF.C2.has(p.cod))return false;if(c.flag==='idoso'&&!gsF.C6.has(p.cod))return false;if(c.flag==='c7'&&!gsF.C7.has(p.cod))return false;if(c.flag==='c1'&&!gsF.C1.has(p.cod))return false;
     if(q){if(qd.length>=5&&(p.cpf.includes(qd)||p.cns.includes(qd)))return true;return norm(p.nome).includes(q)||norm(f.logr).includes(q)}
@@ -934,12 +1050,13 @@ function filtPessoas(){const c=UI.cad;const q=norm(c.q),qd=onlyDig(c.q);const gs
 function cadList(){const c=UI.cad;const box=$('#cadRes');const PS=60;
   if(c.modo==='familias'){const pes=filtPessoas();const fset=new Map();for(const p of pes){const f=famOf(p);if(!fset.has(f.cod))fset.set(f.cod,f)}
     const fl=[...fset.values()].sort((a,b)=>(a.eq+a.ma+a.num).localeCompare(b.eq+b.ma+b.num));const pg=fl.slice(c.page*PS,(c.page+1)*PS);
-    box.innerHTML=`<div class="mini" style="margin-bottom:6px">${fmt(fl.length)} famílias</div><div class="tw"><table><thead><tr><th>Equipe</th><th>MA</th><th>Nº</th><th>Endereço</th><th>ACS</th><th>Membros</th><th></th></tr></thead><tbody>${pg.map(f=>{const mem=(DB.members.get(f.cod)||[]).filter(p=>p.situacao==='Ativo');return `<tr><td>${eqChip(f.eq)}</td><td>${f.ma}</td><td>${esc(f.num)}</td><td>${esc(endereco(f))}${f.editado?' <span class="tag blue">editado</span>':''}</td><td class="small">${esc(acsOf(f))}</td><td class="small">${mem.map(p=>`<a href="#" data-p="${p.cod}">${esc(p.nome)}</a>${p.chefe?' <span class="tag green">chefe</span>':''}`).join('<br>')}</td><td><button class="btn sm" data-f="${f.cod}">Editar</button></td></tr>`}).join('')}</tbody></table></div>${pager(fl.length,PS)}`;
+    box.innerHTML=`<div class="mini" style="margin-bottom:6px">${fmt(fl.length)} famílias</div><div class="tw" id="cadTw"><table><thead><tr><th>Equipe</th><th>MA</th><th>Nº</th><th>Endereço</th><th>ACS</th><th>Membros</th><th></th></tr></thead><tbody>${pg.map(f=>{const mem=(DB.members.get(f.cod)||[]).filter(p=>p.situacao==='Ativo');return `<tr><td>${eqChip(f.eq)}</td><td>${f.ma}</td><td>${esc(f.num)}</td><td>${esc(endereco(f))}${f.editado?' <span class="tag blue">editado</span>':''}</td><td class="small">${esc(acsOf(f))}</td><td class="small">${mem.map(p=>`<a href="#" data-p="${p.cod}">${esc(p.nome)}</a>${p.chefe?' <span class="tag green">chefe</span>':''}`).join('<br>')}</td><td><button class="btn sm" data-f="${f.cod}">Editar</button></td></tr>`}).join('')}</tbody></table></div>${pager(fl.length,PS)}`;
     $$('[data-f]',box).forEach(b=>b.onclick=()=>modalFamilia(b.dataset.f));
   }else{const pl=filtPessoas().sort((a,b)=>{const fa=famOf(a),fb=famOf(b);return((fa.eq||'')+(fa.ma||'')+(fa.num||'')).localeCompare((fb.eq||'')+(fb.ma||'')+(fb.num||''))||a.nome.localeCompare(b.nome)});const pg=pl.slice(c.page*PS,(c.page+1)*PS);
-    box.innerHTML=`<div class="mini" style="margin-bottom:6px">${fmt(pl.length)} pessoas</div><div class="tw"><table><thead><tr><th>Nome</th><th>Idade</th><th>CPF</th><th>CNS</th><th>Equipe</th><th>MA</th><th>Endereço</th></tr></thead><tbody>${pg.map(p=>{const f=famOf(p);const col=sitColor(p.situacao);return `<tr class="click" data-p="${p.cod}"><td style="${col?'border-left:5px solid '+col:''}"><b>${esc(p.nome)}</b>${p.situacao!=='Ativo'?' <span class="tag" style="background:'+col+'22;color:'+col+'">'+esc(p.situacao)+'</span>':''}${p.chefe?' <span class="tag green">chefe</span>':''}${p.trunc?' <span class="tag">nome cortado</span>':''}${p.editado||!p.orig?' <span class="tag blue">editado</span>':''}</td><td>${idadeTxt(p.nasc)}</td><td class="small">${p.cpf?fmtCPF(p.cpf)+(cpfOk(p.cpf)?'':' <span class="tag red">inválido</span>'):'<span class="tag gray">sem CPF</span>'}</td><td class="small">${esc(p.cns)}</td><td>${eqChip(f.eq)}</td><td>${f.ma||'—'}</td><td class="small">${esc(endereco(f))||'—'}</td></tr>`}).join('')}</tbody></table></div>${pager(pl.length,PS)}`}
+    box.innerHTML=`<div class="mini" style="margin-bottom:6px">${fmt(pl.length)} pessoas</div><div class="tw" id="cadTw"><table><thead><tr><th>Nome</th><th>Idade</th><th>CPF</th><th>CNS</th><th>Equipe</th><th>MA</th><th>Endereço</th></tr></thead><tbody>${pg.map(p=>{const f=famOf(p);const col=sitColor(p.situacao);return `<tr class="click" data-p="${p.cod}"><td style="${col?'border-left:5px solid '+col:''}"><b>${esc(p.nome)}</b>${p.situacao!=='Ativo'?' <span class="tag" style="background:'+col+'22;color:'+col+'">'+esc(p.situacao)+'</span>':''}${p.chefe?' <span class="tag green">chefe</span>':''}${p.trunc?' <span class="tag">nome cortado</span>':''}${p.editado||!p.orig?' <span class="tag blue">editado</span>':''}</td><td>${idadeTxt(p.nasc)}</td><td class="small">${p.cpf?fmtCPF(p.cpf)+(cpfOk(p.cpf)?'':' <span class="tag red">inválido</span>'):'<span class="tag gray">sem CPF</span>'}</td><td class="small">${esc(p.cns)}</td><td>${eqChip(f.eq)}</td><td>${f.ma||'—'}</td><td class="small">${esc(endereco(f))||'—'}</td></tr>`}).join('')}</tbody></table></div>${pager(pl.length,PS)}`}
   $$('[data-p]',box).forEach(el=>el.onclick=e=>{e.preventDefault();modalPessoa(el.dataset.p)});
-  $$('[data-pg]',box).forEach(b=>b.onclick=()=>{c.page=+b.dataset.pg;cadList()});
+  $$('[data-pg]',box).forEach(b=>b.onclick=()=>{c.page=+b.dataset.pg;cadList();const t=$('#cadTw');if(t&&t.getBoundingClientRect().top<0)window.scrollTo({top:scrollY+t.getBoundingClientRect().top-90})});
+  stickyTable($('#cadTw',box));
 }
 function pager(n,ps,key='pg'){const pages=Math.ceil(n/ps);const cur=key==='pg'?UI.cad.page:UI.ind.page;if(pages<=1)return '';return `<div class="pager"><span class="mini">Página ${cur+1} de ${pages}</span><button class="btn sm" data-${key}="${Math.max(0,cur-1)}" ${cur===0?'disabled':''}>‹ Anterior</button><button class="btn sm" data-${key}="${Math.min(pages-1,cur+1)}" ${cur>=pages-1?'disabled':''}>Próxima ›</button></div>`}
 
@@ -1049,7 +1166,7 @@ function exportCadastro(){const rows=filtPessoas().map(p=>{const f=famOf(p);retu
 
 /* ===================== MONITORAMENTO DE INDICADORES ===================== */
 function vInd(m){const s=UI.ind;
-  const comps=compsOf(s.cod);if(!comps.includes(s.comp))s.comp=comps[comps.length-1]||'';
+  const comps=compsOf(s.cod),G=compAtual();s.comp=comps.includes(G)?G:(comps.filter(c=>c<=G).pop()||comps[comps.length-1]||'');
   const eqWith=[...new Set(S.imports.filter(i=>i.cod===s.cod&&i.comp===s.comp).flatMap(i=>i.ines).map(ine=>{const e=eqByINE(ine);return e?e.id:'__INE_'+ine}))];
   if(!s.eq||(s.eq!=='ALL'&&!eqWith.includes(s.eq)))s.eq=eqWith.length===1?eqWith[0]:(eqWith.length?'ALL':'');
   const tabs=[['resumo','Resumo'],['lista','Lista nominal / busca ativa'],['naoloc','Não localizados'],['diverg','Divergências de cadastro'],['comparar','Comparar e evolução']];
@@ -1057,7 +1174,7 @@ function vInd(m){const s=UI.ind;
     `<button class="btn" id="toImp">⬆ Importar planilhas</button><button class="btn" id="toRel">🖨 Relatórios</button><button class="btn" onclick="imprimir()">🖨 Imprimir</button>`)+
    `<div class="bar noprint" style="margin-bottom:12px">${IND_ORDER.map(c=>{const has=S.imports.some(i=>i.cod===c);return `<button class="btn sm ${s.cod===c?'pri':''}" data-cod="${c}" title="${IND[c].nome}">${c} · ${IND[c].curto}${has?'':' <span style="opacity:.6">(sem dados)</span>'}</button>`}).join('')}</div>
    <div class="card"><div class="split noprint" style="flex-wrap:wrap"><div class="bar">
-     <select id="iComp">${comps.length?comps.map(c=>`<option value="${c}" ${c===s.comp?'selected':''}>Competência ${compLabel(c)}</option>`).join(''):'<option>Sem competências</option>'}</select>
+     ${s.comp?`<span class="chip" title="A competência é escolhida no topo da tela">Competência ${compLabel(s.comp)}</span>${G&&s.comp!==G?`<span class="tag" title="Não há lista deste indicador na competência escolhida no topo">sem lista em ${compLabel(G)}</span>`:''}`:''}
      <select id="iEq">${eqWith.length>1?`<option value="ALL" ${s.eq==='ALL'?'selected':''}>Todas as equipes</option>`:''}${eqWith.map(id=>`<option value="${id}" ${s.eq===id?'selected':''}>${id.startsWith('__')?'INE '+id.slice(6)+' (sem equipe)':DB.eqById[id].nome}</option>`).join('')}</select></div>
      <div class="mini">${IND[s.cod].nome}</div></div>
     <div class="tabs noprint" style="margin-top:12px">${tabs.map(([k,t])=>`<button class="tab ${s.tab===k?'on':''}" data-tab="${k}">${t}</button>`).join('')}</div>
@@ -1065,7 +1182,7 @@ function vInd(m){const s=UI.ind;
   $('#toImp').onclick=()=>{UI.view='imp';render()};$('#toRel').onclick=()=>{UI.view='rel';render()};
   $$('[data-cod]',m).forEach(b=>b.onclick=()=>{s.cod=b.dataset.cod;s.comp='';s.page=0;s.pend='';s.quadri='';s.sv='';render()});
   $$('[data-tab]',m).forEach(b=>b.onclick=()=>{s.tab=b.dataset.tab;s.page=0;render()});
-  $('#iComp').onchange=e=>{s.comp=e.target.value;s.ma='';render()};$('#iEq').onchange=e=>{s.eq=e.target.value;s.ma='';s.page=0;render()};
+  $('#iEq').onchange=e=>{s.eq=e.target.value;s.ma='';s.page=0;render()};
   const body=$('#iBody');
   if(!s.comp){body.innerHTML=`<div class="empty">Ainda não há lista importada para <b>${IND[s.cod].nome}</b>.<br><br><button class="btn pri" id="gi">Importar planilha</button></div>`;$('#gi').onclick=()=>{UI.view='imp';render()};return}
   const rows=rowsFor(s.cod,s.comp,s.eq);
@@ -1130,15 +1247,15 @@ function tLista(b,rows){const s=UI.ind,d=IND[s.cod];const keys=Object.keys(d.bp)
   if(s.sv){const vp=visitasPorPessoa();L=L.filter(x=>{if(!x.p)return false;const d=vp.get(x.p.cod);if(!d)return true;if(s.sv==='nunca')return false;return Math.floor((TODAY-new Date(d+'T00:00:00'))/MS_DAY)>=(+s.sv)})}
   let nExtras=0;if(isG||isC2){let ex=extraRows(s.cod,s.eq);if(s.ma==='__')ex=[];else if(s.ma)ex=ex.filter(x=>x.ma===s.ma);const q=norm(s.q);if(q)ex=ex.filter(x=>norm(x.p?.nome||'').includes(q)||(x.r.cpf||'').includes(onlyDig(s.q)||'@@'));nExtras=ex.length;if(ex.length)L=L.concat(ex)}
   const PS=80;const pg=L.slice(s.page*PS,(s.page+1)*PS);  const mas=[...new Set(enrich(rows).filter(x=>x.p).map(x=>x.eq+'-'+x.ma))].sort();
-  const rowsHtml=x=>`<tr class="click" data-rp="${x.p?x.p.cod:''}" data-rk="${esc(rowKey(x.r))}"${isG&&x.p&&(x.p.parto||x.p.aborto)?(x.p.parto?' style="background:#ffe9f2"':' style="background:#fff5e6"'):''}><td style="${isG&&x.p&&(x.p.parto||x.p.aborto)?(x.p.parto?'border-left:5px solid #d63384':'border-left:5px solid #d98a2b'):''}">${x.p?`<b>${esc(x.p.nome)}</b>${x.extra?' <span class="tag blue" title="Pessoa do cadastro que ainda não consta na lista SIAPS">🔹 não consta no SIAPS</span>':''}${isG&&x.p&&x.p.parto?' <span class="tag" style="background:#ffd6e7;color:#a3155b">puérpera'+(puerperioTxt(x.p)?' ('+puerperioTxt(x.p)+')':'' )+'</span>':''}${isG&&x.p&&x.p.aborto?' <span class="tag" style="background:#ffe9cf;color:#8a5a00">aborto</span>':''}${isG&&x.p&&x.p.aborto&&x.p.abortoEsus?' <span class="tag green" title="Detectado pelo Atendimento Individual (e-SUS)">via Atend. Individual</span>':''}${isG&&!dppRow(x)?' <span class="tag">sem DUM</span>':''}${(isG&&x.p&&!x.p.parto&&!x.p.aborto&&partoDeAtend(x.p))?' <span class="tag blue" title="Parto identificado no e-SUS (CID de parto)">👶 parto detectado</span>':''}${(isG&&x.p&&!x.p.parto&&!x.p.aborto&&abortoDeAtend(x.p))?' <span class="tag blue" title="Aborto identificado no e-SUS (CID O0x / CIAP W82-W83)">⚕ aborto detectado</span>':''}<div class="mini">${x.r.cpf?'CPF '+fmtCPF(x.r.cpf):'CNS '+esc(x.r.cns)} · via ${x.via}${s.sv?' · última visita: '+((visitasPorPessoa().get(x.p.cod))?brDate(visitasPorPessoa().get(x.p.cod)):'<b>nunca</b>'):''}</div>`:`<span class="tag red">não localizado</span><div class="mini">${x.r.cpf?'CPF '+fmtCPF(x.r.cpf):'CNS '+esc(x.r.cns)} · nasc. ${brDate(x.r.nasc)} · ${x.r.sexo}</div>`}</td>
-     <td class="small">${idadeTxt(x.p?.nasc||x.r.nasc)}</td>${isG?`<td><input type="date" class="dumInp" data-p="${x.p?x.p.cod:''}" value="${x.p&&x.p.dum?x.p.dum:''}" ${x.p?'':'disabled'} style="padding:4px 6px"></td><td class="small">${dppRow(x)?brDate(dppRow(x)):'—'}</td><td class="small">${x.p&&x.p.dum?igTxtFrom(x.p.dum):'—'}</td><td style="text-align:center"><input type="checkbox" class="ganhouChk" data-p="${x.p?x.p.cod:''}" ${x.p&&x.p.parto?'checked':''} ${x.p?'':'disabled'} title="Marque se a gestante já ganhou (parto)"></td><td><input type="date" class="partoInp" data-p="${x.p?x.p.cod:''}" value="${x.p&&x.p.parto?x.p.parto:''}" ${x.p?'':'disabled'} style="padding:4px 6px"></td><td class="small">${puerperioTxt(x.p)||'—'}</td><td style="text-align:center"><input type="checkbox" class="abortoChk" data-p="${x.p?x.p.cod:''}" ${x.p&&x.p.aborto?'checked':''} ${x.p?'':'disabled'} title="Marque se houve aborto"></td><td><input type="date" class="abortoInp" data-p="${x.p?x.p.cod:''}" value="${x.p&&x.p.aborto?x.p.aborto:''}" ${x.p?'':'disabled'} style="padding:4px 6px"></td>`:''}${isC2?`<td class="small">${refRow(x)?brDate(refRow(x)):'—'}</td>`:''}<td class="small">${x.f?esc(endereco(x.f)):'—'}</td><td class="small">${x.p?`${eqChip(x.eq)} MA ${x.ma}<br>${esc(acsOf(x.f))}`:'—'}</td>
+  const rowsHtml=x=>`<tr class="click" data-rp="${x.p?x.p.cod:''}" data-rk="${esc(rowKey(x.r))}"${isG&&x.p&&(x.p.parto||x.p.aborto)?(x.p.parto?' style="background:#ffe9f2"':' style="background:#fff5e6"'):''}><td class="pac" style="${isG&&x.p&&(x.p.parto||x.p.aborto)?(x.p.parto?'border-left:5px solid #d63384':'border-left:5px solid #d98a2b'):''}">${x.p?`<b>${esc(x.p.nome)}</b>${x.extra?' <span class="tag blue" title="Pessoa do cadastro que ainda não consta na lista SIAPS">🔹 não consta no SIAPS</span>':''}${isG&&x.p&&x.p.parto?' <span class="tag" style="background:#ffd6e7;color:#a3155b">puérpera'+(puerperioTxt(x.p)?' ('+puerperioTxt(x.p)+')':'' )+'</span>':''}${isG&&x.p&&x.p.aborto?' <span class="tag" style="background:#ffe9cf;color:#8a5a00">aborto</span>':''}${isG&&x.p&&x.p.aborto&&x.p.abortoEsus?' <span class="tag green" title="Detectado pelo Atendimento Individual (e-SUS)">via Atend. Individual</span>':''}${isG&&!dppRow(x)?' <span class="tag">sem DUM</span>':''}${(isG&&x.p&&!x.p.parto&&!x.p.aborto&&partoDeAtend(x.p))?' <span class="tag blue" title="Parto identificado no e-SUS (CID de parto)">👶 parto detectado</span>':''}${(isG&&x.p&&!x.p.parto&&!x.p.aborto&&abortoDeAtend(x.p))?' <span class="tag blue" title="Aborto identificado no e-SUS (CID O0x / CIAP W82-W83)">⚕ aborto detectado</span>':''}<div class="mini">${x.r.cpf?'CPF '+fmtCPF(x.r.cpf):'CNS '+esc(x.r.cns)} · via ${x.via}${s.sv?' · última visita: '+((visitasPorPessoa().get(x.p.cod))?brDate(visitasPorPessoa().get(x.p.cod)):'<b>nunca</b>'):''}</div>`:`<span class="tag red">não localizado</span><div class="mini">${x.r.cpf?'CPF '+fmtCPF(x.r.cpf):'CNS '+esc(x.r.cns)} · nasc. ${brDate(x.r.nasc)} · ${x.r.sexo}</div>`}</td>
+     <td class="small">${idadeTxt(x.p?.nasc||x.r.nasc)}</td>${isG?`<td><input type="date" class="dumInp" data-p="${x.p?x.p.cod:''}" value="${x.p&&x.p.dum?x.p.dum:''}" ${x.p?'':'disabled'} style="padding:4px 6px"></td><td class="small">${dppRow(x)?brDate(dppRow(x)):'—'}</td><td class="small">${x.p&&x.p.dum?igTxtFrom(x.p.dum):'—'}</td><td style="text-align:center"><input type="checkbox" class="ganhouChk" data-p="${x.p?x.p.cod:''}" ${x.p&&x.p.parto?'checked':''} ${x.p?'':'disabled'} title="Marque se a gestante já ganhou (parto)"></td><td><input type="date" class="partoInp" data-p="${x.p?x.p.cod:''}" value="${x.p&&x.p.parto?x.p.parto:''}" ${x.p?'':'disabled'} style="padding:4px 6px"></td><td class="small">${puerperioTxt(x.p)||'—'}</td><td style="text-align:center"><input type="checkbox" class="abortoChk" data-p="${x.p?x.p.cod:''}" ${x.p&&x.p.aborto?'checked':''} ${x.p?'':'disabled'} title="Marque se houve aborto"></td><td><input type="date" class="abortoInp" data-p="${x.p?x.p.cod:''}" value="${x.p&&x.p.aborto?x.p.aborto:''}" ${x.p?'':'disabled'} style="padding:4px 6px"></td>`:''}${isC2?`<td class="small">${refRow(x)?brDate(refRow(x)):'—'}</td>`:''}<td class="small addr">${x.f?esc(endereco(x.f)):'—'}</td>
      ${keys.map(k=>{const st=x.e.elig.includes(k)?(x.e.ok.includes(k)?'y':'n'):'na';const ovr=st==='na'?false:doneInfo(s.cod,x.r,k).ovr;const es=(st==='n'&&x.p&&esusConfirma(s.cod,k,x.p));if(st==='na')return '<td style="text-align:center"><span class="ck na">–</span></td>';return `<td style="text-align:center"><span class="ck ${st} mkToggle" data-rk="${esc(rowKey(x.r))}" data-k="${esc(k)}" title="Clique para marcar/desmarcar como realizado" style="cursor:pointer">${st==='y'?'✓':'✗'}</span>${ovr?'<sup title="Marcado por você — o ministério ainda não considerou" style="color:#b26a00;font-weight:700;cursor:help">⚑</sup>':''}${es?'<sup title="A produção e-SUS confirma este item" style="color:#0f6b41;font-weight:700;cursor:help">✔eSUS</sup>':''}</td>`}).join('')}
      <td class="num"><b>${x.e.score}</b><span class="muted">/${x.e.max}</span></td></tr>`;
-  const ncols=5+((isG?8:isC2?1:0))+keys.length;
-  const listBody=list=>{const grp=new Map();for(const x of list){const k=x.p?('g|'+x.eq+'|'+x.ma):'nl';if(!grp.has(k))grp.set(k,[]);grp.get(k).push(x)}return[...grp.entries()].map(([k,xs])=>{let head;if(k==='nl')head=`<tr class="grph"><td colspan="${ncols}">Não localizados no cadastro (${xs.length})</td></tr>`;else{const pp=k.split('|'),eq=pp[1],ma=pp[2],info=DB.ma[eq+'-'+ma],cfg=S.eqCfg[eq]||{},aa=cfg.maAcs&&cfg.maAcs[ma],nome=(info&&info.acs)||(aa&&aa.nome)||'';head=`<tr class="grph"><td colspan="${ncols}">${eqChip(eq)} · MA ${esc(ma)} · ACS ${esc(nome||'—')} <span class="muted" style="font-weight:400">(${xs.length} pessoa(s))</span></td></tr>`}return head+xs.map(rowsHtml).join('')}).join('')};
+  const ncols=4+((isG?8:isC2?1:0))+keys.length;
+  const listBody=list=>{const grp=new Map();for(const x of list){const k=x.p?('g|'+x.eq+'|'+x.ma):'nl';if(!grp.has(k))grp.set(k,[]);grp.get(k).push(x)}return[...grp.entries()].map(([k,xs])=>{let head;if(k==='nl')head=`<tr class="grph"><td colspan="${ncols}"><span class="stl">Não localizados no cadastro (${xs.length})</span></td></tr>`;else{const pp=k.split('|'),eq=pp[1],ma=pp[2],info=DB.ma[eq+'-'+ma],cfg=S.eqCfg[eq]||{},aa=cfg.maAcs&&cfg.maAcs[ma],nome=(info&&info.acs)||(aa&&aa.nome)||'';head=`<tr class="grph"><td colspan="${ncols}"><span class="stl">${eqChip(eq)} · MA ${esc(ma)} · ACS ${esc(nome||'—')} <span class="muted" style="font-weight:400">(${xs.length} pessoa(s))</span></span></td></tr>`}return head+xs.map(rowsHtml).join('')}).join('')};
   const bodyRows=listBody(pg);
   const bodyPrint=listBody(L);
-  const thead=`<thead><tr><th>Paciente</th><th>Idade</th>${isG?'<th>DUM</th><th>DPP</th><th>IG</th><th title="Marque se a gestante já ganhou (parto)">Já ganhou?</th><th title="Informe a data do parto (vira puérpera)">Data do parto</th><th title="Dias de puerpério (até 42 dias)">Puerpério</th><th title="Marque se houve aborto">Aborto?</th><th title="Data do aborto">Data do aborto</th>':''}${isC2?'<th title="Data em que a criança completa 2 anos">Completa 2 anos</th>':''}<th>Endereço</th><th>MA / ACS</th>${keys.map(k=>`<th title="${esc(d.bp[k][1])} · ${d.bp[k][0]} pts" style="text-align:center;white-space:normal;text-transform:none;letter-spacing:0;font-weight:600;vertical-align:bottom;min-width:130px;max-width:170px">${d.tipo==='acesso'?'Atendimento programado':esc(d.bp[k][1])}</th>`).join('')}<th class="num">Pontos</th></tr></thead>`;
+  const thead=`<thead><tr><th>Paciente</th><th>Idade</th>${isG?'<th>DUM</th><th>DPP</th><th>IG</th><th title="Marque se a gestante já ganhou (parto)">Já ganhou?</th><th title="Informe a data do parto (vira puérpera)">Data do parto</th><th title="Dias de puerpério (até 42 dias)">Puerpério</th><th title="Marque se houve aborto">Aborto?</th><th title="Data do aborto">Data do aborto</th>':''}${isC2?'<th title="Data em que a criança completa 2 anos">Completa 2 anos</th>':''}<th>Endereço</th>${keys.map(k=>`<th title="${esc(d.bp[k][1])} · ${d.bp[k][0]} pts" style="text-align:center;white-space:normal;text-transform:none;letter-spacing:0;font-weight:600;vertical-align:bottom;min-width:100px;max-width:150px">${d.tipo==='acesso'?'Atendimento programado':esc(d.bp[k][1])}</th>`).join('')}<th class="num">Pontos</th></tr></thead>`;
 
   b.innerHTML=`<div class="printonly">${prCab(IND[s.cod].nome,'Competência '+compLabel(s.comp)+' · '+(s.eq==='ALL'?'todas as equipes':eqName(s.eq)))}</div><div class="bar noprint" style="margin-bottom:10px"><input type="search" id="lq" placeholder="Buscar nome, CPF ou rua" value="${esc(s.q)}" style="min-width:220px">
     <select id="lma"><option value="">Todos os ACS / microáreas</option>${mas.map(k=>`<option value="${k}" ${s.ma===k?'selected':''}>${k.replace('-',' · MA ')} · ${esc(DB.ma[k]?.acs||'')}</option>`).join('')}<option value="__" ${s.ma==='__'?'selected':''}>Não localizados</option></select>
@@ -1150,9 +1267,10 @@ function tLista(b,rows){const s=UI.ind,d=IND[s.cod];const keys=Object.keys(d.bp)
     <button class="btn" id="lupd">🔄 Atualizar lista</button>
     <button class="btn" id="lx">Exportar busca ativa (Excel)</button></div>
    <div class="noprint"><div class="mini" style="margin-bottom:6px">${fmt(L.length)} ${isG?'gestantes':isC2?'crianças':'pessoas'}${isG?' · <b>DUM</b> editável · <b>DPP</b> = DUM + 280 dias · marque <b>Já ganhou?</b> ao nascer ou <b>Aborto?</b> se houve aborto':isC2?' · ordenadas pela data em que completam <b>2 anos</b> — use o filtro de quadrimestre':''} · ✓ realizado · ✗ pendente · – não se aplica${nExtras?` · <b style="color:#1f5aa6">${nExtras} do cadastro ainda não constam no SIAPS</b>`:''}</div>
-   <div class="tw"><table>${thead}<tbody>
+   <div class="tw pg" id="lTw"><table>${thead}<tbody>
    ${bodyRows}</tbody></table></div>${pager(L.length,PS,'ip')}</div>
    <div class="printonly"><div class="tw"><table>${thead}<tbody>${bodyPrint}</tbody></table></div></div>`;
+  stickyTable($('#lTw',b));
   $('#lq').oninput=e=>{s.q=e.target.value;s.page=0;tLista(b,rows);const i=$('#lq');i.focus();i.setSelectionRange(i.value.length,i.value.length)};
   $('#lma').onchange=e=>{s.ma=e.target.value;s.page=0;tLista(b,rows)};$('#lpd').onchange=e=>{s.pend=e.target.value;s.page=0;tLista(b,rows)};
   if($('#lqd'))$('#lqd').onchange=e=>{s.quadri=e.target.value;s.page=0;tLista(b,rows)};
@@ -1163,7 +1281,7 @@ function tLista(b,rows){const s=UI.ind,d=IND[s.cod];const keys=Object.keys(d.bp)
   $$('.ganhouChk',b).forEach(chk=>{chk.onclick=ev=>ev.stopPropagation();chk.onchange=async ev=>{ev.stopPropagation();const cod=chk.dataset.p;if(!cod)return;const p=DB.pes.get(cod);if(!p)return;const val=chk.checked?(TODAY.toISOString().slice(0,10)):'';const ch={parto:val};if(val)ch.aborto='';if(p.orig)S.pEdit[cod]={...(S.pEdit[cod]||{}),...ch};else{const n=S.pNew.find(z=>z.cod===cod);if(n)Object.assign(n,ch)}await save(p.orig?'pEdit':'pNew');logAction(val?'Gestante marcada como "já ganhou"':'Data do parto removida',p.nome+(val?': '+brDate(val):''));buildDB();await aplicarPuerperioAuto(cod);tLista(b,rows)}});
   $$('.abortoChk',b).forEach(chk=>{chk.onclick=ev=>ev.stopPropagation();chk.onchange=async ev=>{ev.stopPropagation();const cod=chk.dataset.p;if(!cod)return;const p=DB.pes.get(cod);if(!p)return;const val=chk.checked?(TODAY.toISOString().slice(0,10)):'';const ch={aborto:val};if(val){ch.parto='';ch.abortoEsus=false}if(p.orig)S.pEdit[cod]={...(S.pEdit[cod]||{}),...ch};else{const n=S.pNew.find(z=>z.cod===cod);if(n)Object.assign(n,ch)}await save(p.orig?'pEdit':'pNew');logAction(val?'Gestante marcada como "aborto"':'Aborto removido',p.nome+(val?': '+brDate(val):''));buildDB();tLista(b,rows)}});
   $$('.mkToggle',b).forEach(sp=>sp.onclick=async ev=>{ev.stopPropagation();const rk=sp.dataset.rk,k=sp.dataset.k,cod=s.cod,d=IND[cod];const key=(d.tipo==='c7'&&k!=='NM')?'NM.'+k:k;let r=null;for(const imp of S.imports){if(imp.cod!==cod||imp.comp!==s.comp)continue;for(const rr of imp.rows){if(rowKey(rr)===rk){r=rr;break}}if(r)break}if(!r)r={mk:{DN:true}};const store=rk+'|'+cod+'|'+key;const cur=(S.mkEdit[store]!==undefined)?!!S.mkEdit[store]:!!r.mk[key];S.mkEdit[store]=cur?0:1;await save('mkEdit');logAction('Marca alterada manualmente',`${IND[cod].curto} · ${k} · ${rk} → ${cur?'pendente':'realizado'}`);tLista(b,rows)});
-  $$('[data-ip]',b).forEach(x=>x.onclick=()=>{s.page=+x.dataset.ip;tLista(b,rows)});
+  $$('[data-ip]',b).forEach(x=>x.onclick=()=>{s.page=+x.dataset.ip;tLista(b,rows);const t=$('#lTw',b);if(t&&t.getBoundingClientRect().top<0)window.scrollTo({top:scrollY+t.getBoundingClientRect().top-90})});
   $$('[data-rp]',b).forEach(tr=>tr.onclick=()=>{if(tr.dataset.rp)modalPessoa(tr.dataset.rp);else{s.tab='naoloc';render()}});
   if($('#lupd'))$('#lupd').onclick=()=>render();
   if($('#ldet'))$('#ldet').onclick=detectarDesfechosC3;
@@ -1274,7 +1392,7 @@ function relFamilias(eqId){const fs=[...DB.fam.values()].filter(f=>eqId==='ALL'|
  const byMa={};for(const f of fs){const k=(f.eq||'—')+'|'+(f.ma||'—');(byMa[k]=byMa[k]||[]).push(f)}
  const blocks=Object.keys(byMa).sort().map(k=>{const eq=k.split('|')[0],ma=k.split('|')[1],info=DB.ma[k];return `<div class="rep-block" style="margin-bottom:16px"><h3 class="rep-title" style="font-size:14px">${eqChip(eq)} · MA ${esc(ma)} <span class="muted small">${info?esc(info.acs||''):''} · ${byMa[k].length} família(s)</span></h3><div class="tw"><table><thead><tr><th>Nº</th><th>Endereço</th><th>Complemento</th><th>Telefone</th><th class="num">Pessoas</th></tr></thead><tbody>${byMa[k].map(f=>{const mem=(DB.members.get(f.cod)||[]).filter(p=>p.situacao==='Ativo');return `<tr><td>${esc(f.num||'—')}</td><td>${esc(endereco(f))||'—'}</td><td class="small">${esc(f.compl||'')}</td><td class="small">${esc(f.tel||'')}</td><td class="num">${mem.length}</td></tr>`}).join('')}</tbody></table></div></div>`}).join('');
  return relHead('Famílias por microárea',`${eqId==='ALL'?'todas as equipes':eqName(eqId)} · ${fs.length} família(s)`)+blocks}
-function vRel(m){const s=UI.rel;const comps=allComps();if(!comps.includes(s.comp))s.comp=comps[comps.length-1]||'';
+function vRel(m){const s=UI.rel;const comps=allComps();s.comp=compAtual();
   if(!IND[s.cod])s.cod='C5';if(s.eq!=='ALL'&&!DB.eqById[s.eq])s.eq='ALL';
   const quads=quadriAll([]);
   const eqAll=`<select id="relEq"><option value="ALL" ${s.eq==='ALL'?'selected':''}>Todas as equipes</option>${DB.eq.map(e=>`<option value="${e.id}" ${s.eq===e.id?'selected':''}>${e.nome}</option>`).join('')}</select>`;
@@ -1288,13 +1406,12 @@ function vRel(m){const s=UI.rel;const comps=allComps();if(!comps.includes(s.comp
   m.innerHTML=head('Relatórios','Relatórios prontos para imprimir ou salvar em PDF (formato A4).',`<button class="btn" id="relAcsXls">📥 Planilha por ACS</button><button class="btn pri" id="relPrint">🖨 Imprimir / Salvar PDF</button>`)+
    `<div class="card noprint"><div class="bar">
      <select id="relTipo">${[['gestao','Resumo para a gestão'],['consolidado','Consolidado (quadrimestre)'],['equipe','Relatório por equipe'],['busca','Busca ativa por ACS'],['familias','Famílias por microárea'],['atvcoletiva','Atividade coletiva (educação em saúde)'],['ficha','Ficha da pessoa']].map(([v,t])=>`<option value="${v}" ${s.tipo===v?'selected':''}>${t}</option>`).join('')}</select>
-     <select id="relComp">${comps.length?comps.map(c=>`<option value="${c}" ${c===s.comp?'selected':''}>Competência ${compLabel(c)}</option>`).join(''):'<option>Sem competências</option>'}</select>
+     ${s.comp?`<span class="chip" title="A competência é escolhida no topo da tela">Competência ${compLabel(s.comp)}</span>`:''}
      ${['gestao','consolidado','equipe','busca','atvcoletiva'].includes(s.tipo)?quadriSel:''}${extra}</div>
      <p class="mini" style="margin:10px 0 0">Dica: na janela de impressão escolha "Salvar como PDF" para gerar o arquivo, ou imprima direto em folha A4.</p></div>
     <div class="card" style="margin-top:14px" id="relOut"></div>`;
   $('#relPrint').onclick=()=>imprimir();$('#relAcsXls').onclick=modalPlanilhaACS;
   $('#relTipo').onchange=e=>{s.tipo=e.target.value;render()};
-  $('#relComp').onchange=e=>{s.comp=e.target.value;render()};
   if($('#relQ'))$('#relQ').onchange=e=>{s.quadri=e.target.value;render()};
   if($('#relEq'))$('#relEq').onchange=e=>{s.eq=e.target.value;render()};
   if($('#relCod'))$('#relCod').onchange=e=>{s.cod=e.target.value;render()};
@@ -1302,7 +1419,7 @@ function vRel(m){const s=UI.rel;const comps=allComps();if(!comps.includes(s.comp
   if($('#relPq'))$('#relPq').oninput=e=>{s.pq=e.target.value;renderOut()};
   function renderOut(){const o=$('#relOut');
     if(!comps.length&&s.tipo!=='ficha'&&s.tipo!=='familias'&&s.tipo!=='atvcoletiva'){o.innerHTML='<div class="empty">Importe listas do SIAPS para gerar relatórios.</div>';return}
-    if(s.quadri&&s.tipo!=='atvcoletiva'){const mm=compsQuadri(s.quadri),disp=[...new Set(allComps())].sort(),inQ=disp.filter(c=>mm.includes(c));if(!inQ.length){o.innerHTML=prCab('Relatórios','')+`<div class="warn" style="margin-top:10px">Nenhuma lista do SIAPS foi importada no <b>${quadriLabel(s.quadri)}</b>.<br>Competências disponíveis: <b>${disp.map(compLabel).join(', ')||'nenhuma'}</b>.<br>Escolha "<b>Todos os quadrimestres</b>" ou importe as listas desse período em <b>Importar planilhas SIAPS</b>.</div>`+prAss();return}}
+    if(s.quadri&&s.tipo!=='atvcoletiva'){const mm=compsQuadri(s.quadri),disp=[...new Set(allComps())].sort(),inQ=disp.filter(c=>mm.includes(c));if(!inQ.length){o.innerHTML=prCab('Relatórios','')+`<div class="warn" style="margin-top:10px">Nenhuma lista do SIAPS foi importada no <b>${quadriLabel(s.quadri)}</b>.<br>Competências disponíveis: <b>${disp.map(compLabel).join(', ')||'nenhuma'}</b>.<br>Escolha "<b>Todos os quadrimestres</b>" ou importe as listas desse período em <b>Importar dados</b>.</div>`+prAss();return}}
     if(s.tipo==='gestao')o.innerHTML=relGestao(s.comp,s.quadri)+prAss();
     else if(s.tipo==='consolidado')o.innerHTML=relConsolidado(s.quadri||quadriKey(TODAY.toISOString().slice(0,10)),s.eq)+prAss();
     else if(s.tipo==='equipe')o.innerHTML=relEquipe(s.comp,s.eq,s.quadri)+prAss();
@@ -1314,7 +1431,20 @@ function vRel(m){const s=UI.rel;const comps=allComps();if(!comps.includes(s.comp
 }
 
 /* ===================== IMPORTAÇÃO ===================== */
-function vImp(m){m.innerHTML=head('Importar planilhas do SIAPS','Arraste os arquivos .xlsx das Listas Nominais. O sistema reconhece o indicador, a competência e sugere a equipe pelo INE.')+`<div class="card"><div id="impBody"></div></div>`;tImportar($('#impBody'))}
+const IMP_TABS=[['siaps','Listas SIAPS',null,'Listas Nominais dos indicadores C1–C7 (.xlsx)'],['acs','Visitas dos ACS',()=>importarVisitas,'Fichas de Visita Domiciliar e Territorial'],['atend','Atendimentos e-SUS',()=>importarAtend,'Fichas de Atendimento Individual e Procedimentos'],['coletiva','Atividade coletiva',()=>importarColetivas,'Fichas de Atividade Coletiva'],['consumo','Consumo alimentar',()=>importarConsumo,'Fichas de Marcadores de Consumo Alimentar'],['esus','Cadastros e-SUS',()=>importarESUS,'Cadastro Individual e Cadastro Domiciliar']];
+function vImp(m){const t=UI.imp,cur=IMP_TABS.find(x=>x[0]===t.tab)||IMP_TABS[0];
+  m.innerHTML=head('Importar dados','Escolha o tipo de arquivo. Listas do SIAPS em .xlsx; fichas do e-SUS em .zip ou .xml.')+
+  `<div class="card"><div class="tabs">${IMP_TABS.map(([k,n])=>`<button class="tab ${cur[0]===k?'on':''}" data-it="${k}">${n}</button>`).join('')}</div><div id="impBody"></div></div>`;
+  $$('[data-it]',m).forEach(b=>b.onclick=()=>{t.tab=b.dataset.it;render()});
+  if(cur[0]==='siaps'){tImportar($('#impBody'));return}
+  const nome=NAV.flatMap(g=>g.items).find(x=>x[0]===cur[0]);
+  $('#impBody').innerHTML=`<div class="drop" id="impDrop"><div style="font-size:30px">📥</div><b>Arraste aqui o .zip (ou os .xml) — ${esc(cur[3])}</b><div class="muted">ou clique para escolher · pode importar quantas vezes quiser, os registros repetidos são ignorados</div><input type="file" id="impFi" accept=".zip,.xml" multiple hidden></div>
+   <p class="mini" style="margin:10px 0 0">Depois da importação você vai direto para <a href="#" id="impGo">${esc(nome?nome[1]:cur[1])}</a>, onde aparecem o resultado e os relatórios.</p>`;
+  const go=async files=>{if(!files||!files.length)return;files=[...files];UI.view=cur[0];render();await cur[2]()(files)};
+  const drop=$('#impDrop'),fi=$('#impFi');drop.onclick=()=>fi.click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');go(e.dataTransfer.files)};fi.onchange=()=>go(fi.files);
+  $('#impGo').onclick=e=>{e.preventDefault();UI.view=cur[0];render()}}
 let PENDING=[];
 function tImportar(b){
   b.innerHTML=`<div class="drop" id="drop"><div style="font-size:30px">📥</div><b>Arraste aqui as planilhas das Listas Nominais do SIAPS</b><div class="muted">ou clique para escolher · pode selecionar várias de uma vez (.xlsx)</div><input type="file" id="fi" accept=".xlsx,.xls" multiple hidden></div>
@@ -1343,7 +1473,7 @@ function preview(){const box=$('#prev');if(!box)return;
     for(const p of PENDING){delete p.sug;S.imports=S.imports.filter(x=>x.id!==p.id);S.imports.push(p)}
     await save('imports');logAction('Listas importadas',PENDING.map(p=>`${p.cod} ${compLabel(p.comp)} (${p.rows.length})`).join(', '));
     const last=PENDING[PENDING.length-1];const n=PENDING.length;PENDING=[];buildDB();
-    Object.assign(UI.ind,{tab:'resumo',cod:last.cod,comp:last.comp,eq:''});UI.view='ind';toast(`${n} lista(s) importada(s) ✓`);render()};
+    Object.assign(UI.ind,{tab:'resumo',cod:last.cod,comp:last.comp,eq:''});UI.comp=last.comp;UI.view='ind';toast(`${n} lista(s) importada(s) ✓`);render()};
 }
 
 /* ===================== CONFIGURAÇÕES / BACKUP ===================== */
@@ -1439,17 +1569,20 @@ function vACS(m){const a=UI.acs,all=visitas();
  m.innerHTML=head('Visitas dos ACS','Fichas de Visita Domiciliar do e-SUS APS · importação acumulativa (.zip) e relatórios.',`<button class="btn" id="acsIden">Identificar ACS</button><button class="btn" id="acsPr">🖨 Imprimir / PDF</button>`)+
   `<div class="card noprint"><div class="drop" id="acsDrop"><div style="font-size:28px">📥</div><b>Arraste aqui o arquivo .zip (ou os .xml) das Visitas Domiciliares do e-SUS</b><div class="muted">Pode importar quantas vezes quiser — as visitas são somadas, nunca apagadas.</div><input type="file" id="acsFi" accept=".zip,.xml" multiple hidden></div><div class="mini" style="margin-top:10px" id="acsMsg">${a.lastMsg||''}</div></div>`+
   (all.length?`<div class="card noprint" style="margin-top:14px"><div class="bar">
+   <select id="fRep" aria-label="Relatório">${[['resumo','Resumo da produção'],['acs','Por ACS'],['equipe','Por equipe'],['ma','Por microárea'],['dia','Por dia'],['pessoas','Pessoas visitadas'],['familias','Famílias visitadas'],['cobertura','Cobertura por ACS (famílias)'],['lista','Lista detalhada']].map(([v,t])=>`<option value="${v}" ${a.rep===v?'selected':''}>${t}</option>`).join('')}</select>
    <span class="mini">De <input type="date" id="fDe" value="${a.de||''}"></span>
    <span class="mini">Até <input type="date" id="fAte" value="${a.ate||''}"></span>
    <select id="fIne"><option value="ALL">Todas as equipes</option>${ines.map(i=>{const e=eqByINE(i);return `<option value="${i}" ${a.ine===i?'selected':''}>${e?esc(e.nome):'INE '+i}</option>`}).join('')}</select>
+   <button class="btn" id="fMore" aria-expanded="${!!a.more}"></button>
+   <div class="spacer"></div><button class="btn" id="acsXp">Exportar Excel</button></div>
+   <div class="bar morebox" id="fMoreBox" ${a.more?'':'hidden'}>
    <select id="fProf"><option value="ALL">Todos os ACS</option>${profsSel.map(p=>`<option value="${p}" ${a.prof===p?'selected':''}>${esc(acsName(p))}</option>`).join('')}</select>
    <select id="fMa"><option value="ALL">Todas as microáreas</option>${masSel.map(x=>`<option value="${x}" ${a.ma===x?'selected':''}>MA ${esc(x)}</option>`).join('')}</select>
    <select id="fDes"><option value="ALL">Todos os desfechos</option>${Object.entries(DESFECHO).map(([k,t])=>`<option value="${k}" ${a.desfecho===k?'selected':''}>${t}</option>`).join('')}</select>
    <select id="fMes"><option value="ALL">Todos os meses</option>${mesesVisitas().map(mm=>`<option value="${mm}" ${a.mes===mm?'selected':''}>${compLabel(mm)}</option>`).join('')}</select>
    <select id="fCat"><option value="ALL">Todas as categorias</option>${CATS_ACS.map(([v,t])=>`<option value="${v}" ${a.cat===v?'selected':''}>${t}</option>`).join('')}</select>
-   <input type="search" id="fQ" placeholder="Pessoa ou ACS…" value="${esc(a.q)}" style="min-width:160px">
-   <select id="fRep">${[['resumo','Resumo da produção'],['acs','Por ACS'],['equipe','Por equipe'],['ma','Por microárea'],['dia','Por dia'],['pessoas','Pessoas visitadas'],['familias','Famílias visitadas'],['cobertura','Cobertura por ACS (famílias)'],['lista','Lista detalhada']].map(([v,t])=>`<option value="${v}" ${a.rep===v?'selected':''}>${t}</option>`).join('')}</select>
-   <button class="btn" id="acsXp">Exportar Excel</button></div></div>
+   <input type="search" id="fQ" placeholder="Pessoa ou ACS…" value="${esc(a.q)}" style="min-width:160px"></div>
+   <div class="bar" id="acsChips" style="margin-top:10px"></div></div>
    <div class="card" style="margin-top:14px" id="acsOut"></div>
    <div class="card noprint" style="margin-top:14px"><h3>Importações <small>${S.visitsLog.length}</small></h3><div class="tw" style="max-height:220px"><table><thead><tr><th>Quando</th><th>Arquivo</th><th class="num">Novas</th><th class="num">Acumulado</th></tr></thead><tbody>${S.visitsLog.slice().reverse().map(l=>`<tr><td class="small">${new Date(l.quando).toLocaleString('pt-BR')}</td><td class="small">${esc(l.arquivo)}</td><td class="num">${l.novas}</td><td class="num">${l.total}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Nenhuma ainda.</td></tr>'}</tbody></table></div></div>`
    :`<div class="empty" style="margin-top:14px">Nenhuma visita importada ainda. Arraste o .zip acima.</div>`);
@@ -1473,9 +1606,19 @@ function vACS(m){const a=UI.acs,all=visitas();
   $('#fMes').onchange=e=>{a.mes=e.target.value;renderAcs()};$('#fCat').onchange=e=>{a.cat=e.target.value;renderAcs()};
   $('#fQ').oninput=e=>{a.q=e.target.value;renderAcs()};$('#fRep').onchange=e=>{a.rep=e.target.value;renderAcs()};
   $('#acsXp').onclick=()=>exportVisitas(visitsFiltered());
+  $('#fMore').onclick=()=>{a.more=!a.more;$('#fMoreBox').hidden=!a.more;$('#fMore').setAttribute('aria-expanded',a.more);acsChips()};
   renderAcs();
  }}
-function renderAcs(){const F=visitsFiltered(),o=$('#acsOut');if(!o)return;const a=UI.acs;
+const ACS_DEF={de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',mes:'ALL',cat:'ALL'};
+function acsChips(){const a=UI.acs,box=$('#acsChips');if(!box)return;
+ const lab={de:v=>'De '+brDate(v),ate:v=>'Até '+brDate(v),ine:v=>{const e=eqByINE(v);return e?e.nome:'INE '+v},prof:v=>'ACS: '+acsName(v),ma:v=>'MA '+v,desfecho:v=>'Desfecho: '+(DESFECHO[v]||v),mes:v=>'Mês: '+compLabel(v),cat:v=>{const x=CATS_ACS.find(z=>z[0]===v);return x?x[1]:v},q:v=>'Busca: “'+v+'”'};
+ const act=Object.keys(ACS_DEF).filter(k=>a[k]&&a[k]!==ACS_DEF[k]);
+ const nMore=['prof','ma','desfecho','mes','cat','q'].filter(k=>act.includes(k)).length;const mb=$('#fMore');if(mb)mb.textContent=`Mais filtros${nMore?' ('+nMore+')':''} ${a.more?'▴':'▾'}`;
+ box.hidden=!act.length;
+ box.innerHTML=act.length?`<span class="mini" style="font-weight:700">Filtros ativos:</span>${act.map(k=>`<span class="fchip">${esc(lab[k](a[k]))}<button data-fx="${k}" aria-label="Remover filtro" title="Remover filtro">×</button></span>`).join('')}<button class="linkbtn" id="fClear">Limpar filtros</button>`:'';
+ $$('[data-fx]',box).forEach(b=>b.onclick=()=>{a[b.dataset.fx]=ACS_DEF[b.dataset.fx];render()});
+ const cl=$('#fClear',box);if(cl)cl.onclick=()=>{Object.assign(a,ACS_DEF);render()}}
+function renderAcs(){acsChips();const F=visitsFiltered(),o=$('#acsOut');if(!o)return;const a=UI.acs;
  const tot=F.length,real=F.filter(v=>v.desfecho==='1').length,aus=F.filter(v=>v.desfecho==='3').length,loc=F.filter(v=>personOfVisit(v)).length;
  o.innerHTML=`<div class="printonly">${prCab('Relatório de visitas domiciliares',({resumo:'Resumo',acs:'Por ACS',equipe:'Por equipe',ma:'Por microárea',dia:'Por dia',pessoas:'Pessoas visitadas',familias:'Famílias visitadas',cobertura:'Cobertura por ACS (famílias)',lista:'Lista detalhada'}[a.rep]||'')+(a.de||a.ate?' · '+brDate(a.de)+' a '+brDate(a.ate):''))}</div><div class="grid g4">
    <div class="card kpi" style="box-shadow:none"><span class="l">Visitas (filtro atual)</span><span class="v">${fmt(tot)}</span><span class="s">de ${fmt(visitas().length)} acumuladas</span></div>

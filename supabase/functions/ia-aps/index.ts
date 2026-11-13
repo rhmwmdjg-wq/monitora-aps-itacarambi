@@ -97,25 +97,43 @@ Deno.serve(async (req) => {
     const sistema = BASE + "\n\nTAREFA:\n" + TAREFAS[tarefa];
     let texto = "", uso: unknown = null;
     if (PROVEDOR === "gemini") {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
-        method: "POST",
-        headers: { "x-goog-api-key": chave, "content-type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: sistema }] },
-          contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
-          generationConfig: { maxOutputTokens: 8192, temperature: 0.4 },
-        }),
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        console.error("Gemini", r.status, JSON.stringify(d));
-        if (r.status === 429) return json({ erro: "Limite gratuito do Gemini atingido. Aguarde 1 minuto (ou até amanhã, se for o limite diário) e tente de novo." }, 429);
-        return json({ erro: "A API do Gemini recusou o pedido: " + (d?.error?.message || r.status) }, 502);
+      // Tenta modelos em sequência: se um estiver sobrecarregado, sem cota ou lento, passa para o próximo.
+      const modelos = [...new Set([MODELO, "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"])];
+      let ultimoErro = "";
+      for (const mod of modelos) {
+        let r: Response;
+        try {
+          r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent`, {
+            method: "POST",
+            signal: AbortSignal.timeout(40_000),
+            headers: { "x-goog-api-key": chave, "content-type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: sistema }] },
+              contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+              generationConfig: { maxOutputTokens: 8192, temperature: 0.4 },
+            }),
+          });
+        } catch (e) {
+          ultimoErro = `${mod}: sem resposta em 40 s`; console.error(ultimoErro); continue;
+        }
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          ultimoErro = `${mod}: ${d?.error?.message || r.status}`; console.error("Gemini", r.status, ultimoErro);
+          if ([429, 500, 503, 504, 404].includes(r.status)) continue; // tenta o próximo modelo
+          return json({ erro: "A API do Gemini recusou o pedido: " + (d?.error?.message || r.status) }, 502);
+        }
+        const cand = d.candidates?.[0];
+        texto = (cand?.content?.parts || []).filter((p: any) => p.text && !p.thought).map((p: any) => p.text).join("");
+        if (!texto) { ultimoErro = `${mod}: resposta vazia (${cand?.finishReason || "?"})`; console.error(ultimoErro); continue; }
+        uso = { modelo: mod, ...d.usageMetadata };
+        break;
       }
-      const cand = d.candidates?.[0];
-      texto = (cand?.content?.parts || []).filter((p: any) => p.text && !p.thought).map((p: any) => p.text).join("");
-      if (!texto) return json({ erro: "O Gemini não devolveu texto (" + (cand?.finishReason || d.promptFeedback?.blockReason || "sem motivo") + "). Tente de novo." }, 502);
-      uso = d.usageMetadata;
+      if (!texto) {
+        const cota = /quota|exhausted|rate/i.test(ultimoErro);
+        return json({ erro: cota
+          ? "Limite gratuito do Gemini atingido. Aguarde 1 minuto (ou até amanhã, se for o limite diário) e tente de novo."
+          : "Os modelos do Gemini estão sobrecarregados agora. Tente de novo em alguns minutos. (" + ultimoErro + ")" }, 503);
+      }
     } else {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",

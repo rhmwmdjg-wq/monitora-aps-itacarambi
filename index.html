@@ -2195,9 +2195,10 @@ function relAtividadeColetiva(qk,eqId){const months=qk?compsQuadri(qk):[];
    para o ACS a lista nominal é montada aqui e encaixada no lugar de {{LISTA}}. */
 const IA={hist:{dados:[],regras:[]},out:{},busy:false};
 async function iaPedir(tarefa,contexto,pergunta='',historico=[]){
-  const r=await fetch(CLOUD.url+'/functions/v1/ia-aps',{method:'POST',
+  const ac=new AbortController();const to=setTimeout(()=>ac.abort(),150000);let r;
+  try{r=await fetch(CLOUD.url+'/functions/v1/ia-aps',{method:'POST',signal:ac.signal,
     headers:{'Content-Type':'application/json',Authorization:'Bearer '+await CLOUD.token(),apikey:CLOUD.key},
-    body:JSON.stringify({tarefa,contexto,pergunta,historico})});
+    body:JSON.stringify({tarefa,contexto,pergunta,historico})})}catch(e){throw new Error(e.name==='AbortError'?'A IA demorou demais para responder. Tente de novo.':'Sem conexão com o servidor de IA.')}finally{clearTimeout(to)}
   const d=await r.json().catch(()=>({erro:'Resposta inválida do servidor ('+r.status+')'}));
   if(!r.ok||d.erro)throw new Error(d.erro||('Erro '+r.status));
   return d.texto||''}

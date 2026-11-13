@@ -981,7 +981,7 @@ function vEquipes(m){
   $('#cnesBtn').onclick=()=>$('#cnesIn').click();$('#cnesIn').onchange=e=>{const f=e.target.files[0];e.target.value='';importarCNES(f)};
 }
 /* ===================== Atualizar profissionais pelo XML do CNES (XmlParaESUS) ===================== */
-const CBO_CAT_CNES=[[/^2251|^2252|^2253|^2231/,'Médico(a)'],[/^2235/,'Enfermeiro(a)'],[/^3222/,'Técnico(a) de Enfermagem'],[/^5151/,'Agente Comunitário de Saúde (ACS)'],[/^2232/,'Cirurgião(ã)-Dentista'],[/^3224/,'Auxiliar/Técnico(a) de Saúde Bucal'],[/^2515/,'Psicólogo(a)'],[/^2236/,'Fisioterapeuta'],[/^2237/,'Nutricionista'],[/^2238/,'Fonoaudiólogo(a)'],[/^2241/,'Profissional de Educação Física'],[/^2516/,'Assistente Social'],[/^2234/,'Farmacêutico(a)'],[/^5152/,'Agente de Combate às Endemias'],[/^4110|^4221|^4222/,'Recepção/Administrativo']];
+const CBO_CAT_CNES=[[/^2251|^2252|^2253|^2231/,'Médico(a)'],[/^2235/,'Enfermeiro(a)'],[/^515105|^322255/,'Agente Comunitário de Saúde (ACS)'],[/^515140/,'Agente de Combate às Endemias'],[/^3222/,'Técnico(a) de Enfermagem'],[/^2232/,'Cirurgião(ã)-Dentista'],[/^3224/,'Auxiliar/Técnico(a) de Saúde Bucal'],[/^2515/,'Psicólogo(a)'],[/^2236/,'Fisioterapeuta'],[/^2237/,'Nutricionista'],[/^2238/,'Fonoaudiólogo(a)'],[/^2241/,'Profissional de Educação Física'],[/^2516/,'Assistente Social'],[/^2234/,'Farmacêutico(a)'],[/^4110|^4221|^4222/,'Recepção/Administrativo']];
 const cnesCat=cbo=>{for(const[r,c]of CBO_CAT_CNES)if(r.test(String(cbo||'')))return c;return 'Outro'};
 const tokNome=s=>norm(s).split(/\s+/).filter(t=>t&&!['DA','DE','DO','DAS','DOS','E'].includes(t));
 /* mesmo nome ou nome curto contido no completo (ex.: "RONALDO" ↔ "Ronaldo Lima Ferreira"), com o mesmo primeiro nome */
@@ -1809,7 +1809,7 @@ function vESUS(m){m.innerHTML=head('Cadastros e-SUS','Importe os lotes de Cadast
  renderESUS()}
 
 /* ===================== ATENDIMENTOS E-SUS (FAI / FAO) ===================== */
-const CBO_NOME={515105:'Agente Comunitário de Saúde','223565':'Enfermeiro(a) da ESF','225142':'Médico da família','225125':'Médico','223208':'Cirurgião-dentista','223288':'Cirurgião-dentista','322430':'Auxiliar/Téc. Saúde Bucal','322255':'Agente de Endemias','223505':'Enfermeiro'};
+const CBO_NOME={515105:'Agente Comunitário de Saúde','223565':'Enfermeiro(a) da ESF','225142':'Médico da família','225125':'Médico','223208':'Cirurgião-dentista','223288':'Cirurgião-dentista','322430':'Auxiliar/Téc. Saúde Bucal','322255':'Técnico em ACS','515140':'Agente de Combate às Endemias','223505':'Enfermeiro'};
 const cboNome=c=>CBO_NOME[c]||('CBO '+c);
 const profNome=cns=>(S.profNomes&&S.profNomes[cns]&&S.profNomes[cns].nome)||acsNameMap()[cns]||'';
 const profCat=(cns,cbo)=>(S.profNomes&&S.profNomes[cns]&&S.profNomes[cns].cat)||cboNome(cbo);

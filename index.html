@@ -39,6 +39,9 @@ main{padding:24px 26px 64px;min-width:0}
 .top p{margin:3px 0 0;color:var(--mute)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:18px 20px}
 .card h3{margin:0 0 12px;font-size:15px;color:var(--brand-ink)}
+.iaout{max-width:820px;line-height:1.55;font-size:14px}.iaout h3{font-size:17px}.iaout h4{margin:16px 0 6px;font-size:14.5px;color:var(--brand-ink)}.iaout p{margin:0 0 9px}.iaout ul{margin:0 0 10px;padding-left:20px}.iaout li{margin:3px 0}
+.iachat{max-height:520px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:4px}
+.iamsg{max-width:88%;padding:10px 13px;border-radius:12px;font-size:13.5px;line-height:1.5}.iamsg.eu{align-self:flex-end;background:var(--soft);white-space:pre-wrap}.iamsg.ia{align-self:flex-start;background:#fff;border:1px solid var(--line)}.iamsg h4{margin:8px 0 4px;font-size:13.5px}.iamsg p{margin:0 0 7px}.iamsg ul{margin:0 0 7px;padding-left:18px}
 .card h3 small{font-weight:400;color:var(--mute);margin-left:6px}
 .grid{display:grid;gap:14px}
 .g4{grid-template-columns:repeat(4,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:1fr 1fr}
@@ -347,7 +350,8 @@ const ICON={
  family:'<circle cx="8" cy="7" r="3"/><circle cx="16.5" cy="8.5" r="2.3"/><circle cx="12" cy="15" r="1.8"/><path d="M2.5 20c0-3 2.5-5.5 5.5-5.5M21.5 20c0-2.6-2.1-4.7-4.7-4.7M9 21c0-1.7 1.3-3 3-3s3 1.3 3 3"/>',
  key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/>',
  db:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
- alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>'};
+ alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>',
+ spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>'};
 const ico=(n,s=18)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
 let PRINT_LANDSCAPE=false;
 function setPrintOrient(land){let st=document.getElementById('printOrient');if(!st){st=document.createElement('style');st.id='printOrient';document.head.appendChild(st)}st.textContent=land?'@page{size:A4 landscape;margin:10mm 10mm 18mm}':'@page{size:A4 portrait;margin:11mm 9mm 20mm}';const b=document.getElementById('orientBtn');if(b)b.textContent=land?'🖨 Paisagem':'🖨 Retrato'}
@@ -802,7 +806,7 @@ function allComps(){return[...new Set(S.imports.map(i=>i.comp))].sort()}
 
 /* ===================== Navegação ===================== */
 const NAV=[
- {t:'Acompanhar',items:[['home','O que fazer agora','todo'],['ind','Indicadores','target'],['rel','Relatórios','doc']]},
+ {t:'Acompanhar',items:[['home','O que fazer agora','todo'],['ind','Indicadores','target'],['rel','Relatórios','doc'],['ia','Assistente IA','spark']]},
  {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS','steth'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
  {t:'Sistema',items:[['acessos','Acessos das equipes','key'],['config','Dados e backup','db']]}
 ];
@@ -810,7 +814,7 @@ const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',f
 function nav(){$('#nav').innerHTML=NAV.map(g=>`<div class="navgroup">${g.t}</div>`+g.items.map(([k,t,i])=>`<button class="nav ${UI.view===k?'on':''}" data-v="${k}">${ico(i)}<span>${t}</span></button>`).join('')).join('');
   $$('#nav .nav').forEach(b=>b.onclick=()=>{UI.view=b.dataset.v;render();closeSide()})}
 function closeSide(){$('#side').classList.remove('open');$('#ovl').classList.remove('on')}
-function render(){if(isEquipe()&&!['home','ind','rel','acs','atend'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0);compBar();stkQueue()}
+function render(){if(isEquipe()&&!['home','ind','rel','acs','atend'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ia:vIA,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0);compBar();stkQueue()}
 function head(t,sub,actions=''){return `<div class="top"><div><h1>${t}</h1><p>${sub}</p></div><div class="bar noprint">${actions}</div></div>`}
 function ativos(){return[...DB.pes.values()].filter(p=>p.situacao==='Ativo')}
 const eqName=id=>DB.eqById[id]?DB.eqById[id].nome:('INE '+id);
@@ -910,7 +914,7 @@ function vHome(m){
   const prio=prioridades().slice(0,5);
   const faltando=IND_ORDER.filter(c=>!S.imports.some(i=>i.cod===c&&i.comp===comp));
   m.innerHTML=head('O que fazer agora',comp?`Prioridades da competência ${compLabel(comp)} · ordem de impacto estimado`:'Nenhuma lista do SIAPS importada ainda',
-    `<button class="btn pri" id="goImp2">⬆ Importar planilhas</button>`)+
+    `<button class="btn" id="goIA">✨ Análise com IA</button><button class="btn pri" id="goImp2">⬆ Importar planilhas</button>`)+
   `<div class="grid g4">
     <div class="card kpi"><span class="l">Pessoas ativas</span><span class="v">${fmt(P.length)}</span><span class="s">${fmt(F.length)} famílias</span></div>
     <div class="card kpi"><span class="l">Indicadores no "Bom" ou melhor</span><span class="v">${noBom}/7</span><span class="s">${comp?compLabel(comp):'—'}</span></div>
@@ -942,7 +946,7 @@ function vHome(m){
          </div>`})()}
      </div>
    </div>`;
-   $('#goImp2').onclick=()=>{UI.view='imp';render()};const bkn=$('#bkNow');if(bkn)bkn.onclick=baixarBackup;
+   $('#goImp2').onclick=()=>{UI.view='imp';render()};$('#goIA').onclick=()=>{UI.ia=Object.assign(UI.ia||{},{tab:'resumo'});UI.view='ia';render()};const bkn=$('#bkNow');if(bkn)bkn.onclick=baixarBackup;
    $$('[data-al]',m).forEach(b=>b.onclick=()=>modalPessoa(b.dataset.al));
   $$('[data-go]',m).forEach(b=>b.onclick=()=>{UI.view=b.dataset.go;render()});
   $$('[data-act]',m).forEach(b=>b.onclick=()=>{const[cod,eq]=b.dataset.act.split('|');Object.assign(UI.ind,{cod,comp,eq,tab:'lista',pend:'ALL',page:0});UI.view='ind';render()});
@@ -2184,6 +2188,159 @@ function relAtividadeColetiva(qk,eqId){const months=qk?compsQuadri(qk):[];
   ${det?`<h3 style="font-size:14px;margin:14px 0 6px">Detalhamento das atividades</h3><table><thead><tr><th>Data</th><th>Temas</th><th>Local</th><th>Equipe</th><th class="num">Participantes</th><th>Profissional responsável</th></tr></thead><tbody>${det}</tbody></table>`:''}`}
 
 /* ===================== Inicialização ===================== */
+/* ===================== Assistente IA =====================
+   Fala com a função segura "ia-aps" do Supabase (a chave da API fica lá, nunca aqui).
+   LGPD: para a IA vão SOMENTE números agregados por equipe/indicador.
+   Nomes, CPF, CNS, endereços e telefones NUNCA saem deste navegador — na mensagem
+   para o ACS a lista nominal é montada aqui e encaixada no lugar de {{LISTA}}. */
+const IA={hist:{dados:[],regras:[]},out:{},busy:false};
+async function iaPedir(tarefa,contexto,pergunta='',historico=[]){
+  const r=await fetch(CLOUD.url+'/functions/v1/ia-aps',{method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:'Bearer '+await CLOUD.token(),apikey:CLOUD.key},
+    body:JSON.stringify({tarefa,contexto,pergunta,historico})});
+  const d=await r.json().catch(()=>({erro:'Resposta inválida do servidor ('+r.status+')'}));
+  if(!r.ok||d.erro)throw new Error(d.erro||('Erro '+r.status));
+  return d.texto||''}
+/* Markdown simples → HTML (com escape) */
+function iaMD(t){
+  const inl=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,;:!?]|$)/g,'$1<b>$2</b>');
+  const out=[];let lista=null;
+  for(const raw of String(t).split('\n')){const l=raw.trimEnd();
+    const li=l.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
+    if(li){if(!lista){lista=[];out.push(lista)}lista.push('<li>'+inl(li[1])+'</li>');continue}
+    lista=null;
+    if(!l.trim())continue;
+    const h=l.match(/^#{1,4}\s+(.*)$/);
+    out.push(h?'<h4>'+inl(h[1])+'</h4>':'<p>'+inl(l)+'</p>')}
+  return out.map(x=>Array.isArray(x)?'<ul>'+x.join('')+'</ul>':x).join('')}
+const iaPlano=t=>String(t).replace(/^#{1,4}\s+/gm,'').replace(/\*\*(.+?)\*\*/g,'$1');
+const f1n=v=>v==null||isNaN(v)?'s/d':(Math.round(v*10)/10).toFixed(1);
+
+/* ---------- Contextos agregados (sem dados pessoais) ---------- */
+function iaIndEquipe(cod,comp,eqId){
+  const rows=rowsFor(cod,comp,eqId);if(!rows.length)return null;const R=computeInd(cod,rows);
+  let gap=0,pend=0;const porItem={};
+  for(const x of R.ev)if(x.e.dn){const g=x.e.max-x.e.score;if(g>0){gap+=g;pend++}for(const k of x.e.pend)porItem[k]=(porItem[k]||0)+1}
+  return{valor:R.valor,cls:classif(R.valor,cod),den:R.den,pend,impacto:R.den?gap/R.den:0,cov:R.cov,porItem}}
+function iaCompAnterior(comp){const c=allComps().filter(x=>x<comp);return c[c.length-1]||''}
+function ctxCompetencia(comp){
+  const P=ativos(),F=[...DB.fam.values()].filter(f=>f.qtd>0),semCpf=P.filter(p=>!p.cpf).length;
+  let naoLoc=0;for(const imp of S.imports)if(imp.comp===comp)for(const r of imp.rows)if(!matchRow(r).p)naoLoc++;
+  const A=alertasHome(),ant=iaCompAnterior(comp);
+  const L=[`Município: Itacarambi (MG) · Competência analisada: ${compLabel(comp)}${ant?' · Competência anterior disponível: '+compLabel(ant):''}`,
+    `Cadastro: ${P.length} pessoas ativas, ${F.length} famílias; ${semCpf} cadastros sem CPF (${f1n(pct(semCpf,P.length))}%); ${naoLoc} registros das listas do SIAPS não localizados no cadastro.`,
+    `Alertas: ${A.gDPP} gestantes com DPP vencida; ${A.crias} crianças <2 anos com pendência e completando 2 anos em até 90 dias; ${A.fila.length} pessoas com pendência sem atendimento e sem visita registrados.`,
+    `Equipes: ${DB.eq.map(e=>e.nome).join(', ')}.`,''];
+  for(const cod of IND_ORDER){const d=IND[cod];const M=iaIndEquipe(cod,comp,'ALL');
+    if(!M){L.push(`${cod} ${d.nome}: sem lista importada em ${compLabel(comp)}.`,'');continue}
+    const Ma=ant?iaIndEquipe(cod,ant,'ALL'):null;
+    L.push(`${cod} ${d.nome} — município: ${f1n(M.valor)} (${M.cls})${Ma?`; anterior ${compLabel(ant)}: ${f1n(Ma.valor)} (${Ma.cls})`:''}; ${M.den} pessoas no denominador, ${M.pend} com pendência.`);
+    L.push('  Cobertura por item: '+Object.entries(M.cov).map(([k,c])=>`${k} "${d.bp[k]?d.bp[k][1]:k}" ${c.num}/${c.den} (${f1n(c.p)}%)`).join('; '));
+    const eqs=DB.eq.map(e=>[e,iaIndEquipe(cod,comp,e.id)]).filter(x=>x[1]);
+    L.push('  Por equipe: '+eqs.map(([e,x])=>`${e.nome} ${f1n(x.valor)} (${x.cls}), ${x.pend}/${x.den} pendentes, +${f1n(x.impacto)} pts possíveis`).join(' | '));L.push('')}
+  const pr=prioridades().slice(0,8);
+  L.push('Ranking de prioridades de busca ativa (maior ganho de pontos): '+pr.map((p,i)=>`${i+1}) ${p.cod} ${eqName(p.eq)}: ${p.pend} pendentes, +${f1n(p.impacto)} pts`).join('; '));
+  return L.join('\n')}
+function ctxEquipe(comp,eqId){
+  const e=DB.eqById[eqId];const ant=iaCompAnterior(comp);
+  const L=[`Equipe: ${e.nome} · Competência: ${compLabel(comp)}${ant?' · anterior: '+compLabel(ant):''}`,`Microáreas da equipe: ${(e.mas||[]).map(m=>m[0]).join(', ')||'—'}`,''];
+  for(const cod of IND_ORDER){const d=IND[cod];const x=iaIndEquipe(cod,comp,eqId);if(!x){L.push(`${cod} ${d.nome}: sem dados.`);continue}
+    const mu=iaIndEquipe(cod,comp,'ALL'),xa=ant?iaIndEquipe(cod,ant,eqId):null;
+    L.push(`${cod} ${d.nome}: equipe ${f1n(x.valor)} (${x.cls}) · município ${f1n(mu?.valor)}${xa?` · anterior ${f1n(xa.valor)}`:''} · ${x.pend}/${x.den} pessoas com pendência · +${f1n(x.impacto)} pts possíveis`);
+    const its=Object.entries(x.porItem).sort((a,b)=>b[1]-a[1]);
+    if(its.length)L.push('  Pendências por item: '+its.map(([k,n])=>`${k} (peso ${d.bp[k]?d.bp[k][0]:'-'}) "${d.bp[k]?d.bp[k][1]:'atendimento programado'}": ${n} pessoas`).join('; '));
+    const porMA={};for(const y of enrich(rowsFor(cod,comp,eqId),cod))if(y.e.dn&&y.e.pend.length){const k=y.ma||'não localizado';porMA[k]=(porMA[k]||0)+1}
+    const ma=Object.entries(porMA).sort((a,b)=>b[1]-a[1]);if(ma.length)L.push('  Pessoas com pendência por microárea: '+ma.map(([k,n])=>`MA ${k}: ${n}`).join(', '));
+  }
+  return L.join('\n')}
+function ctxDados(){
+  const L=['Tabela: competência; indicador; equipe; valor (0-100); classificação; denominador; pessoas com pendência; pontos possíveis'];
+  for(const comp of allComps())for(const cod of IND_ORDER){for(const id of['ALL',...DB.eq.map(e=>e.id)]){const x=iaIndEquipe(cod,comp,id);if(!x)continue;
+    L.push(`${compLabel(comp)}; ${cod}; ${id==='ALL'?'MUNICÍPIO':eqName(id)}; ${f1n(x.valor)}; ${x.cls}; ${x.den}; ${x.pend}; ${f1n(x.impacto)}`)}}
+  L.push('','Cobertura por item (município): competência; indicador; item; feitos/denominador; %');
+  for(const comp of allComps())for(const cod of IND_ORDER){const x=iaIndEquipe(cod,comp,'ALL');if(!x)continue;
+    for(const[k,c]of Object.entries(x.cov))L.push(`${compLabel(comp)}; ${cod}; ${k}; ${c.num}/${c.den}; ${f1n(c.p)}`)}
+  return L.join('\n')+'\n\n'+ctxRegras()}
+function ctxRegras(){
+  return 'DEFINIÇÕES DOS INDICADORES (como estão no sistema):\n'+IND_ORDER.map(c=>{const d=IND[c];
+    return `${c} — ${d.nome}${d.desc?': '+d.desc:''}\n`+Object.entries(d.bp).map(([k,[pt,t]])=>`  ${k} (peso ${pt}): ${t}`).join('\n')+(d.nota?`\n  Nota: ${d.nota}`:'')}).join('\n')+
+   `\nClassificação: C1 — ${FAIXAS.C1}. Demais (C2–C7) — ${FAIXAS.def}.\nValor de C2–C6 = média da pontuação (0–100) das pessoas do denominador. C7 = soma ponderada das coberturas de cada item (cada item tem seu próprio público por faixa etária).`}
+
+/* ---------- Lista nominal local para o ACS (nunca vai para a IA) ---------- */
+function iaListaACS(comp,eqId,ma,codSel){
+  const cods=codSel==='ALL'?IND_ORDER.filter(c=>c!=='C1'):[codSel];const pess=new Map();const cont={};
+  for(const cod of cods){const d=IND[cod];for(const x of enrich(rowsFor(cod,comp,eqId),cod)){
+    if(!x.p||!x.e.dn||!x.e.pend.length||String(x.ma)!==String(ma))continue;
+    const it=pess.get(x.p.cod)||{p:x.p,f:x.f,falta:[]};
+    for(const k of x.e.pend){const t=d.bp[k]?d.bp[k][1]:'Atendimento programado';it.falta.push(`${cod}: ${t}`);const ck=`${cod} · ${t}`;cont[ck]=(cont[ck]||0)+1}
+    pess.set(x.p.cod,it)}}
+  const lista=[...pess.values()].sort((a,b)=>String(a.f&&a.f.logr||'').localeCompare(String(b.f&&b.f.logr||''))||a.p.nome.localeCompare(b.p.nome));
+  return{lista,cont}}
+
+/* ---------- Tela ---------- */
+function vIA(m){
+  UI.ia=UI.ia||{tab:'resumo',eq:'',ma:'',cod:'ALL'};const s=UI.ia;const comp=compAtual();
+  const tabs=[['resumo','📝 Análise da competência'],['plano','🎯 Plano por equipe'],['acs','💬 Mensagem para ACS'],['dados','📊 Perguntar aos dados'],['regras','📘 Dúvidas sobre indicadores']];
+  m.innerHTML=head('Assistente IA',comp?`Competência ${compLabel(comp)} · textos gerados por IA a partir dos números do sistema — revise antes de usar`:'Importe as listas do SIAPS para usar o assistente')+
+   `<div class="card"><div class="tabs noprint">${tabs.map(([k,t])=>`<button class="tab ${s.tab===k?'on':''}" data-iat="${k}">${t}</button>`).join('')}</div><div id="iaBody"></div>
+    <p class="mini noprint" style="margin:14px 0 0">🔒 Para a IA vão apenas números agregados por equipe e indicador. Nomes, CPF, CNS, endereços e telefones não saem deste aparelho.</p></div>`;
+  $$('[data-iat]',m).forEach(b=>b.onclick=()=>{s.tab=b.dataset.iat;render()});
+  const body=$('#iaBody',m);
+  if(!comp&&s.tab!=='regras'){body.innerHTML='<div class="empty">Nenhuma competência importada ainda.</div>';return}
+  ({resumo:iaTabResumo,plano:iaTabPlano,acs:iaTabACS,dados:b=>iaChat(b,'dados'),regras:b=>iaChat(b,'regras')})[s.tab](body,comp);
+}
+function iaSaida(el,chave,{titulo,gerar,rotulo='Gerar',sub=''}){
+  const o=IA.out[chave];
+  el.innerHTML=`<div class="split noprint" style="flex-wrap:wrap;gap:10px;margin-bottom:10px"><div class="small">${sub}</div><div class="bar">
+     <button class="btn pri" id="iaGo">✨ ${o?'Gerar de novo':rotulo}</button>${o?`<button class="btn" id="iaCp">📋 Copiar</button><button class="btn" onclick="imprimir()">🖨 Imprimir</button>`:''}</div></div>
+   <div id="iaRes">${o?`<div class="iaout"><h3>${esc(titulo)}</h3>${iaMD(o)}<p class="mini">Gerado por IA em ${new Date().toLocaleDateString('pt-BR')} a partir dos dados do Monitora APS. Conferir os números antes de assinar.</p></div>`:'<div class="empty">Clique em <b>'+esc(rotulo)+'</b> para a IA escrever o texto.</div>'}</div>`;
+  $('#iaGo',el).onclick=async()=>{if(IA.busy)return;IA.busy=true;const b=$('#iaGo',el);b.disabled=true;b.textContent='⏳ Escrevendo…';
+    $('#iaRes',el).innerHTML='<div class="empty">⏳ A IA está analisando os números… (10–40 segundos)</div>';
+    try{IA.out[chave]=await gerar();logAction('IA',titulo)}catch(e){toast('⚠️ '+esc(e.message||e),8000)}finally{IA.busy=false;render()}};
+  const cp=$('#iaCp',el);if(cp)cp.onclick=()=>{navigator.clipboard.writeText(iaPlano(o)).then(()=>toast('Texto copiado ✓'))}}
+function iaTabResumo(el,comp){
+  iaSaida(el,'resumo|'+comp,{titulo:'Análise da competência '+compLabel(comp)+' — Atenção Primária de Itacarambi',rotulo:'Gerar análise',
+    sub:'Texto institucional para relatório, ofício ou reunião com a Secretaria.',gerar:()=>iaPedir('resumo',ctxCompetencia(comp))})}
+function iaTabPlano(el,comp){const s=UI.ia;if(!s.eq||!DB.eqById[s.eq])s.eq=(prioridades()[0]||{}).eq||DB.eq[0]?.id||'';
+  el.innerHTML=`<div class="bar noprint" style="margin-bottom:12px"><label class="small">Equipe <select id="iaEq">${DB.eq.map(e=>`<option value="${e.id}" ${s.eq===e.id?'selected':''}>${esc(e.nome)}</option>`).join('')}</select></label></div><div id="iaP"></div>`;
+  $('#iaEq',el).onchange=e=>{s.eq=e.target.value;render()};
+  iaSaida($('#iaP',el),'plano|'+comp+'|'+s.eq,{titulo:'Plano de ação — '+eqName(s.eq)+' · '+compLabel(comp),rotulo:'Gerar plano',
+    sub:'Para entregar à enfermeira/gerente da equipe.',gerar:()=>iaPedir('plano',ctxEquipe(comp,s.eq),'Gere o plano de ação para a '+eqName(s.eq)+'.')})}
+function iaTabACS(el,comp){const s=UI.ia;if(!s.eq||!DB.eqById[s.eq])s.eq=DB.eq[0]?.id||'';const e=DB.eqById[s.eq];
+  const mas=(e?.mas||[]).map(x=>x[0]);if(!mas.map(String).includes(String(s.ma)))s.ma=mas[0]??'';
+  const info=DB.ma[s.eq+'-'+s.ma];const acsNome=(info&&info.acs)||'';
+  const{lista,cont}=iaListaACS(comp,s.eq,s.ma,s.cod);const chave='acs|'+comp+'|'+s.eq+'|'+s.ma+'|'+s.cod;
+  el.innerHTML=`<div class="bar noprint" style="margin-bottom:12px;flex-wrap:wrap">
+     <label class="small">Equipe <select id="iaEq">${DB.eq.map(x=>`<option value="${x.id}" ${s.eq===x.id?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></label>
+     <label class="small">Microárea <select id="iaMa">${mas.map(x=>{const i=DB.ma[s.eq+'-'+x];return `<option value="${esc(x)}" ${String(s.ma)===String(x)?'selected':''}>MA ${esc(x)}${i&&i.acs?' · '+esc(i.acs):''}</option>`}).join('')}</select></label>
+     <label class="small">Indicador <select id="iaCod"><option value="ALL">Todos (C2–C7)</option>${IND_ORDER.filter(c=>c!=='C1').map(c=>`<option value="${c}" ${s.cod===c?'selected':''}>${c} · ${IND[c].curto}</option>`).join('')}</select></label></div>
+   <div class="small" style="margin-bottom:10px"><b>${lista.length}</b> pessoa(s) com pendência nesta microárea${acsNome?' · ACS '+esc(acsNome):''}.</div><div id="iaA"></div>`;
+  $('#iaEq',el).onchange=x=>{s.eq=x.target.value;s.ma='';render()};$('#iaMa',el).onchange=x=>{s.ma=x.target.value;render()};$('#iaCod',el).onchange=x=>{s.cod=x.target.value;render()};
+  const box=$('#iaA',el);
+  if(!lista.length){box.innerHTML='<div class="empty">Nenhuma pessoa com pendência nesta microárea para o filtro escolhido. ✓</div>';return}
+  const listaTxt=lista.map((x,i)=>{const end=x.f?endereco(x.f):'';return `${i+1}. *${x.p.nome}*${x.p.nasc?' ('+idadeTxt(x.p.nasc)+')':''}${end?' — '+end:''}\n   Falta: ${[...new Set(x.falta)].join('; ')}`}).join('\n');
+  const o=IA.out[chave];const final=o?(o.includes('{{LISTA}}')?o.replace('{{LISTA}}',listaTxt):o+'\n\n'+listaTxt).replace(/\{\{ACS\}\}/g,acsNome.split(' ')[0]||''):'';
+  box.innerHTML=`<div class="bar noprint" style="margin-bottom:10px"><button class="btn pri" id="iaGo">✨ ${o?'Gerar de novo':'Gerar mensagem'}</button>${o?'<button class="btn" id="iaCp">📋 Copiar para o WhatsApp</button>':''}</div>
+    ${o?`<textarea id="iaTx" style="width:100%;min-height:380px;font-size:13.5px;line-height:1.45">${esc(final)}</textarea><p class="mini">Você pode editar o texto antes de copiar. A lista de nomes foi montada neste aparelho — a IA só viu os totais por pendência.</p>`:'<div class="empty">A IA escreve a orientação; a lista nominal é encaixada aqui no seu computador.</div>'}`;
+  $('#iaGo',box).onclick=async()=>{if(IA.busy)return;IA.busy=true;const b=$('#iaGo',box);b.disabled=true;b.textContent='⏳ Escrevendo…';
+    const ctx=`Equipe: ${eqName(s.eq)} · Microárea ${s.ma} · Competência ${compLabel(comp)} · Indicador(es): ${s.cod==='ALL'?'C2 a C7':s.cod+' '+IND[s.cod].nome}\nTotal de pessoas com pendência: ${lista.length}\nPendências (item: nº de pessoas):\n`+Object.entries(cont).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`- ${k}: ${n}`).join('\n');
+    try{IA.out[chave]=await iaPedir('acs',ctx,'Escreva a mensagem para o ACS desta microárea.');logAction('IA','Mensagem ACS '+eqName(s.eq)+' MA '+s.ma)}catch(e){toast('⚠️ '+esc(e.message||e),8000)}finally{IA.busy=false;render()}};
+  const cp=$('#iaCp',box);if(cp)cp.onclick=()=>navigator.clipboard.writeText($('#iaTx',box).value).then(()=>toast('Mensagem copiada — cole no WhatsApp ✓'))}
+function iaChat(el,tipo){const H=IA.hist[tipo];
+  const sug=tipo==='dados'?['Qual equipe mais piorou em C4 em relação à competência anterior?','Em quais indicadores o município está abaixo de "Bom"?','Qual item do C2 tem a pior cobertura e em quais equipes?','Quais 3 ações dariam mais pontos no próximo quadrimestre?']
+    :['O que conta como consulta no C2?','Por que a visita do ACS não contou no C4?','Como é calculado o C7?','Qual a diferença entre o C5 e o C6?'];
+  el.innerHTML=`<div class="iachat">${H.length?H.map(x=>`<div class="iamsg ${x.papel==='ia'?'ia':'eu'}">${x.papel==='ia'?iaMD(x.texto):esc(x.texto)}</div>`).join(''):`<div class="mini" style="margin-bottom:8px">Sugestões:</div><div class="bar" style="flex-wrap:wrap">${sug.map(q=>`<button class="btn sm" data-sug="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
+     ${IA.busy?'<div class="iamsg ia">⏳ Pensando…</div>':''}</div>
+   <div class="bar noprint" style="margin-top:12px"><textarea id="iaQ" rows="2" style="flex:1" placeholder="${tipo==='dados'?'Pergunte sobre os números (ex.: qual equipe mais melhorou em C5?)':'Pergunte sobre as regras dos indicadores'}"></textarea>
+     <button class="btn pri" id="iaEnv">Enviar</button>${H.length?'<button class="btn" id="iaNova">Nova conversa</button>':''}</div>`;
+  const enviar=async q=>{q=(q||'').trim();if(!q||IA.busy)return;const hist=H.slice();H.push({papel:'eu',texto:q});IA.busy=true;render();
+    try{const t=await iaPedir(tipo,tipo==='dados'?ctxDados():ctxRegras(),q,hist);H.push({papel:'ia',texto:t})}catch(e){H.pop();toast('⚠️ '+esc(e.message||e),8000)}finally{IA.busy=false;render();const c=document.querySelector('.iachat');if(c)c.scrollTop=c.scrollHeight;const qq=document.getElementById('iaQ');if(qq){qq.scrollIntoView({block:'center'});qq.focus()}}};
+  $('#iaEnv',el).onclick=()=>enviar($('#iaQ',el).value);
+  $('#iaQ',el).onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar(e.target.value)}};
+  $$('[data-sug]',el).forEach(b=>b.onclick=()=>enviar(b.dataset.sug));
+  const nv=$('#iaNova',el);if(nv)nv.onclick=()=>{IA.hist[tipo]=[];render()};
+  const c=$('.iachat',el);if(c)c.scrollTop=c.scrollHeight}
+
 function wireChrome(){
   $('#impBtn').onclick=()=>{UI.view='imp';render();closeSide()};
   $('#orientBtn').onclick=toggleOrient;

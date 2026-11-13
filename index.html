@@ -960,7 +960,7 @@ const CATS=['Médico(a)','Enfermeiro(a)','Técnico(a) de Enfermagem','Agente Com
 function profsOf(e){if(e.prof)return e.prof;return e.mas.map(([c,ac,an])=>({id:'acs'+ac,nome:an,cat:'Agente Comunitário de Saúde (ACS)',ma:c,cns:'',tel:'',codAcs:ac}))}
 function vEquipes(m){
   const st={};for(const p of ativos()){const f=famOf(p);const k=f.eq+'-'+f.ma;st[k]=st[k]||{p:0,c2:0,i60:0,fam:new Set()};st[k].p++;st[k].fam.add(f.cod);const a=idade(p.nasc);if(a<2)st[k].c2++;if(a>=60)st[k].i60++}
-  m.innerHTML=head('Equipes e profissionais','Unidade, INE, microáreas, ACS responsáveis e composição de cada equipe',`<button class="btn" id="vincINE">Vincular INEs (SIAPS)</button>`)+
+  m.innerHTML=head('Equipes e profissionais','Unidade, INE, microáreas, ACS responsáveis e composição de cada equipe',`<button class="btn" id="cnesBtn">📥 Atualizar pelo CNES (XML)</button><input type="file" id="cnesIn" accept=".zip,.xml" style="display:none"><button class="btn" id="vincINE">Vincular INEs (SIAPS)</button>`)+
   `<div class="grid g2">${DB.eq.map(e=>{const pr=profsOf(e);const tp=e.mas.reduce((s,x)=>s+(st[e.id+'-'+x[0]]?.p||0),0);
    return `<div class="card teamcard" style="--c:${e.cor}">
     <div class="split"><div><h3 style="margin:0;font-size:17px">${eqChip(e.id)}</h3><div class="mini">${esc(e.unidade)} · Segmento ${esc(e.segmento)}</div></div>
@@ -978,7 +978,60 @@ function vEquipes(m){
   $$('[data-addp]',m).forEach(b=>b.onclick=()=>modalProf(b.dataset.addp,null));
   $$('[data-edp]',m).forEach(b=>{const[e,id]=b.dataset.edp.split('|');b.onclick=()=>modalProf(e,id)});
   $('#vincINE').onclick=vincularINEsSIAPS;
+  $('#cnesBtn').onclick=()=>$('#cnesIn').click();$('#cnesIn').onchange=e=>{const f=e.target.files[0];e.target.value='';importarCNES(f)};
 }
+/* ===================== Atualizar profissionais pelo XML do CNES (XmlParaESUS) ===================== */
+const CBO_CAT_CNES=[[/^2251|^2252|^2253|^2231/,'Médico(a)'],[/^2235/,'Enfermeiro(a)'],[/^3222/,'Técnico(a) de Enfermagem'],[/^5151/,'Agente Comunitário de Saúde (ACS)'],[/^2232/,'Cirurgião(ã)-Dentista'],[/^3224/,'Auxiliar/Técnico(a) de Saúde Bucal'],[/^2515/,'Psicólogo(a)'],[/^2236/,'Fisioterapeuta'],[/^2237/,'Nutricionista'],[/^2238/,'Fonoaudiólogo(a)'],[/^2241/,'Profissional de Educação Física'],[/^2516/,'Assistente Social'],[/^2234/,'Farmacêutico(a)'],[/^5152/,'Agente de Combate às Endemias'],[/^4110|^4221|^4222/,'Recepção/Administrativo']];
+const cnesCat=cbo=>{for(const[r,c]of CBO_CAT_CNES)if(r.test(String(cbo||'')))return c;return 'Outro'};
+const nomeProprio=s=>String(s||'').toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase()).replace(/\s(Da|De|Do|Das|Dos|E)(?=\s)/g,m=>m.toLowerCase());
+function parseCNESXML(text){const dom=new DOMParser().parseFromString(text,'application/xml');if(dom.getElementsByTagName('parsererror').length)throw new Error('XML inválido');
+ if(!dom.getElementsByTagName('ImportarXMLCNES').length&&!dom.getElementsByTagName('DADOS_PROFISSIONAIS').length)throw new Error('Este não parece ser o XML do CNES para o e-SUS (XmlParaESUS).');
+ const idf=dom.getElementsByTagName('IDENTIFICACAO')[0];const eqs={};
+ for(const est of dom.getElementsByTagName('DADOS_GERAIS_ESTABELECIMENTOS')){const cnes=est.getAttribute('CNES'),unid=est.getAttribute('NM_FANTA');
+  for(const q of est.getElementsByTagName('DADOS_EQUIPES')){const ine=q.getAttribute('CO_INE');if(q.getAttribute('DT_DESATIVACAO'))continue;
+   const o=eqs[ine]=eqs[ine]||{ine,sg:q.getAttribute('SG_EQUIPE'),nome:q.getAttribute('NM_REFERENCIA'),cnes,unid,vinc:new Set()};
+   for(const v of q.getElementsByTagName('DADOS_VINCULACAO_EQUIPE'))o.vinc.add(v.getAttribute('INE_EQUIPE_VINCULADA'))}}
+ const profs=[];for(const p of dom.getElementsByTagName('DADOS_PROFISSIONAIS')){const lot=[];for(const l of p.getElementsByTagName('DADOS_LOTACOES'))lot.push({cnes:l.getAttribute('CNES'),ine:l.getAttribute('CO_INE'),cbo:l.getAttribute('CO_CBO'),ma:l.getAttribute('MICROAREA')||''});
+  profs.push({cns:onlyDig(p.getAttribute('CO_CNS')),nome:nomeProprio(p.getAttribute('NM_PROF')),lot})}
+ return{data:idf?idf.getAttribute('DATA'):'',eqs,profs}}
+async function importarCNES(file){if(!file)return;
+ let text='';try{if(/\.zip$/i.test(file.name)){const xs=(await readZip(await file.arrayBuffer())).filter(x=>/\.xml$/i.test(x.name));if(!xs.length)throw new Error('Nenhum .xml dentro do .zip');text=xs[0].text}else text=await file.text()}catch(e){toast('⚠️ '+esc(e.message));return}
+ let X;try{X=parseCNESXML(text)}catch(e){toast('⚠️ '+esc(e.message),8000);return}
+ /* INE de cada lotação → equipe do sistema (ESF direto; ESB/eMulti pela vinculação, só quando ligada a uma única ESF) */
+ const eqDoIne=ine=>{if(!ine)return null;const e=eqByINE(ine);if(e)return e;const q=X.eqs[ine];if(!q||q.sg==='EMULTI')return null;const vs=[...q.vinc].map(eqByINE).filter(Boolean);return vs.length===1?vs[0]:null};
+ const outrosEq={};const nomes={};const rosters={};
+ for(const p of X.profs){if(!p.cns)continue;let catAPS='';
+  for(const l of p.lot){const cat=cnesCat(l.cbo);const e=eqDoIne(l.ine);
+   if(e){catAPS=catAPS||cat;const r=rosters[e.id]=rosters[e.id]||[];if(!r.some(x=>x.cns===p.cns&&x.cat===cat))r.push({cns:p.cns,nome:p.nome,cat,ma:l.ma,cnesUnid:l.cnes})}
+   else if(l.ine&&X.eqs[l.ine]){const q=X.eqs[l.ine];(outrosEq[q.nome]=outrosEq[q.nome]||new Set()).add(p.cns);catAPS=catAPS||cat}}
+  nomes[p.cns]={nome:p.nome,cat:catAPS||cnesCat(p.lot[0]&&p.lot[0].cbo)}}
+ /* Monta a nova composição de cada equipe, preservando telefone, id e microárea já cadastrados */
+ const plano=[];
+ for(const e of DB.eq){const novos=rosters[e.id];if(!novos)continue;const atuais=profsOf(e);const cfg=S.eqCfg[e.id]||{};const usados=new Set();
+  const acharAtual=n=>atuais.find(a=>!usados.has(a.id)&&((a.cns&&a.cns===n.cns)||norm(a.nome)===norm(n.nome)));
+  const lista=[];
+  for(const n of novos.sort((a,b)=>CATS.indexOf(a.cat)-CATS.indexOf(b.cat)||a.nome.localeCompare(b.nome))){const a=acharAtual(n);if(a)usados.add(a.id);
+   let ma=n.ma||(a&&a.ma)||'';
+   if(!ma&&n.cat.startsWith('Agente Comunitário')){const ms=cfg.maAcs||{};for(const k in ms)if(ms[k].cns===n.cns||norm(ms[k].nome)===norm(n.nome)){ma=k;break}
+    if(!ma)for(const[c,,an]of e.mas)if(norm(an)===norm(n.nome)){ma=c;break}}
+   lista.push({id:a?a.id:'cnes'+n.cns+'-'+lista.length,nome:n.nome,cat:CATS.includes(n.cat)?n.cat:'Outro',ma,cns:n.cns,tel:a?a.tel||'':'',cbo:n.cat})}
+  const mantidos=atuais.filter(a=>!usados.has(a.id)&&(a.cat==='Recepção/Administrativo'||(a.cat==='Outro'&&!a.cns)));
+  const removidos=atuais.filter(a=>!usados.has(a.id)&&!mantidos.includes(a));
+  for(const x of lista)delete x.cbo;
+  plano.push({e,lista:lista.concat(mantidos),novos:lista.filter(x=>!atuais.some(a=>a.id===x.id)),removidos,mantidos,acsSemMa:lista.filter(x=>x.cat.startsWith('Agente Comunitário')&&!x.ma)})}
+ const nNomes=Object.keys(nomes).length,mudCat=Object.entries(nomes).filter(([c,v])=>S.profNomes[c]&&S.profNomes[c].cat&&S.profNomes[c].cat!==v.cat).length;
+ const linhas=plano.map(p=>`<tr><td>${eqChip(p.e.id)}</td><td class="num">${p.lista.length}</td><td class="small">${p.novos.length?p.novos.map(x=>esc(x.nome)).join(', '):'—'}</td><td class="small">${p.removidos.length?p.removidos.map(x=>esc(x.nome)).join(', '):'—'}</td><td class="small">${p.acsSemMa.length?'<span class="tag red">'+p.acsSemMa.map(x=>esc(x.nome)).join(', ')+'</span>':'✓'}</td></tr>`).join('');
+ const semEq=DB.eq.filter(e=>!rosters[e.id]).map(e=>e.nome);
+ openModal('Atualizar profissionais pelo CNES',`<div class="info" style="margin-bottom:10px">XML do CNES de ${brDate(X.data)||'—'}: <b>${X.profs.length}</b> profissionais. Ao confirmar:<br>• a composição de cada equipe (incluindo saúde bucal vinculada) passa a ser a do CNES — telefone e microárea já cadastrados são mantidos;<br>• o nome e a categoria de <b>${nNomes}</b> CNS são atualizados para os relatórios${mudCat?` (${mudCat} mudam de categoria, ex.: enfermeiros que estavam como médicos)`:''};<br>• o ACS de cada microárea é gravado com o CNS do CNES.</div>
+  <div class="tw" style="max-height:420px"><table><thead><tr><th>Equipe</th><th class="num">Profissionais</th><th>Entram</th><th>Saem (não estão no CNES)</th><th>ACS sem microárea</th></tr></thead><tbody>${linhas||'<tr><td colspan="5" class="muted">Nenhuma equipe do sistema encontrada no XML (confira os INEs).</td></tr>'}</tbody></table></div>
+  ${semEq.length?`<p class="mini" style="color:#b2352c">Sem correspondência no XML (INE diferente): ${semEq.map(esc).join(', ')}.</p>`:''}
+  ${Object.keys(outrosEq).length?`<p class="mini">Outras equipes do CNES (só nomes/categorias atualizados): ${Object.entries(outrosEq).map(([n,s])=>esc(n)+' ('+s.size+')').join(' · ')}.</p>`:''}
+  <p class="mini">ACS sem microárea: o CNES não informa a microárea; edite o profissional na equipe para indicar.</p>`,
+  async()=>{for(const[c,v]of Object.entries(nomes))S.profNomes[c]={...(S.profNomes[c]||{}),nome:v.nome,cat:v.cat};
+   for(const p of plano){const cfg=S.eqCfg[p.e.id]={...(S.eqCfg[p.e.id]||{}),prof:p.lista};
+    const q=X.eqs[onlyDig(p.e.ine)]||Object.values(X.eqs).find(z=>onlyDig(z.ine)===onlyDig(p.e.ine));if(q&&q.cnes&&!cfg.cnes)cfg.cnes=q.cnes;
+    cfg.maAcs={...(cfg.maAcs||{})};for(const x of p.lista)if(x.ma&&x.cns&&x.cat.startsWith('Agente Comunitário'))cfg.maAcs[x.ma]={...(cfg.maAcs[x.ma]||{}),cns:x.cns,nome:x.nome}}
+   await save('profNomes','eqCfg');_acsMap=null;logAction('Profissionais atualizados pelo CNES',`${nNomes} CNS · ${plano.length} equipes · XML de ${X.data}`);buildDB();toast('Profissionais atualizados pelo CNES ✓');render();return true},null,'Atualizar profissionais')}
 function modalEquipe(id){const e=DB.eqById[id];
   openModal(`Editar ${e.nome}`,`<div class="form"><label class="c3">INE (código da equipe no CNES/SIAPS)<input type="text" id="mINE" value="${esc(e.ine)}" placeholder="ex.: 0000248614"></label><label class="c3">CNES da unidade<input type="text" id="mCNES" value="${esc(e.cnes)}"></label></div>
    <p class="mini">O INE é usado para ligar as listas nominais do SIAPS a esta equipe. Ao importar uma lista, o sistema sugere a equipe automaticamente pelos CPFs encontrados.</p>`,

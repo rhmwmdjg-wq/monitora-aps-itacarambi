@@ -51,6 +51,17 @@ Use *negrito* do WhatsApp (asteriscos simples), sem títulos Markdown, emojis co
 Mostre o raciocínio numérico em poucas linhas (valores, diferenças, competências comparadas). Se a pergunta não puder ser respondida com os dados, diga o que faltaria importar. Seja direto.`,
   regras: `Responda dúvidas sobre as regras dos indicadores C1 a C7 (o que conta, o que não conta, pesos, denominador, prazos, como registrar no e-SUS para o item ser computado), usando as definições fornecidas no contexto como fonte principal.
 Quando algo não estiver nas definições, diga que é orientação geral e recomende conferir a Nota Metodológica vigente do Ministério da Saúde. Seja didático e curto.`,
+  auditoria: `Faça uma AUDITORIA DOS ATENDIMENTOS INDIVIDUAIS (FAI — médicos e enfermeiros) e/ou ODONTOLÓGICOS (FAO) a partir dos números por profissional do contexto.
+Os profissionais vêm identificados por código (P01, P02…). Refira-se a eles SEMPRE pelo código exato (ex.: "P03"); o sistema troca pelo nome depois. Nunca invente nomes.
+Estrutura: ## Visão geral (período, volume, comparação entre categorias) · ## Achados por profissional (só os que têm algo relevante; para cada um: o achado, os números que o sustentam e o risco — perda de indicador, glosa, registro inconsistente, sobrecarga) · ## Qualidade do registro (CIAP/CID ausente, PA e peso/altura em hipertensos e diabéticos, conduta, cidadão sem CNS/não localizado, procedimentos na odontologia) · ## Padrões que pedem conferência (registros em sequência ou com hora idêntica — possível digitação em lote ou retroativa —, dias com volume muito acima da mediana, fim de semana, repetição do mesmo paciente no dia) · ## Recomendações (objetivas, para coordenação e profissionais).
+Postura: auditoria técnica e respeitosa. Números atípicos são INDÍCIOS que pedem conferência in loco (agenda, prontuário, ficha), nunca prova de irregularidade; diga possíveis explicações legítimas (mutirão, campanha, digitação posterior de fichas CDS em papel, atendimento domiciliar). Não acuse ninguém.
+Se houver "foco pedido pela coordenação", priorize-o. Máximo ~700 palavras.`,
+  auditoria_vd: `Faça uma AUDITORIA DAS VISITAS DOMICILIARES DOS AGENTES COMUNITÁRIOS DE SAÚDE (ACS) a partir dos números por ACS do contexto.
+Os ACS vêm identificados por código (A01, A02…). Refira-se a eles SEMPRE pelo código exato (ex.: "A04"); o sistema troca pelo nome depois. Nunca invente nomes.
+Estrutura: ## Visão geral (período, volume, média por ACS) · ## Achados por ACS (só os que têm algo relevante; para cada um: achado, números e risco) · ## Cobertura da microárea e grupos prioritários (famílias visitadas, gestantes, hipertensos, diabéticos, crianças <2 anos, idosos — lembre que C2, C3 e C6 exigem visitas do ACS) · ## Padrões que pedem conferência (dias/turnos com volume muito alto, visitas no fim de semana, muitas visitas sem identificar o cidadão, repetição da mesma pessoa no dia, revisitas excessivas, muitas ausências/recusas, registro em microárea diferente da sua) · ## Recomendações (objetivas, para a coordenação e para o ACS).
+Referência: uma rotina comum é de ~8 a 15 visitas por dia; use a comparação entre os ACS do próprio contexto como base principal.
+Postura: auditoria técnica e respeitosa. Números atípicos são INDÍCIOS que pedem conferência (rota, agenda, ficha em papel, tablet), nunca prova de irregularidade; aponte explicações legítimas (visita ao imóvel/família sem o cidadão, campanha, mutirão de cadastro, sincronização atrasada do tablet). Não acuse ninguém.
+Se houver "foco pedido pela coordenação", priorize-o. Máximo ~700 palavras.`,
 };
 
 Deno.serve(async (req) => {
@@ -138,7 +149,7 @@ Deno.serve(async (req) => {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({ model: MODELO, max_tokens: 2000, system: sistema, messages }),
+        body: JSON.stringify({ model: MODELO, max_tokens: tarefa.startsWith("auditoria") ? 4000 : 2000, system: sistema, messages }),
       });
       const d = await r.json();
       if (!r.ok) {

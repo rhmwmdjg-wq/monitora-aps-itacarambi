@@ -1752,7 +1752,7 @@ function vESUS(m){m.innerHTML=head('Cadastros e-SUS','Importe os lotes de Cadast
  renderESUS()}
 
 /* ===================== ATENDIMENTOS E-SUS (FAI / FAO) ===================== */
-const CBO_NOME={515105:'Agente Comunitário de Saúde','223565':'Médico','225142':'Médico da família','225125':'Médico','223208':'Cirurgião-dentista','223288':'Cirurgião-dentista','322430':'Auxiliar/Téc. Saúde Bucal','322255':'Agente de Endemias','223505':'Enfermeiro'};
+const CBO_NOME={515105:'Agente Comunitário de Saúde','223565':'Enfermeiro(a) da ESF','225142':'Médico da família','225125':'Médico','223208':'Cirurgião-dentista','223288':'Cirurgião-dentista','322430':'Auxiliar/Téc. Saúde Bucal','322255':'Agente de Endemias','223505':'Enfermeiro'};
 const cboNome=c=>CBO_NOME[c]||('CBO '+c);
 const profNome=cns=>(S.profNomes&&S.profNomes[cns]&&S.profNomes[cns].nome)||acsNameMap()[cns]||'';
 const profCat=(cns,cbo)=>(S.profNomes&&S.profNomes[cns]&&S.profNomes[cns].cat)||cboNome(cbo);
@@ -2281,14 +2281,14 @@ function iaListaACS(comp,eqId,ma,codSel){
 /* ---------- Tela ---------- */
 function vIA(m){
   UI.ia=UI.ia||{tab:'resumo',eq:'',ma:'',cod:'ALL'};const s=UI.ia;const comp=compAtual();
-  const tabs=[['resumo','📝 Análise da competência'],['plano','🎯 Plano por equipe'],['acs','💬 Mensagem para ACS'],['dados','📊 Perguntar aos dados'],['regras','📘 Dúvidas sobre indicadores']];
+  const tabs=[['resumo','📝 Análise da competência'],['plano','🎯 Plano por equipe'],['acs','💬 Mensagem para ACS'],['audat','🔎 Auditoria de atendimentos'],['audvd','🏠 Auditoria de visitas ACS'],['dados','📊 Perguntar aos dados'],['regras','📘 Dúvidas sobre indicadores']];
   m.innerHTML=head('Assistente IA',comp?`Competência ${compLabel(comp)} · textos gerados por IA a partir dos números do sistema — revise antes de usar`:'Importe as listas do SIAPS para usar o assistente')+
    `<div class="card"><div class="tabs noprint">${tabs.map(([k,t])=>`<button class="tab ${s.tab===k?'on':''}" data-iat="${k}">${t}</button>`).join('')}</div><div id="iaBody"></div>
-    <p class="mini noprint" style="margin:14px 0 0">🔒 Para a IA vão apenas números agregados por equipe e indicador. Nomes, CPF, CNS, endereços e telefones não saem deste aparelho.</p></div>`;
+    <p class="mini noprint" style="margin:14px 0 0">🔒 Para a IA vão apenas números agregados (por equipe, indicador ou profissional identificado por código). Nomes de pacientes e de profissionais, CPF, CNS, endereços e telefones não saem deste aparelho.</p></div>`;
   $$('[data-iat]',m).forEach(b=>b.onclick=()=>{s.tab=b.dataset.iat;render()});
   const body=$('#iaBody',m);
-  if(!comp&&s.tab!=='regras'){body.innerHTML='<div class="empty">Nenhuma competência importada ainda.</div>';return}
-  ({resumo:iaTabResumo,plano:iaTabPlano,acs:iaTabACS,dados:b=>iaChat(b,'dados'),regras:b=>iaChat(b,'regras')})[s.tab](body,comp);
+  if(!comp&&!['regras','audat','audvd'].includes(s.tab)){body.innerHTML='<div class="empty">Nenhuma competência importada ainda.</div>';return}
+  ({resumo:iaTabResumo,plano:iaTabPlano,acs:iaTabACS,audat:iaTabAuditAt,audvd:iaTabAuditVD,dados:b=>iaChat(b,'dados'),regras:b=>iaChat(b,'regras')})[s.tab](body,comp);
 }
 function iaSaida(el,chave,{titulo,gerar,rotulo='Gerar',sub=''}){
   const o=IA.out[chave];
@@ -2327,6 +2327,169 @@ function iaTabACS(el,comp){const s=UI.ia;if(!s.eq||!DB.eqById[s.eq])s.eq=DB.eq[0
     const ctx=`Equipe: ${eqName(s.eq)} · Microárea ${s.ma} · Competência ${compLabel(comp)} · Indicador(es): ${s.cod==='ALL'?'C2 a C7':s.cod+' '+IND[s.cod].nome}\nTotal de pessoas com pendência: ${lista.length}\nPendências (item: nº de pessoas):\n`+Object.entries(cont).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`- ${k}: ${n}`).join('\n');
     try{IA.out[chave]=await iaPedir('acs',ctx,'Escreva a mensagem para o ACS desta microárea.');logAction('IA','Mensagem ACS '+eqName(s.eq)+' MA '+s.ma)}catch(e){toast('⚠️ '+esc(e.message||e),8000)}finally{IA.busy=false;render()}};
   const cp=$('#iaCp',box);if(cp)cp.onclick=()=>navigator.clipboard.writeText($('#iaTx',box).value).then(()=>toast('Mensagem copiada — cole no WhatsApp ✓'))}
+/* ---------- Auditoria por IA: atendimentos individuais (médico, enfermeiro), odontologia e visitas dos ACS ----------
+   Os indicadores são calculados aqui, no navegador. Para a IA vão só números por profissional,
+   identificados por código (P01, A01…). Nomes de pacientes, CNS e CPF nunca saem deste aparelho;
+   os nomes dos profissionais são recolocados aqui depois que o texto volta. */
+const AUD_CATS=[['ALL','Médicos, enfermeiros e odontologia'],['med','Médico(a)'],['enf','Enfermeiro(a)'],['odonto','Odontologia (dentista/TSB/ASB)']];
+const AUD_CAT_NOME={med:'Médico(a)',enf:'Enfermeiro(a)',odonto:'Odontologia',tec:'Técnico(a) de enfermagem',outro:'Outro'};
+/* Categoria pelo CBO (mais confiável que o rótulo digitado); rótulo só quando o CBO não decide */
+function audCat(x){const b=String(x.cbo||''),c=norm(profCat(x.prof,x.cbo)||'');
+ if(x.tipo==='fao'||/^2232|^3224/.test(b))return 'odonto';
+ if(/^2235/.test(b))return 'enf';
+ if(/^225|^2231/.test(b))return 'med';
+ if(/^3222/.test(b))return 'tec';
+ if(/DENTIST|BUCAL/.test(c))return 'odonto';if(/TECNIC.*ENFERM/.test(c))return 'tec';if(/ENFERM/.test(c))return 'enf';if(/MEDIC/.test(c))return 'med';
+ return 'outro'}
+const AUD_TIPO_AT={1:'Consulta agendada programada/cuidado continuado',2:'Consulta agendada',4:'Escuta inicial/orientação',5:'Consulta no dia',6:'Atendimento de urgência'};
+const AUD_LOCAL={1:'UBS',4:'Domicílio'};
+const audEqTxt=ine=>{const e=eqByINE(ine);return e?e.nome:(ine?'INE '+ine:'sem equipe')};
+const audDiaSem=iso=>new Date(iso+'T12:00:00').getDay();
+const audMin=h=>{const m=String(h||'').match(/^(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):null};
+const audTop=(obj,n=5)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
+function audDatasPadrao(datas){const d=datas.filter(Boolean).sort();if(!d.length)return{de:'',ate:''};const ult=d[d.length-1];return{de:ult.slice(0,7)+'-01',ate:ult}}
+function audFiltroBar(s,opts){
+ return `<div class="bar noprint" style="margin-bottom:12px;flex-wrap:wrap">
+  <label class="small">De <input type="date" id="auDe" value="${esc(s.de)}"></label>
+  <label class="small">Até <input type="date" id="auAte" value="${esc(s.ate)}"></label>
+  <label class="small">Equipe <select id="auEq"><option value="ALL">Todas as equipes</option>${opts.eqs.map(([v,t])=>`<option value="${esc(v)}" ${s.ine===v?'selected':''}>${esc(t)}</option>`).join('')}</select></label>
+  ${opts.cats?`<label class="small">Categoria <select id="auCat">${opts.cats.map(([v,t])=>`<option value="${v}" ${s.cat===v?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`:''}
+  <label class="small">${opts.rotProf} <select id="auProf"><option value="ALL">Todos</option>${opts.profs.map(([v,t])=>`<option value="${esc(v)}" ${s.prof===v?'selected':''}>${esc(t)}</option>`).join('')}</select></label>
+ </div>`}
+function audLigarFiltros(el,s){
+ const on=(id,k,reset)=>{const x=$('#'+id,el);if(x)x.onchange=e=>{s[k]=e.target.value;if(reset)s.prof='ALL';render()}};
+ on('auDe','de');on('auAte','ate');on('auEq','ine',true);on('auCat','cat',true);on('auProf','prof')}
+const audEqOpts=lista=>[...new Set(lista.map(x=>x.ine).filter(Boolean))].map(ine=>[ine,audEqTxt(ine)]).sort((a,b)=>a[1].localeCompare(b[1]));
+/* Recoloca os nomes no lugar dos códigos P01/A01 */
+function audNomes(txt,mapa){return String(txt).replace(/\b([PA]\d{2,3})\b/g,(m)=>mapa[m]?`${mapa[m]} (${m})`:m)}
+
+/* ===== Atendimentos individuais e odontológicos ===== */
+function audAtendCalc(s){
+ const base=todosAtends().filter(x=>x.data&&(!s.de||x.data>=s.de)&&(!s.ate||x.data<=s.ate)&&(s.ine==='ALL'||x.ine===s.ine));
+ const cats=s.cat==='ALL'?['med','enf','odonto']:[s.cat];
+ const doCat=base.filter(x=>cats.includes(audCat(x)));
+ const profsOpc=[...new Set(doCat.map(x=>x.prof).filter(Boolean))].map(p=>{const x=doCat.find(y=>y.prof===p);return[p,(profNome(p)||'CNS '+p)+' · '+AUD_CAT_NOME[audCat(x)]]}).sort((a,b)=>a[1].localeCompare(b[1]));
+ const F=s.prof==='ALL'?doCat:doCat.filter(x=>x.prof===s.prof);
+ const g={};for(const x of F){(g[x.prof||'?']=g[x.prof||'?']||[]).push(x)}
+ const profs=Object.entries(g).map(([cns,A])=>{
+  const cat=audCat(A[0]),porDia={},porDiaHora={},pacDia={},ine={};let fds=0,semHora=0,foraHor=0,seq=0,horaRep=0,naoLoc=0,semCns=0,dupDia=0;
+  for(const x of A){porDia[x.data]=(porDia[x.data]||0)+1;ine[x.ine]=(ine[x.ine]||0)+1;
+   const ds=audDiaSem(x.data);if(ds===0||ds===6)fds++;
+   const mi=audMin(x.hora);if(mi==null)semHora++;else{if(mi<7*60||mi>=19*60)foraHor++;(porDiaHora[x.data]=porDiaHora[x.data]||[]).push(mi)}
+   if(!x.cns)semCns++;else{if(!personOfAtend(x))naoLoc++;const k=x.data+'|'+x.cns;pacDia[k]=(pacDia[k]||0)+1}}
+  for(const k in pacDia)if(pacDia[k]>1)dupDia+=pacDia[k]-1;
+  for(const d in porDiaHora){const t=porDiaHora[d].sort((a,b)=>a-b);const cnt={};for(let i=0;i<t.length;i++){cnt[t[i]]=(cnt[t[i]]||0)+1;if(i&&t[i]-t[i-1]<3)seq++}for(const k in cnt)if(cnt[k]>1)horaRep+=cnt[k]-1}
+  const dias=Object.keys(porDia).length,maxD=audTop(porDia,1)[0]||['',0];
+  const pac=new Set(A.map(x=>x.cns).filter(Boolean)).size;
+  const R={cns,cat,n:A.length,dias,mediaDia:dias?A.length/dias:0,maxDia:maxD[1],maxDiaData:maxD[0],diasAcima:Object.values(porDia).filter(v=>v>(cat==='odonto'?20:30)).length,
+   fds,semHora,foraHor,seq,horaRep,naoLoc,semCns,dupDia,pac,eq:audTop(ine,1)[0]?audEqTxt(audTop(ine,1)[0][0]):'—',nEq:Object.keys(ine).length};
+  const fai=A.filter(x=>x.tipo==='fai'),fao=A.filter(x=>x.tipo==='fao');R.nFai=fai.length;R.nFao=fao.length;
+  if(fai.length){const tp={},lc={},cods={};let semDiag=0,pa=0,pesAlt=0,exam=0,semCond=0,has=0,hasSemPa=0,dm=0,dmSemPa=0;
+   for(const x of fai){const ci=String(x.ciap||''),cd=String(x.cid10||'');
+    if(!ci&&!cd)semDiag++;if(x.pas&&x.pad)pa++;if(x.peso&&x.altura)pesAlt++;if(x.exames&&x.exames.length)exam++;if(!String(x.condutas||'').trim())semCond++;
+    tp[x.tipoAtend||'?']=(tp[x.tipoAtend||'?']||0)+1;lc[x.local||'?']=(lc[x.local||'?']||0)+1;
+    for(const c of (ci+','+cd).split(',').map(y=>y.trim().toUpperCase()).filter(Boolean))cods[c]=(cods[c]||0)+1;
+    const isHas=/K86|K87/.test(ci)||/I1[0-5]/.test(cd.toUpperCase()),isDm=/T89|T90/.test(ci)||/E1[0-4]/.test(cd.toUpperCase());
+    if(isHas){has++;if(!(x.pas&&x.pad))hasSemPa++}if(isDm){dm++;if(!(x.pas&&x.pad))dmSemPa++}}
+   Object.assign(R,{semDiag,pa,pesAlt,exam,semCond,has,hasSemPa,dm,dmSemPa,tipos:audTop(tp,6),locais:audTop(lc,4),cods:audTop(cods,6)})}
+  if(fao.length){const pr={},tc={};let semProc=0,nProc=0,gest=0,nec=0;
+   for(const x of fao){const p=x.proc||[];if(!p.length)semProc++;nProc+=p.length;if(x.gestante)gest++;if(x.necEsp)nec++;for(const c of p)pr[c]=(pr[c]||0)+1;tc[x.consOdonto||'?']=(tc[x.consOdonto||'?']||0)+1}
+   Object.assign(R,{semProc,mediaProc:nProc/fao.length,gest,nec,procs:audTop(pr,6),consOd:audTop(tc,5)})}
+  return R}).sort((a,b)=>a.cat.localeCompare(b.cat)||b.n-a.n);
+ return{F,profs,profsOpc,eqs:audEqOpts(base)}}
+function audAtendCtx(s,C){const mapa={};const p2=n=>String(n).padStart(2,'0');
+ const L=[`AUDITORIA DE ATENDIMENTOS — Itacarambi (MG) · Período ${brDate(s.de)||'início'} a ${brDate(s.ate)||'hoje'} · Equipe: ${s.ine==='ALL'?'todas':audEqTxt(s.ine)} · Categoria: ${(AUD_CATS.find(c=>c[0]===s.cat)||[])[1]}`,
+  `Total auditado: ${C.F.length} atendimentos de ${C.profs.length} profissional(is). Profissionais identificados por código (Pxx).`,
+  'Limiares usados: dia "muito cheio" = mais de 30 atendimentos (médico/enfermeiro) ou 20 (odontologia); "em sequência" = intervalo menor que 3 minutos entre dois atendimentos do mesmo profissional no mesmo dia; "fora do horário" = antes das 7h ou a partir das 19h.',''];
+ const med={};for(const R of C.profs){(med[R.cat]=med[R.cat]||[]).push(R.mediaDia)}
+ L.push('Média de atendimentos por dia trabalhado, por categoria (mediana): '+Object.entries(med).map(([c,v])=>{v.sort((a,b)=>a-b);return `${AUD_CAT_NOME[c]} ${f1n(v[Math.floor(v.length/2)])}`}).join('; '),'');
+ C.profs.forEach((R,i)=>{const cod='P'+p2(i+1);mapa[cod]=profNome(R.cns)||('profissional CNS '+R.cns);const pc=v=>`${v} (${f1n(pct(v,R.n))}%)`;
+  L.push(`${cod} — ${AUD_CAT_NOME[R.cat]} · equipe principal: ${R.eq}${R.nEq>1?` (registrou em ${R.nEq} equipes/INE)`:''}`);
+  L.push(`  Volume: ${R.n} atendimentos (FAI ${R.nFai}, FAO ${R.nFao}) em ${R.dias} dias com registro · média ${f1n(R.mediaDia)}/dia · máximo ${R.maxDia} em ${brDate(R.maxDiaData)} · ${R.diasAcima} dia(s) muito cheio(s) · ${R.fds} em sábado/domingo`);
+  L.push(`  Horário: ${pc(R.semHora)} sem hora registrada · ${pc(R.foraHor)} fora do horário · ${pc(R.seq)} em sequência (<3 min) · ${pc(R.horaRep)} com hora idêntica a outro do mesmo dia`);
+  L.push(`  Pacientes: ${R.pac} pessoas distintas · ${pc(R.semCns)} sem CNS/CPF do cidadão · ${pc(R.naoLoc)} não localizados no cadastro municipal · ${R.dupDia} atendimento(s) repetido(s) para o mesmo paciente no mesmo dia`);
+  if(R.nFai){const pf=v=>`${v} (${f1n(pct(v,R.nFai))}%)`;
+   L.push(`  FAI: ${pf(R.semDiag)} sem CIAP2 nem CID-10 · ${pf(R.pa)} com PA · ${pf(R.pesAlt)} com peso e altura · ${pf(R.exam)} com exame solicitado/avaliado · ${pf(R.semCond)} sem conduta/desfecho`);
+   L.push(`  Hipertensão (K86/K87/I10-I15): ${R.has} atendimentos, ${R.hasSemPa} sem PA · Diabetes (T89/T90/E10-E14): ${R.dm} atendimentos, ${R.dmSemPa} sem PA`);
+   L.push(`  Tipo de atendimento: ${R.tipos.map(([k,n])=>`${AUD_TIPO_AT[k]||'código '+k} ${n}`).join('; ')} · Local: ${R.locais.map(([k,n])=>`${AUD_LOCAL[k]||'código '+k} ${n}`).join('; ')}`);
+   L.push(`  CIAP/CID mais registrados: ${R.cods.map(([k,n])=>`${k} ${n}`).join(', ')||'nenhum'}`)}
+  if(R.nFao){const po=v=>`${v} (${f1n(pct(v,R.nFao))}%)`;
+   L.push(`  FAO: ${po(R.semProc)} sem procedimento registrado · média ${f1n(R.mediaProc)} procedimentos/atendimento · ${R.gest} gestantes · ${R.nec} com necessidades especiais`);
+   L.push(`  Procedimentos SIGTAP mais registrados: ${R.procs.map(([k,n])=>`${k} ${n}`).join(', ')||'nenhum'} · Tipo de consulta odontológica (código e-SUS): ${R.consOd.map(([k,n])=>`${k}: ${n}`).join('; ')}`)}
+  L.push('')});
+ return{ctx:L.join('\n'),mapa}}
+function audAtendTabela(C){if(!C.profs.length)return '<div class="empty">Nenhum atendimento para os filtros escolhidos.</div>';
+ const al=(v,n,lim)=>{const p=pct(v,n);return `<td class="num"${v&&p>=lim?' style="color:#b2352c;font-weight:600"':''}>${v?f1(p)+'%':'—'}</td>`};
+ return `<div class="tw" style="max-height:420px;margin-bottom:12px"><table><thead><tr><th>Profissional</th><th>Cat.</th><th class="num">Atend.</th><th class="num">Dias</th><th class="num">Média/dia</th><th class="num">Máx/dia</th><th class="num">Fim de sem.</th><th class="num">Em sequência</th><th class="num">Sem CIAP/CID</th><th class="num">Com PA (FAI)</th><th class="num">Sem proced. (FAO)</th><th class="num">Não localiz.</th></tr></thead><tbody>${C.profs.map(R=>`<tr><td>${esc(profNome(R.cns)||'CNS '+R.cns)}<div class="mini">${esc(R.eq)}</div></td><td class="small">${esc(AUD_CAT_NOME[R.cat])}</td><td class="num">${fmt(R.n)}</td><td class="num">${R.dias}</td><td class="num">${f1(R.mediaDia)}</td><td class="num">${R.maxDia}</td><td class="num">${R.fds||'—'}</td>${al(R.seq,R.n,20)}${R.nFai?al(R.semDiag,R.nFai,10):'<td class="num">—</td>'}<td class="num">${R.nFai?f1(pct(R.pa,R.nFai))+'%':'—'}</td>${R.nFao?al(R.semProc,R.nFao,10):'<td class="num">—</td>'}${al(R.naoLoc+R.semCns,R.n,15)}</tr>`).join('')}</tbody></table></div>`}
+function iaTabAuditAt(el){
+ const A=todosAtends();if(!A.length){el.innerHTML='<div class="empty">Importe os lotes de Atendimento Individual e/ou Odontológico do e-SUS (menu Atendimentos e-SUS) para auditar.</div>';return}
+ UI.ia.aud=UI.ia.aud||{...audDatasPadrao(A.map(x=>x.data)),ine:'ALL',cat:'ALL',prof:'ALL',foco:''};const s=UI.ia.aud;
+ const C=audAtendCalc(s);if(s.prof!=='ALL'&&!C.profsOpc.some(p=>p[0]===s.prof)){s.prof='ALL';return render()}
+ const chave='audat|'+[s.de,s.ate,s.ine,s.cat,s.prof].join('|');
+ el.innerHTML=audFiltroBar(s,{eqs:C.eqs,cats:AUD_CATS,profs:C.profsOpc,rotProf:'Profissional'})+
+  `<div class="small" style="margin-bottom:8px"><b>${fmt(C.F.length)}</b> atendimento(s) de <b>${C.profs.length}</b> profissional(is) no filtro. Em vermelho: valores que merecem conferência.</div>${audAtendTabela(C)}
+   <label class="small noprint" style="display:block;margin-bottom:10px">Foco da auditoria (opcional) <input type="text" id="auFoco" value="${esc(s.foco)}" placeholder="Ex.: verificar registros em lote, qualidade do registro de hipertensos, produção da odontologia…" style="width:100%"></label><div id="auOut"></div>`;
+ audLigarFiltros(el,s);$('#auFoco',el).oninput=e=>{s.foco=e.target.value};
+ if(!C.profs.length)return;
+ const titulo='Auditoria de atendimentos — '+(s.prof!=='ALL'?(profNome(s.prof)||'profissional'):(AUD_CATS.find(c=>c[0]===s.cat)||[])[1])+' · '+brDate(s.de)+' a '+brDate(s.ate);
+ iaSaida($('#auOut',el),chave,{titulo,rotulo:'Auditar com IA',sub:'A IA analisa os números acima e aponta inconsistências, possíveis falhas de registro e boas práticas.',
+  gerar:async()=>{const{ctx,mapa}=audAtendCtx(s,C);const t=await iaPedir('auditoria',ctx,s.foco?('Foco pedido pela coordenação: '+s.foco):'Faça a auditoria.');return audNomes(t,mapa)}})}
+
+/* ===== Visitas domiciliares dos ACS ===== */
+function audVisitCalc(s){
+ const base=visitas().filter(v=>v.data&&(!s.de||v.data>=s.de)&&(!s.ate||v.data<=s.ate)&&(s.ine==='ALL'||v.ine===s.ine));
+ const profsOpc=[...new Set(base.map(v=>v.prof).filter(Boolean))].map(p=>[p,acsName(p)]).sort((a,b)=>a[1].localeCompare(b[1]));
+ const F=s.prof==='ALL'?base:base.filter(v=>v.prof===s.prof);
+ const g={};for(const v of F){(g[v.prof||'?']=g[v.prof||'?']||[]).push(v)}
+ const gs=gruposSets(),P=ativos();const diasPer=s.de&&s.ate?Math.round((new Date(s.ate)-new Date(s.de))/MS_DAY)+1:null;
+ const acs=Object.entries(g).map(([cns,V])=>{
+  const porDia={},porTurno={},pesDia={},pesQt={},ma={},des={};let fds=0,semCns=0,naoLoc=0,fora=0,dupDia=0;
+  for(const v of V){porDia[v.data]=(porDia[v.data]||0)+1;const kt=v.data+'|'+(v.turno||'?');porTurno[kt]=(porTurno[kt]||0)+1;
+   const ds=audDiaSem(v.data);if(ds===0||ds===6)fds++;des[v.desfecho||'?']=(des[v.desfecho||'?']||0)+1;ma[v.ma||'?']=(ma[v.ma||'?']||0)+1;if(v.fora)fora++;
+   if(!v.cns)semCns++;else{if(!personOfVisit(v))naoLoc++;const k=v.data+'|'+v.cns;pesDia[k]=(pesDia[k]||0)+1;pesQt[v.cns]=(pesQt[v.cns]||0)+1}}
+  for(const k in pesDia)if(pesDia[k]>1)dupDia+=pesDia[k]-1;
+  const dias=Object.keys(porDia).length,maxD=audTop(porDia,1)[0]||['',0],maxT=audTop(porTurno,1)[0]||['',0];
+  const maP=audTop(ma,1)[0]?audTop(ma,1)[0][0]:'';const eqo=eqByINE(V[0].ine);
+  /* cobertura da microárea principal */
+  let cob=null;if(eqo&&maP&&maP!=='?'){const noMa=P.filter(p=>{const f=famOf(p);return f.eq===eqo.id&&String(f.ma)===String(maP)});
+   const vis=new Set(V.filter(v=>v.desfecho==='1').map(v=>personOfVisit(v)).filter(Boolean).map(p=>p.cod));
+   const fams=new Set(noMa.map(p=>p.fam)),famV=new Set(noMa.filter(p=>vis.has(p.cod)).map(p=>p.fam));
+   const grp=(nome,f)=>{const pp=noMa.filter(f);return[nome,pp.length,pp.filter(p=>vis.has(p.cod)).length]};
+   cob={pessoas:noMa.length,pesV:noMa.filter(p=>vis.has(p.cod)).length,fams:fams.size,famV:famV.size,grupos:[grp('Gestantes',p=>gs.C3&&gs.C3.has(p.cod)),grp('Hipertensos',p=>gs.C5&&gs.C5.has(p.cod)),grp('Diabéticos',p=>gs.C4&&gs.C4.has(p.cod)),grp('Crianças <2 anos',p=>{const a=idade(p.nasc);return a!=null&&a<2}),grp('Idosos 60+',p=>{const a=idade(p.nasc);return a!=null&&a>=60})]}}
+  const rep=Object.values(pesQt).filter(n=>n>=4).length;
+  return{cns,n:V.length,dias,mediaDia:dias?V.length/dias:0,maxDia:maxD[1],maxDiaData:maxD[0],maxTurno:maxT[1],maxTurnoTxt:maxT[0]?brDate(maxT[0].split('|')[0])+' '+(TURNO[maxT[0].split('|')[1]]||''):'',
+   diasAcima:Object.values(porDia).filter(n=>n>40).length,fds,semCns,naoLoc,fora,dupDia,rep,pes:Object.keys(pesQt).length,
+   real:des['1']||0,recus:des['2']||0,aus:des['3']||0,eq:eqo?eqo.nome:audEqTxt(V[0].ine),maP,nMa:Object.keys(ma).length,foraMaP:V.filter(v=>String(v.ma||'?')!==String(maP)).length,cob}}).sort((a,b)=>b.n-a.n);
+ return{F,acs,profsOpc,eqs:audEqOpts(base),diasPer}}
+function audVisitCtx(s,C){const mapa={};const p2=n=>String(n).padStart(2,'0');
+ const L=[`AUDITORIA DE VISITAS DOMICILIARES DOS ACS — Itacarambi (MG) · Período ${brDate(s.de)||'início'} a ${brDate(s.ate)||'hoje'}${C.diasPer?` (${C.diasPer} dias corridos)`:''} · Equipe: ${s.ine==='ALL'?'todas':audEqTxt(s.ine)}`,
+  `Total auditado: ${C.F.length} visitas de ${C.acs.length} ACS (identificados por código Axx).`,
+  'Limiares: dia "muito cheio" = mais de 40 visitas; "revisita excessiva" = mesma pessoa visitada 4 ou mais vezes no período. Cobertura = pessoas/famílias ativas no cadastro da microárea principal do ACS com ao menos 1 visita REALIZADA no período.',''];
+ C.acs.forEach((R,i)=>{const cod='A'+p2(i+1);mapa[cod]=acsName(R.cns);const pc=v=>`${v} (${f1n(pct(v,R.n))}%)`;
+  L.push(`${cod} — ${R.eq} · microárea principal ${R.maP||'—'}${R.nMa>1?` (registrou em ${R.nMa} microáreas; ${pc(R.foraMaP)} fora da principal)`:''}`);
+  L.push(`  Volume: ${R.n} visitas em ${R.dias} dias com registro · média ${f1n(R.mediaDia)}/dia · máximo ${R.maxDia} em ${brDate(R.maxDiaData)} · máximo num turno: ${R.maxTurno} (${R.maxTurnoTxt}) · ${R.diasAcima} dia(s) muito cheio(s) · ${R.fds} em sábado/domingo`);
+  L.push(`  Desfecho: realizada ${pc(R.real)} · recusada ${pc(R.recus)} · ausente ${pc(R.aus)}`);
+  L.push(`  Identificação: ${pc(R.semCns)} sem CNS/CPF do cidadão · ${pc(R.naoLoc)} cidadão não localizado no cadastro · ${pc(R.fora)} marcadas "fora de área" · ${R.dupDia} visita(s) repetida(s) à mesma pessoa no mesmo dia · ${R.rep} pessoa(s) com revisita excessiva · ${R.pes} pessoas distintas visitadas`);
+  if(R.cob){const c=R.cob;L.push(`  Cobertura da MA ${R.maP}: ${c.pesV}/${c.pessoas} pessoas (${f1n(pct(c.pesV,c.pessoas))}%) · ${c.famV}/${c.fams} famílias (${f1n(pct(c.famV,c.fams))}%)`);
+   L.push('  Grupos prioritários visitados: '+c.grupos.map(([n,t,v])=>`${n} ${v}/${t}${t?` (${f1n(pct(v,t))}%)`:''}`).join('; '))}
+  L.push('')});
+ return{ctx:L.join('\n'),mapa}}
+function audVisitTabela(C){if(!C.acs.length)return '<div class="empty">Nenhuma visita para os filtros escolhidos.</div>';
+ const al=(v,n,lim)=>{const p=pct(v,n);return `<td class="num"${v&&p>=lim?' style="color:#b2352c;font-weight:600"':''}>${v?f1(p)+'%':'—'}</td>`};
+ return `<div class="tw" style="max-height:420px;margin-bottom:12px"><table><thead><tr><th>ACS</th><th class="num">Visitas</th><th class="num">Dias</th><th class="num">Média/dia</th><th class="num">Máx/dia</th><th class="num">Fim de sem.</th><th class="num">Realizadas</th><th class="num">Ausente/recusa</th><th class="num">Sem CNS</th><th class="num">Repetidas no dia</th><th class="num">Famílias da MA visitadas</th></tr></thead><tbody>${C.acs.map(R=>`<tr><td>${esc(acsName(R.cns))}<div class="mini">${esc(R.eq)} · MA ${esc(R.maP||'—')}</div></td><td class="num">${fmt(R.n)}</td><td class="num">${R.dias}</td><td class="num"${R.mediaDia>30?' style="color:#b2352c;font-weight:600"':''}>${f1(R.mediaDia)}</td><td class="num"${R.maxDia>40?' style="color:#b2352c;font-weight:600"':''}>${R.maxDia}</td><td class="num">${R.fds||'—'}</td><td class="num">${f1(pct(R.real,R.n))}%</td>${al(R.aus+R.recus,R.n,30)}${al(R.semCns,R.n,15)}${al(R.dupDia,R.n,5)}<td class="num">${R.cob?`${R.cob.famV}/${R.cob.fams} (${f1(pct(R.cob.famV,R.cob.fams))}%)`:'—'}</td></tr>`).join('')}</tbody></table></div>`}
+function iaTabAuditVD(el){
+ const V=visitas();if(!V.length){el.innerHTML='<div class="empty">Importe os lotes de Visita Domiciliar do e-SUS (menu dos ACS) para auditar.</div>';return}
+ UI.ia.audvd=UI.ia.audvd||{...audDatasPadrao(V.map(v=>v.data)),ine:'ALL',prof:'ALL',foco:''};const s=UI.ia.audvd;
+ const C=audVisitCalc(s);if(s.prof!=='ALL'&&!C.profsOpc.some(p=>p[0]===s.prof)){s.prof='ALL';return render()}
+ const chave='audvd|'+[s.de,s.ate,s.ine,s.prof].join('|');
+ el.innerHTML=audFiltroBar(s,{eqs:C.eqs,profs:C.profsOpc,rotProf:'ACS'})+
+  `<div class="small" style="margin-bottom:8px"><b>${fmt(C.F.length)}</b> visita(s) de <b>${C.acs.length}</b> ACS no filtro. Em vermelho: valores que merecem conferência.</div>${audVisitTabela(C)}
+   <label class="small noprint" style="display:block;margin-bottom:10px">Foco da auditoria (opcional) <input type="text" id="auFoco" value="${esc(s.foco)}" placeholder="Ex.: visitas em excesso num só dia, cobertura de gestantes, muitas visitas sem identificar o cidadão…" style="width:100%"></label><div id="auOut"></div>`;
+ audLigarFiltros(el,s);$('#auFoco',el).oninput=e=>{s.foco=e.target.value};
+ if(!C.acs.length)return;
+ const titulo='Auditoria de visitas domiciliares — '+(s.prof!=='ALL'?acsName(s.prof):(s.ine==='ALL'?'todos os ACS':audEqTxt(s.ine)))+' · '+brDate(s.de)+' a '+brDate(s.ate);
+ iaSaida($('#auOut',el),chave,{titulo,rotulo:'Auditar com IA',sub:'A IA analisa os números acima e aponta inconsistências, padrões atípicos e cobertura da microárea.',
+  gerar:async()=>{const{ctx,mapa}=audVisitCtx(s,C);const t=await iaPedir('auditoria_vd',ctx,s.foco?('Foco pedido pela coordenação: '+s.foco):'Faça a auditoria.');return audNomes(t,mapa)}})}
 function iaChat(el,tipo){const H=IA.hist[tipo];
   const sug=tipo==='dados'?['Qual equipe mais piorou em C4 em relação à competência anterior?','Em quais indicadores o município está abaixo de "Bom"?','Qual item do C2 tem a pior cobertura e em quais equipes?','Quais 3 ações dariam mais pontos no próximo quadrimestre?']
     :['O que conta como consulta no C2?','Por que a visita do ACS não contou no C4?','Como é calculado o C7?','Qual a diferença entre o C5 e o C6?'];

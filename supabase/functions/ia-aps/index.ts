@@ -1,12 +1,17 @@
 // Monitora APS · Itacarambi — Assistente IA
-// Intermediário seguro entre o site (GitHub Pages) e a API do Claude (Anthropic).
-// - A chave da API fica guardada aqui (segredo ANTHROPIC_API_KEY), nunca no site.
+// Intermediário seguro entre o site (GitHub Pages) e a API de IA.
+// - Provedor: Google Gemini (segredo GEMINI_API_KEY) ou Claude/Anthropic (segredo ANTHROPIC_API_KEY).
+//   Se houver as duas chaves, o segredo PROVEDOR ("gemini" ou "claude") decide; sem ele, usa o Gemini.
+// - As chaves ficam guardadas aqui, nunca no site.
 // - Só atende quem está logado E está na tabela usuarios_autorizados.
 // - O site envia apenas números agregados (sem nomes, CPF ou CNS).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const MODELO = Deno.env.get("MODELO") || "claude-sonnet-5-5";
+const CHAVE_GEMINI = Deno.env.get("GEMINI_API_KEY");
+const CHAVE_CLAUDE = Deno.env.get("ANTHROPIC_API_KEY");
+const PROVEDOR = (Deno.env.get("PROVEDOR") || (CHAVE_GEMINI ? "gemini" : "claude")).toLowerCase();
+const MODELO = Deno.env.get("MODELO") || (PROVEDOR === "gemini" ? "gemini-3.8-flash" : "claude-sonnet-5-5");
 const MAX_ENTRADA = 120_000; // caracteres de contexto aceitos por pedido
 const ORIGENS = ["https://rhmwmdjg-wq.github.io", "http://localhost", "http://127.0.0.1"];
 
@@ -74,8 +79,8 @@ Deno.serve(async (req) => {
     const pergunta = String(corpo.pergunta || "").slice(0, 4000);
     if (contexto.length + JSON.stringify(historico).length > MAX_ENTRADA) return json({ erro: "Contexto grande demais." }, 413);
 
-    const chave = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!chave) return json({ erro: "A chave da API ainda não foi configurada no Supabase (segredo ANTHROPIC_API_KEY)." }, 500);
+    const chave = PROVEDOR === "gemini" ? CHAVE_GEMINI : CHAVE_CLAUDE;
+    if (!chave) return json({ erro: `A chave da API ainda não foi configurada no Supabase (segredo ${PROVEDOR === "gemini" ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY"}).` }, 500);
 
     // Conversa: [pergunta, resposta, pergunta, resposta, ...] + pergunta atual.
     // O contexto de dados vai junto da primeira mensagem do usuário.
@@ -89,19 +94,44 @@ Deno.serve(async (req) => {
     }
     messages[0].content = `DADOS DO SISTEMA (agregados):\n${contexto}\n\n${messages[0].content}`;
 
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELO, max_tokens: 2000, system: BASE + "\n\nTAREFA:\n" + TAREFAS[tarefa], messages }),
-    });
-    const d = await r.json();
-    if (!r.ok) {
-      console.error("Anthropic", r.status, JSON.stringify(d));
-      return json({ erro: "A API de IA recusou o pedido: " + (d?.error?.message || r.status) }, 502);
+    const sistema = BASE + "\n\nTAREFA:\n" + TAREFAS[tarefa];
+    let texto = "", uso: unknown = null;
+    if (PROVEDOR === "gemini") {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
+        method: "POST",
+        headers: { "x-goog-api-key": chave, "content-type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: sistema }] },
+          contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.4 },
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        console.error("Gemini", r.status, JSON.stringify(d));
+        if (r.status === 429) return json({ erro: "Limite gratuito do Gemini atingido. Aguarde 1 minuto (ou até amanhã, se for o limite diário) e tente de novo." }, 429);
+        return json({ erro: "A API do Gemini recusou o pedido: " + (d?.error?.message || r.status) }, 502);
+      }
+      const cand = d.candidates?.[0];
+      texto = (cand?.content?.parts || []).filter((p: any) => p.text && !p.thought).map((p: any) => p.text).join("");
+      if (!texto) return json({ erro: "O Gemini não devolveu texto (" + (cand?.finishReason || d.promptFeedback?.blockReason || "sem motivo") + "). Tente de novo." }, 502);
+      uso = d.usageMetadata;
+    } else {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model: MODELO, max_tokens: 2000, system: sistema, messages }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        console.error("Anthropic", r.status, JSON.stringify(d));
+        return json({ erro: "A API do Claude recusou o pedido: " + (d?.error?.message || r.status) }, 502);
+      }
+      texto = (d.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n");
+      uso = d.usage;
     }
-    const texto = (d.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n");
-    console.log(JSON.stringify({ quem: u.user.email, tarefa, modelo: MODELO, uso: d.usage }));
-    return json({ texto, uso: d.usage });
+    console.log(JSON.stringify({ quem: u.user.email, tarefa, provedor: PROVEDOR, modelo: MODELO, uso }));
+    return json({ texto, uso });
   } catch (e) {
     console.error(e);
     return json({ erro: "Erro interno: " + (e?.message || e) }, 500);

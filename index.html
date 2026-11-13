@@ -983,6 +983,9 @@ function vEquipes(m){
 /* ===================== Atualizar profissionais pelo XML do CNES (XmlParaESUS) ===================== */
 const CBO_CAT_CNES=[[/^2251|^2252|^2253|^2231/,'Médico(a)'],[/^2235/,'Enfermeiro(a)'],[/^3222/,'Técnico(a) de Enfermagem'],[/^5151/,'Agente Comunitário de Saúde (ACS)'],[/^2232/,'Cirurgião(ã)-Dentista'],[/^3224/,'Auxiliar/Técnico(a) de Saúde Bucal'],[/^2515/,'Psicólogo(a)'],[/^2236/,'Fisioterapeuta'],[/^2237/,'Nutricionista'],[/^2238/,'Fonoaudiólogo(a)'],[/^2241/,'Profissional de Educação Física'],[/^2516/,'Assistente Social'],[/^2234/,'Farmacêutico(a)'],[/^5152/,'Agente de Combate às Endemias'],[/^4110|^4221|^4222/,'Recepção/Administrativo']];
 const cnesCat=cbo=>{for(const[r,c]of CBO_CAT_CNES)if(r.test(String(cbo||'')))return c;return 'Outro'};
+const tokNome=s=>norm(s).split(/\s+/).filter(t=>t&&!['DA','DE','DO','DAS','DOS','E'].includes(t));
+/* mesmo nome ou nome curto contido no completo (ex.: "RONALDO" ↔ "Ronaldo Lima Ferreira"), com o mesmo primeiro nome */
+const nomeBate=(a,b)=>{const x=tokNome(a),y=tokNome(b);if(!x.length||!y.length||x[0]!==y[0])return false;const[c,l]=x.length<=y.length?[x,y]:[y,x];return c.every(t=>l.includes(t))};
 const nomeProprio=s=>String(s||'').toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase()).replace(/\s(Da|De|Do|Das|Dos|E)(?=\s)/g,m=>m.toLowerCase());
 function parseCNESXML(text){const dom=new DOMParser().parseFromString(text,'application/xml');if(dom.getElementsByTagName('parsererror').length)throw new Error('XML inválido');
  if(!dom.getElementsByTagName('ImportarXMLCNES').length&&!dom.getElementsByTagName('DADOS_PROFISSIONAIS').length)throw new Error('Este não parece ser o XML do CNES para o e-SUS (XmlParaESUS).');
@@ -1008,12 +1011,13 @@ async function importarCNES(file){if(!file)return;
  /* Monta a nova composição de cada equipe, preservando telefone, id e microárea já cadastrados */
  const plano=[];
  for(const e of DB.eq){const novos=rosters[e.id];if(!novos)continue;const atuais=profsOf(e);const cfg=S.eqCfg[e.id]||{};const usados=new Set();
-  const acharAtual=n=>atuais.find(a=>!usados.has(a.id)&&((a.cns&&a.cns===n.cns)||norm(a.nome)===norm(n.nome)));
+  const livre=a=>!usados.has(a.id);const acharAtual=n=>atuais.find(a=>livre(a)&&a.cns&&a.cns===n.cns)||atuais.find(a=>livre(a)&&!a.cns&&norm(a.nome)===norm(n.nome))||atuais.find(a=>livre(a)&&!a.cns&&a.cat===n.cat&&nomeBate(a.nome,n.nome));
   const lista=[];
   for(const n of novos.sort((a,b)=>CATS.indexOf(a.cat)-CATS.indexOf(b.cat)||a.nome.localeCompare(b.nome))){const a=acharAtual(n);if(a)usados.add(a.id);
    let ma=n.ma||(a&&a.ma)||'';
-   if(!ma&&n.cat.startsWith('Agente Comunitário')){const ms=cfg.maAcs||{};for(const k in ms)if(ms[k].cns===n.cns||norm(ms[k].nome)===norm(n.nome)){ma=k;break}
-    if(!ma)for(const[c,,an]of e.mas)if(norm(an)===norm(n.nome)){ma=c;break}}
+   if(!ma&&n.cat.startsWith('Agente Comunitário')){const ms=cfg.maAcs||{};for(const k in ms)if(ms[k].cns===n.cns){ma=k;break}
+    if(!ma)for(const k in ms)if(nomeBate(ms[k].nome,n.nome)){ma=k;break}
+    if(!ma)for(const[c,,an]of e.mas)if(nomeBate(an,n.nome)){ma=c;break}}
    lista.push({id:a?a.id:'cnes'+n.cns+'-'+lista.length,nome:n.nome,cat:CATS.includes(n.cat)?n.cat:'Outro',ma,cns:n.cns,tel:a?a.tel||'':'',cbo:n.cat})}
   const mantidos=atuais.filter(a=>!usados.has(a.id)&&(a.cat==='Recepção/Administrativo'||(a.cat==='Outro'&&!a.cns)));
   const removidos=atuais.filter(a=>!usados.has(a.id)&&!mantidos.includes(a));

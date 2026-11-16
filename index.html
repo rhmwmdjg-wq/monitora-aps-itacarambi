@@ -2625,6 +2625,7 @@ function vdpCalc(s){const p=vdpPessoa(s.pac);if(!p)return null;
  const fim=s.ate||(todas.map(v=>v.data).filter(Boolean).sort().pop()||'');
  const ini=s.de||(V[0]&&V[0].data)||'';
  const meses=[];if(ini&&fim){let d=new Date(ini.slice(0,7)+'-01T12:00:00');const e=new Date(fim.slice(0,7)+'-01T12:00:00');while(d<=e&&meses.length<60){meses.push(d.toISOString().slice(0,7));d.setMonth(d.getMonth()+1)}}
+ if(meses.length>1&&fim&&+fim.slice(8,10)<25)meses.pop(); /* mês final ainda incompleto não conta */
  const mesesCom=new Set(R.map(v=>v.data.slice(0,7)));const mesesSem=meses.filter(m=>!mesesCom.has(m));
  const profs={};for(const v of V)profs[v.prof]=(profs[v.prof]||0)+1;
  const desf={};for(const v of V)desf[v.desfecho||'?']=(desf[v.desfecho||'?']||0)+1;
@@ -2645,6 +2646,7 @@ function vdpCalc(s){const p=vdpPessoa(s.pac);if(!p)return null;
  if(sxDif.length)G.push(['m',`${sxDif.length} ficha(s) com sexo diferente do cadastro.`]);
  if(Object.keys(profs).length>1)G.push(['m',`Visitada por ${Object.keys(profs).length} profissionais diferentes.`]);
  if(ult&&fim&&vdDiasEntre(ult,fim)>60)G.push([ehGest||grupos.includes('C2')?'a':'m',`Última visita realizada há ${vdDiasEntre(ult,fim)} dias (em ${brDate(ult)}).`]);
+ const nMes=Math.max(1,meses.length),porMes=R.length/nMes;if(R.length>=6&&porMes>2.5)G.push(['m',`${R.length} visitas realizadas em ${nMes} mês(es) — média de ${f1(porMes)} por mês, acima do acompanhamento mensal habitual. Conferir se há motivo (acamado, gestante de risco, recém-nascido) ou se são registros repetidos.`]);
  if(gaps.length&&Math.max(...gaps)>90)G.push(['m',`Maior intervalo sem visita realizada: ${Math.max(...gaps)} dias.`]);
  if((ehGest||ehHas||ehDm||grupos.includes('C2'))&&mesesSem.length&&meses.length>=2)G.push(['m',`Meses sem visita realizada: ${mesesSem.map(m=>m.slice(5)+'/'+m.slice(2,4)).join(', ')}.`]);
  const aus=(desf['3']||0)+(desf['2']||0);if(V.length>=3&&aus/V.length>=0.5)G.push(['m',`${aus} de ${V.length} visitas com desfecho ausente/recusada.`]);

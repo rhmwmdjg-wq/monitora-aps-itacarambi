@@ -2606,8 +2606,7 @@ function vdpCalc(s){const p=vdpPessoa(s.pac);if(!p)return null;
    if(f.ma!=null&&v.ma&&String(v.ma)!==String(f.ma))al.push(['m',`Microárea na ficha (${v.ma}) diferente da do cadastro (${f.ma})`]);
    const eqV=eqByINE(v.ine);if(eqC&&eqV&&eqV.id!==eqC.id)al.push(['m',`Registrada por outra equipe (${eqV.nome})`]);
    if(acsResp&&acsResp.cns&&v.prof!==acsResp.cns)al.push(['m','Profissional diferente do ACS responsável pela microárea']);
-   if(p.nasc&&v.nasc&&p.nasc!==v.nasc)al.push(['a',`Data de nascimento na ficha (${brDate(v.nasc)}) diferente do cadastro`]);
-   if(sexoCad&&v.sexo&&v.sexo!==sexoCad)al.push(['a','Sexo na ficha diferente do cadastro'])}
+}
   if(v.fora)al.push(['m','Marcada como "fora de área"']);
   const sx=v.sexo||sexoCad;
   if(mot.includes('5')||mot.includes('6')){if(sx==='0')al.push(['a','Motivo gestante/puérpera para pessoa do sexo masculino']);else if(id!=null&&(id<10||id>55))al.push(['a',`Motivo gestante/puérpera com ${id} anos`]);else if(!p.naoCad&&!ehGest)al.push(['m','Motivo gestante/puérpera, mas a pessoa não está na lista C3'])}
@@ -2641,6 +2640,9 @@ function vdpCalc(s){const p=vdpPessoa(s.pac);if(!p)return null;
  if(!V.length)G.push(['a','Nenhuma visita registrada para esta pessoa no período.']);
  if(p.naoCad)G.push(['a','O CNS/CPF das fichas não foi localizado no cadastro municipal — conferir se é cidadão do território ou erro de digitação.']);
  if(!p.naoCad&&p.situacao&&p.situacao!=='Ativo'&&V.length)G.push(['a',`Cadastro está como "${p.situacao}", mas há ${V.length} visita(s) no período.`]);
+ const dnDif=p.naoCad||!p.nasc?[]:V.filter(v=>v.nasc&&v.nasc!==p.nasc),sxDif=sexoCad?V.filter(v=>v.sexo&&v.sexo!==sexoCad):[];
+ if(dnDif.length){const ds=[...new Set(dnDif.map(v=>brDate(v.nasc)))];G.push([dnDif.length===V.length?'a':'m',`${dnDif.length} de ${V.length} ficha(s) trazem data de nascimento diferente do cadastro (ficha: ${ds.slice(0,3).join(', ')}; cadastro: ${brDate(p.nasc)}) — o CNS/CPF pode estar ligado a outra pessoa no cadastro ou no tablet.`])}
+ if(sxDif.length)G.push(['m',`${sxDif.length} ficha(s) com sexo diferente do cadastro.`]);
  if(Object.keys(profs).length>1)G.push(['m',`Visitada por ${Object.keys(profs).length} profissionais diferentes.`]);
  if(ult&&fim&&vdDiasEntre(ult,fim)>60)G.push([ehGest||grupos.includes('C2')?'a':'m',`Última visita realizada há ${vdDiasEntre(ult,fim)} dias (em ${brDate(ult)}).`]);
  if(gaps.length&&Math.max(...gaps)>90)G.push(['m',`Maior intervalo sem visita realizada: ${Math.max(...gaps)} dias.`]);

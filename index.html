@@ -1564,10 +1564,14 @@ async function readZip(buf){const dv=new DataView(buf),u8=new Uint8Array(buf);le
  const out=[],td=new TextDecoder('utf-8');for(const f of files){if(f.name.endsWith('/'))continue;const lnlen=dv.getUint16(f.lho+26,true),lelen=dv.getUint16(f.lho+28,true),start=f.lho+30+lnlen+lelen,comp=u8.subarray(start,start+f.csize);let b;if(f.method===0)b=comp;else if(f.method===8)b=await inflateRaw(comp);else throw new Error('Compressão não suportada ('+f.method+')');out.push({name:f.name,text:td.decode(b)})}return out}
 function msIso(ms){const n=Number(String(ms==null?'':ms).replace(/\D/g,''));if(!n)return '';const d=new Date(n);return isNaN(d.getTime())?'':d.toISOString().slice(0,10)}
 function msHora(ms){const n=Number(String(ms==null?'':ms).replace(/\D/g,''));if(!n)return '';const d=new Date(n);return isNaN(d.getTime())?'':d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
-function parseVisitaXML(text,fileName){const dom=new DOMParser().parseFromString(text,'application/xml');if(dom.getElementsByTagName('parsererror').length)throw new Error('XML inválido');const one=(root,t)=>{const e=root.getElementsByTagName(t)[0];return e?e.textContent.trim():''};const uuidFicha=one(dom,'uuidFicha'),cnes=one(dom,'cnesDadoSerializado'),ine=one(dom,'ineDadoSerializado'),prof=one(dom,'profissionalCNS'),cbo=one(dom,'cboCodigo_2002'),data=msIso(one(dom,'dataAtendimento')),lote=one(dom,'numLote'),ibge=one(dom,'codIbge');const out=[];const vs=dom.getElementsByTagName('visitasDomiciliares');for(let i=0;i<vs.length;i++){const v=vs[i],g=t=>one(v,t);out.push({id:(uuidFicha||fileName)+'|'+g('cnsCidadao')+'|'+i,uuidFicha,cnes,ine,prof,cbo,data,turno:g('turno'),cns:g('cnsCidadao'),nasc:msIso(g('dtNascimento')),sexo:g('sexo'),desfecho:g('desfecho'),ma:g('microArea'),fora:g('stForaArea')==='true',imovel:g('tipoDeImovel'),lote,ibge,arquivo:fileName})}return out}
+/* Motivos da visita (dicionário LEDI e-SUS APS · MotivoVisita) */
+const VD_MOTIVO={1:'Cadastramento/atualização',29:'Visita periódica',2:'Busca ativa: consulta',3:'Busca ativa: exame',4:'Busca ativa: vacina',30:'Busca ativa: condicionalidades Bolsa Família',5:'Gestante',6:'Puérpera',7:'Recém-nascido',8:'Criança',9:'Pessoa com desnutrição',10:'Pessoa em reabilitação/com deficiência',11:'Pessoa com hipertensão',12:'Pessoa com diabetes',13:'Pessoa com asma',14:'Pessoa com DPOC/enfisema',15:'Pessoa com câncer',16:'Outras doenças crônicas',17:'Pessoa com hanseníase',18:'Pessoa com tuberculose',32:'Sintomático respiratório',33:'Tabagista',19:'Domiciliado/acamado',20:'Vulnerabilidade social',21:'Condicionalidades Bolsa Família',22:'Saúde mental',23:'Usuário de álcool',24:'Usuário de outras drogas',38:'Pessoa idosa',34:'Ação educativa',35:'Imóvel com foco',36:'Ação mecânica',37:'Tratamento focal',25:'Egresso de internação',27:'Convite p/ atividade coletiva/campanha',31:'Orientação/prevenção',28:'Outros'};
+function vdMotivos(v){const out=[];const els=v.getElementsByTagName('motivosVisita');for(let i=0;i<els.length;i++){const e=els[i];const kids=e.children&&e.children.length?[...e.children]:[e];for(const k of kids)for(const n of String(k.textContent||'').split(/\D+/))if(n)out.push(n)}return[...new Set(out)]}
+const vdNum=x=>{const n=parseFloat(String(x||'').replace(',','.'));return isNaN(n)||n===0?null:n};
+function parseVisitaXML(text,fileName){const dom=new DOMParser().parseFromString(text,'application/xml');if(dom.getElementsByTagName('parsererror').length)throw new Error('XML inválido');const one=(root,t)=>{const e=root.getElementsByTagName(t)[0];return e?e.textContent.trim():''};const uuidFicha=one(dom,'uuidFicha'),cnes=one(dom,'cnesDadoSerializado'),ine=one(dom,'ineDadoSerializado'),prof=one(dom,'profissionalCNS'),cbo=one(dom,'cboCodigo_2002'),data=msIso(one(dom,'dataAtendimento')),hora=(h=>h&&h!=='00:00'?h:'')(msHora(one(dom,'dataAtendimento'))),lote=one(dom,'numLote'),ibge=one(dom,'codIbge');const out=[];const vs=dom.getElementsByTagName('visitasDomiciliares');for(let i=0;i<vs.length;i++){const v=vs[i],g=t=>one(v,t);out.push({id:(uuidFicha||fileName)+'|'+g('cnsCidadao')+'|'+i,uuidFicha,cnes,ine,prof,cbo,data,hora,turno:g('turno'),cns:g('cnsCidadao'),cpf:onlyDig(g('cpfCidadao')),nasc:msIso(g('dtNascimento')),sexo:g('sexo'),desfecho:g('desfecho'),ma:g('microArea'),fora:g('stForaArea')==='true',imovel:g('tipoDeImovel'),motivos:vdMotivos(v),peso:vdNum(g('pesoAcompanhamentoNutricional')),altura:vdNum(g('alturaAcompanhamentoNutricional')),pas:vdNum(g('pressaoSistolica')),pad:vdNum(g('pressaoDiastolica')),temp:vdNum(g('temperatura')),glic:vdNum(g('glicemia')),lat:vdNum(g('latitude')),lon:vdNum(g('longitude')),compart:g('statusVisitaCompartilhadaOutrosProfissionais')==='true',v2:1,lote,ibge,arquivo:fileName})}return out}
 const DESFECHO={1:'Realizada',2:'Recusada',3:'Ausente'},TURNO={1:'Manhã',2:'Tarde',3:'Noite'},SEXO={0:'Masculino',1:'Feminino'};
 const visitas=()=>S.visits||[];
-const personOfVisit=v=>v.cns?DB.byCNS.get(v.cns):null;
+const personOfVisit=v=>(v.cns&&DB.byCNS.get(v.cns))||(v.cpf&&DB.byCPF.get(v.cpf))||null;
 let _vpc=null,_vpk=-1;
 function visitasPorPessoa(){if(_vpc&&_vpk===S.visits.length)return _vpc;_vpk=S.visits.length;const m=new Map();for(const v of visitas()){const p=personOfVisit(v);if(!p)continue;const cur=m.get(p.cod);if(!cur||String(v.data)>cur)m.set(p.cod,v.data)}_vpc=m;return m}
 function semVisitaDias(p){const d=visitasPorPessoa().get(p.cod);return d?Math.floor((TODAY-new Date(d+'T00:00:00'))/MS_DAY):null}
@@ -1592,7 +1596,7 @@ function visitsFiltered(){const a=UI.acs,q=norm(a.q),qd=onlyDig(a.q);return visi
  if(a.cat&&a.cat!=='ALL'&&!catOf(v).includes(a.cat))return false;
  if(q){const p=personOfVisit(v);if(!((p&&norm(p.nome).includes(q))||(qd.length>=5&&String(v.cns).includes(qd))||norm(acsName(v.prof)).includes(q)))return false}
  return true})}
-async function importarVisitas(files){let novos=0,jaT=0,xmls=0,lidos=0;const errs=[];if(!S.visits)S.visits=[];const seen=new Set(S.visits.map(v=>v.id));
+async function importarVisitas(files){let novos=0,jaT=0,xmls=0,lidos=0;const errs=[];if(!S.visits)S.visits=[];const seen=new Set(S.visits.map(v=>v.id));const porId=new Map(S.visits.map(v=>[v.id,v]));let atual=0;
  if(!files||!files.length){UI.acs.lastMsg='<span style="color:#b2352c"><b>Nenhum arquivo recebido.</b> Clique na área pontilhada e escolha o .zip, ou arraste o arquivo para DENTRO da área.</span>';render();return}
  for(const f of files){try{
    lidos++;
@@ -1600,11 +1604,11 @@ async function importarVisitas(files){let novos=0,jaT=0,xmls=0,lidos=0;const err
    if(/\.zip$/i.test(f.name)){const entries=await readZip(await f.arrayBuffer());for(const en of entries)if(/\.xml$/i.test(en.name))arr.push(en.text)}
    else if(/\.xml$/i.test(f.name)){arr.push(await f.text())}
    else{errs.push('Ignorado (só aceito .zip ou .xml): '+esc(f.name));continue}
-   for(const x of arr){xmls++;for(const v of parseVisitaXML(x,f.name)){if(seen.has(v.id)){jaT++;continue}seen.add(v.id);S.visits.push(v);novos++}}
+   for(const x of arr){xmls++;for(const v of parseVisitaXML(x,f.name)){if(seen.has(v.id)){jaT++;const ex=porId.get(v.id);if(ex&&!ex.v2){Object.assign(ex,v);atual++}continue}seen.add(v.id);S.visits.push(v);novos++}}
  }catch(e){errs.push('<b>'+esc(f.name)+'</b>: '+esc(e.message))}}
  S.visitsLog.push({quando:new Date().toISOString(),arquivo:files.length===1?files[0].name:(files.length+' arquivos'),novas:novos,total:S.visits.length});
- await save('visits','visitsLog');logAction('Visitas dos ACS importadas',`${novos} nova(s) · ${jaT} já existiam · total ${S.visits.length}`);
- UI.acs.lastMsg=`<b style="color:#1d6b3e">${novos}</b> visita(s) nova(s) · ${jaT} já existiam · ${xmls} XML(s) lidos · total acumulado: <b>${S.visits.length}</b>${errs.length?' · '+errs.length+' aviso(s) abaixo':''}`;
+ await save('visits','visitsLog');logAction('Visitas dos ACS importadas',`${novos} nova(s) · ${jaT} já existiam${atual?' ('+atual+' completadas com motivos/medidas)':''} · total ${S.visits.length}`);
+ UI.acs.lastMsg=`<b style="color:#1d6b3e">${novos}</b> visita(s) nova(s) · ${jaT} já existiam${atual?` (<b>${atual}</b> completadas com motivo da visita, medidas e GPS)`:''} · ${xmls} XML(s) lidos · total acumulado: <b>${S.visits.length}</b>${errs.length?' · '+errs.length+' aviso(s) abaixo':''}`;
  if(errs.length)toast(errs.join('<br>'),9000);
  await aplicarConfirmacoesTodos();
  render()}
@@ -2503,7 +2507,7 @@ function audVisitCalc(s){
   const porDia={},porTurno={},pesDia={},pesQt={},ma={},des={};let fds=0,semCns=0,naoLoc=0,fora=0,dupDia=0;
   for(const v of V){porDia[v.data]=(porDia[v.data]||0)+1;const kt=v.data+'|'+(v.turno||'?');porTurno[kt]=(porTurno[kt]||0)+1;
    const ds=audDiaSem(v.data);if(ds===0||ds===6)fds++;des[v.desfecho||'?']=(des[v.desfecho||'?']||0)+1;ma[v.ma||'?']=(ma[v.ma||'?']||0)+1;if(v.fora)fora++;
-   if(!v.cns)semCns++;else{if(!personOfVisit(v))naoLoc++;const k=v.data+'|'+v.cns;pesDia[k]=(pesDia[k]||0)+1;pesQt[v.cns]=(pesQt[v.cns]||0)+1}}
+   if(!v.cns&&!v.cpf)semCns++;else{const idc=v.cns||v.cpf;if(!personOfVisit(v))naoLoc++;const k=v.data+'|'+idc;pesDia[k]=(pesDia[k]||0)+1;pesQt[idc]=(pesQt[idc]||0)+1}}
   for(const k in pesDia)if(pesDia[k]>1)dupDia+=pesDia[k]-1;
   const dias=Object.keys(porDia).length,maxD=audTop(porDia,1)[0]||['',0],maxT=audTop(porTurno,1)[0]||['',0];
   const maP=audTop(ma,1)[0]?audTop(ma,1)[0][0]:'';const eqo=eqByINE(V[0].ine);
@@ -2536,6 +2540,14 @@ function audVisitTabela(C){if(!C.acs.length)return '<div class="empty">Nenhuma v
  return `<div class="tw" style="max-height:420px;margin-bottom:12px"><table><thead><tr><th>ACS</th><th class="num">Visitas</th><th class="num">Dias</th><th class="num">Média/dia</th><th class="num">Máx/dia</th><th class="num">Fim de sem.</th><th class="num">Realizadas</th><th class="num">Ausente/recusa</th><th class="num">Sem CNS</th><th class="num">Repetidas no dia</th><th class="num">Famílias da MA visitadas</th></tr></thead><tbody>${C.acs.map(R=>`<tr><td>${esc(acsName(R.cns))}<div class="mini">${esc(R.eq)} · MA ${esc(R.maP||'—')}</div></td><td class="num">${fmt(R.n)}</td><td class="num">${R.dias}</td><td class="num"${R.mediaDia>30?' style="color:#b2352c;font-weight:600"':''}>${f1(R.mediaDia)}</td><td class="num"${R.maxDia>40?' style="color:#b2352c;font-weight:600"':''}>${R.maxDia}</td><td class="num">${R.fds||'—'}</td><td class="num">${f1(pct(R.real,R.n))}%</td>${al(R.aus+R.recus,R.n,30)}${al(R.semCns,R.n,15)}${al(R.dupDia,R.n,5)}<td class="num">${R.cob?`${R.cob.famV}/${R.cob.fams} (${f1(pct(R.cob.famV,R.cob.fams))}%)`:'—'}</td></tr>`).join('')}</tbody></table></div>`}
 function iaTabAuditVD(el){
  const V=visitas();if(!V.length){el.innerHTML='<div class="empty">Importe os lotes de Visita Domiciliar do e-SUS (menu dos ACS) para auditar.</div>';return}
+ const m=UI.ia.vdModo=UI.ia.vdModo||'acs';
+ el.innerHTML=`<div class="bar noprint" style="margin-bottom:12px"><button class="btn ${m==='acs'?'pri':''}" data-vdm="acs">👥 Por ACS / equipe</button><button class="btn ${m==='pac'?'pri':''}" data-vdm="pac">🧍 Por paciente</button></div><div id="vdBody"></div>`;
+ $$('[data-vdm]',el).forEach(b=>b.onclick=()=>{UI.ia.vdModo=b.dataset.vdm;render()});
+ const body=$('#vdBody',el);
+ if(m==='pac'){UI.ia.vdp=UI.ia.vdp||{pac:'',q:'',de:'',ate:'',foco:''};return vdpTela(body,UI.ia.vdp)}
+ iaTabAuditVDAcs(body)}
+function iaTabAuditVDAcs(el){
+ const V=visitas();
  UI.ia.audvd=UI.ia.audvd||{...audDatasPadrao(V.map(v=>v.data)),ine:'ALL',prof:'ALL',foco:''};const s=UI.ia.audvd;
  const C=audVisitCalc(s);if(s.prof!=='ALL'&&!C.profsOpc.some(p=>p[0]===s.prof)){s.prof='ALL';return render()}
  const chave='audvd|'+[s.de,s.ate,s.ine,s.prof].join('|');
@@ -2547,6 +2559,154 @@ function iaTabAuditVD(el){
  const titulo='Auditoria de visitas domiciliares — '+(s.prof!=='ALL'?acsName(s.prof):(s.ine==='ALL'?'todos os ACS':audEqTxt(s.ine)))+' · '+brDate(s.de)+' a '+brDate(s.ate);
  iaSaida($('#auOut',el),chave,{titulo,rotulo:'Auditar com IA',sub:'A IA analisa os números acima e aponta inconsistências, padrões atípicos e cobertura da microárea.',
   gerar:async()=>{const{ctx,mapa}=audVisitCtx(s,C);const t=await iaPedir('auditoria_vd',ctx,s.foco?('Foco pedido pela coordenação: '+s.foco):'Faça a auditoria.');return audNomes(t,mapa)}})}
+/* ===== Auditoria de visitas com foco em UM paciente =====
+   Tudo é calculado aqui, a partir das Fichas de Visita Domiciliar importadas.
+   Para a IA vão só sexo, idade, grupos e a linha do tempo das visitas (datas, ACS por código, motivos, desfecho, achados).
+   Nome, CNS, CPF, endereço e coordenadas do paciente NÃO saem deste aparelho. */
+const VDP_DIST=300; /* metros: GPS da visita longe do ponto habitual do domicílio */
+function vdDistM(a,b){const R=6371000,r=x=>x*Math.PI/180;const dLa=r(b.lat-a.lat),dLo=r(b.lon-a.lon);const h=Math.sin(dLa/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+const vdMed=arr=>{const a=arr.slice().sort((x,y)=>x-y);return a.length?a[Math.floor(a.length/2)]:null};
+const vdIdadeEm=(nasc,iso)=>nasc&&iso?idade(nasc,new Date(iso+'T12:00:00')):null;
+const vdDiasEntre=(a,b)=>Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/MS_DAY);
+const vdMotTxt=ms=>(ms||[]).map(m=>VD_MOTIVO[m]||('motivo '+m)).join(', ');
+function vdpBuscar(q){q=String(q||'').trim();if(q.length<3)return[];const d=onlyDig(q),n=norm(q),out=[];
+ for(const p of DB.pes.values()){if((d.length>=6&&((p.cns&&p.cns.includes(d))||(p.cpf&&p.cpf.includes(d))))||(!d&&norm(p.nome).includes(n))){out.push(p);if(out.length>=25)break}}
+ if(d.length>=11&&!out.length&&visitas().some(v=>v.cns===d||v.cpf===d))out.push({cod:'id:'+d,nome:'Cidadão não localizado no cadastro',cns:d.length===15?d:'',cpf:d.length===11?d:'',naoCad:true});
+ return out}
+function vdpPessoa(cod){if(!cod)return null;if(cod.startsWith('id:')){const d=cod.slice(3);return{cod,nome:'Cidadão não localizado no cadastro',cns:d.length===15?d:'',cpf:d.length===11?d:'',naoCad:true}}return DB.pes.get(cod)||null}
+function vdpCalc(s){const p=vdpPessoa(s.pac);if(!p)return null;
+ const ehDele=v=>p.naoCad?((p.cns&&v.cns===p.cns)||(p.cpf&&v.cpf===p.cpf)):(personOfVisit(v)===p||(p.cns&&v.cns===p.cns)||(p.cpf&&v.cpf===p.cpf));
+ const noPer=v=>v.data&&(!s.de||v.data>=s.de)&&(!s.ate||v.data<=s.ate);
+ const todas=visitas();
+ const V=todas.filter(v=>noPer(v)&&ehDele(v)).sort((a,b)=>(a.data+(a.hora||'')).localeCompare(b.data+(b.hora||'')));
+ const f=p.naoCad?{}:famOf(p);const eqC=f.eq?DB.eqById[f.eq]:null;
+ const cfg=f.eq?(S.eqCfg[f.eq]||{}):{};const acsResp=f.ma!=null&&cfg.maAcs&&cfg.maAcs[f.ma]?cfg.maAcs[f.ma]:null;
+ const acsRespNome=f.eq!=null&&f.ma!=null?acsNomeMA(f.eq,f.ma):'';
+ /* carga do ACS no dia/turno de cada visita */
+ const carga={},cargaT={};for(const v of todas){if(!v.data)continue;const k=v.prof+'|'+v.data;carga[k]=(carga[k]||0)+1;const kt=k+'|'+(v.turno||'?');cargaT[kt]=(cargaT[kt]||0)+1}
+ /* família: outras pessoas do domicílio visitadas no mesmo dia pelo mesmo ACS */
+ const membros=p.naoCad?[]:(DB.members.get(p.fam)||[]).filter(x=>x!==p);
+ const memSet=new Set(membros.map(x=>x.cod));
+ const famV=todas.filter(v=>noPer(v)&&!ehDele(v)&&(()=>{const q=personOfVisit(v);return q&&memSet.has(q.cod)})());
+ const famDia={};for(const v of famV){const k=v.prof+'|'+v.data;famDia[k]=(famDia[k]||0)+1}
+ /* grupos e indicadores em que a pessoa aparece */
+ const gs=gruposSets(),grupos=[];if(!p.naoCad)for(const c of IND_ORDER)if(gs[c]&&gs[c].has(p.cod))grupos.push(c);
+ const ehGest=grupos.includes('C3'),ehHas=grupos.includes('C5'),ehDm=grupos.includes('C4');
+ /* GPS: ponto habitual = mediana das coordenadas das visitas dela + da família */
+ const pts=[...V,...famV].filter(v=>v.lat&&v.lon&&Math.abs(v.lat)<=90&&Math.abs(v.lon)<=180);
+ const centro=pts.length>=2?{lat:vdMed(pts.map(v=>v.lat)),lon:vdMed(pts.map(v=>v.lon))}:null;
+ const sexoCad=p.sexo?(/^f/i.test(p.sexo)||p.sexo==='1'?'1':/^m/i.test(p.sexo)||p.sexo==='0'?'0':''):'';
+ const linhas=V.map((v,i)=>{const al=[];const ds=audDiaSem(v.data);const id=vdIdadeEm(p.nasc||v.nasc,v.data);const mot=v.motivos||[];
+  const k=v.prof+'|'+v.data;const nDia=carga[k]||0,nTurno=cargaT[k+'|'+(v.turno||'?')]||0;
+  if(ds===0||ds===6)al.push(['m','Registrada em '+(ds===0?'domingo':'sábado')]);
+  if(v.turno==='3')al.push(['m','Turno da noite']);
+  if(nDia>40)al.push(['a',`ACS registrou ${nDia} visitas neste dia`]);else if(nTurno>25)al.push(['m',`ACS registrou ${nTurno} visitas neste turno`]);
+  const ant=V[i-1];if(ant){const g=vdDiasEntre(ant.data,v.data);if(g===0)al.push(['a','Segunda visita no mesmo dia'+(ant.prof===v.prof?' pelo mesmo ACS':' (outro profissional)')]);else if(g<=3&&ant.desfecho==='1'&&v.desfecho==='1')al.push(['m',`Nova visita realizada ${g} dia(s) após a anterior`])}
+  if(!p.naoCad){
+   if(f.ma!=null&&v.ma&&String(v.ma)!==String(f.ma))al.push(['m',`Microárea na ficha (${v.ma}) diferente da do cadastro (${f.ma})`]);
+   const eqV=eqByINE(v.ine);if(eqC&&eqV&&eqV.id!==eqC.id)al.push(['m',`Registrada por outra equipe (${eqV.nome})`]);
+   if(acsResp&&acsResp.cns&&v.prof!==acsResp.cns)al.push(['m','Profissional diferente do ACS responsável pela microárea']);
+}
+  if(v.fora)al.push(['m','Marcada como "fora de área"']);
+  const sx=v.sexo||sexoCad;
+  if(mot.includes('5')||mot.includes('6')){if(sx==='0')al.push(['a','Motivo gestante/puérpera para pessoa do sexo masculino']);else if(id!=null&&(id<10||id>55))al.push(['a',`Motivo gestante/puérpera com ${id} anos`]);else if(!p.naoCad&&!ehGest)al.push(['m','Motivo gestante/puérpera, mas a pessoa não está na lista C3'])}
+  if(mot.includes('7')&&p.nasc&&vdDiasEntre(p.nasc,v.data)>60)al.push(['a',`Motivo recém-nascido com ${vdDiasEntre(p.nasc,v.data)} dias de vida`]);
+  if(mot.includes('8')&&id!=null&&id>=12)al.push(['a',`Motivo criança com ${id} anos`]);
+  if(mot.includes('38')&&id!=null&&id<60)al.push(['a',`Motivo pessoa idosa com ${id} anos`]);
+  if(mot.includes('11')&&!p.naoCad&&!ehHas)al.push(['m','Motivo hipertensão, mas não está na lista C5']);
+  if(mot.includes('12')&&!p.naoCad&&!ehDm)al.push(['m','Motivo diabetes, mas não está na lista C4']);
+  if(v.v2&&v.desfecho==='1'&&!mot.length)al.push(['m','Visita realizada sem motivo registrado']);
+  if(v.desfecho==='1'&&(v.peso||v.altura||v.pas||v.glic)&&v.pas&&v.pad&&(v.pas<70||v.pas>250||v.pad<40||v.pad>150))al.push(['a',`PA registrada fora do plausível (${v.pas}/${v.pad})`]);
+  let dist=null;if(centro&&v.lat&&v.lon){dist=Math.round(vdDistM(centro,v));if(dist>VDP_DIST)al.push(['a',`GPS a ${dist>=1000?f1(dist/1000)+' km':dist+' m'} do ponto habitual do domicílio`])}
+  const fam=famDia[k]||0;
+  return{v,i,al,nDia,nTurno,fam,dist,idade:id}});
+ const R=V.filter(v=>v.desfecho==='1');
+ const gaps=[];for(let i=1;i<R.length;i++)gaps.push(vdDiasEntre(R[i-1].data,R[i].data));
+ const fim=s.ate||(todas.map(v=>v.data).filter(Boolean).sort().pop()||'');
+ const ini=s.de||(V[0]&&V[0].data)||'';
+ const meses=[];if(ini&&fim){let d=new Date(ini.slice(0,7)+'-01T12:00:00');const e=new Date(fim.slice(0,7)+'-01T12:00:00');while(d<=e&&meses.length<60){meses.push(d.toISOString().slice(0,7));d.setMonth(d.getMonth()+1)}}
+ if(meses.length>1&&fim&&+fim.slice(8,10)<25)meses.pop(); /* mês final ainda incompleto não conta */
+ const mesesCom=new Set(R.map(v=>v.data.slice(0,7)));const mesesSem=meses.filter(m=>!mesesCom.has(m));
+ const profs={};for(const v of V)profs[v.prof]=(profs[v.prof]||0)+1;
+ const desf={};for(const v of V)desf[v.desfecho||'?']=(desf[v.desfecho||'?']||0)+1;
+ const mots={};for(const v of V)for(const m of (v.motivos||[]))mots[m]=(mots[m]||0)+1;
+ /* atendimentos da pessoa (FAI/FAO) no período, para cruzar com a busca ativa */
+ const At=p.naoCad?[]:todosAtends().filter(x=>x.data&&(!s.de||x.data>=s.de)&&(!s.ate||x.data<=s.ate)&&(personOfAtend(x)===p||(p.cpf&&x.cpf===p.cpf))).sort((a,b)=>a.data.localeCompare(b.data));
+ const buscas=R.filter(v=>(v.motivos||[]).some(m=>['2','3','4'].includes(m)));
+ const buscaEf=buscas.filter(v=>At.some(a=>a.data>=v.data&&vdDiasEntre(v.data,a.data)<=30)).length;
+ const ult=R.length?R[R.length-1].data:'';
+ const semV2=V.filter(v=>!v.v2).length;
+ /* achados gerais */
+ const G=[];
+ if(!V.length)G.push(['a','Nenhuma visita registrada para esta pessoa no período.']);
+ if(p.naoCad)G.push(['a','O CNS/CPF das fichas não foi localizado no cadastro municipal — conferir se é cidadão do território ou erro de digitação.']);
+ if(!p.naoCad&&p.situacao&&p.situacao!=='Ativo'&&V.length)G.push(['a',`Cadastro está como "${p.situacao}", mas há ${V.length} visita(s) no período.`]);
+ const dnDif=p.naoCad||!p.nasc?[]:V.filter(v=>v.nasc&&v.nasc!==p.nasc),sxDif=sexoCad?V.filter(v=>v.sexo&&v.sexo!==sexoCad):[];
+ if(dnDif.length){const ds=[...new Set(dnDif.map(v=>brDate(v.nasc)))];G.push([dnDif.length===V.length?'a':'m',`${dnDif.length} de ${V.length} ficha(s) trazem data de nascimento diferente do cadastro (ficha: ${ds.slice(0,3).join(', ')}; cadastro: ${brDate(p.nasc)}) — o CNS/CPF pode estar ligado a outra pessoa no cadastro ou no tablet.`])}
+ if(sxDif.length)G.push(['m',`${sxDif.length} ficha(s) com sexo diferente do cadastro.`]);
+ if(Object.keys(profs).length>1)G.push(['m',`Visitada por ${Object.keys(profs).length} profissionais diferentes.`]);
+ if(ult&&fim&&vdDiasEntre(ult,fim)>60)G.push([ehGest||grupos.includes('C2')?'a':'m',`Última visita realizada há ${vdDiasEntre(ult,fim)} dias (em ${brDate(ult)}).`]);
+ const nMes=Math.max(1,meses.length),porMes=R.length/nMes;if(R.length>=6&&porMes>2.5)G.push(['m',`${R.length} visitas realizadas em ${nMes} mês(es) — média de ${f1(porMes)} por mês, acima do acompanhamento mensal habitual. Conferir se há motivo (acamado, gestante de risco, recém-nascido) ou se são registros repetidos.`]);
+ if(gaps.length&&Math.max(...gaps)>90)G.push(['m',`Maior intervalo sem visita realizada: ${Math.max(...gaps)} dias.`]);
+ if((ehGest||ehHas||ehDm||grupos.includes('C2'))&&mesesSem.length&&meses.length>=2)G.push(['m',`Meses sem visita realizada: ${mesesSem.map(m=>m.slice(5)+'/'+m.slice(2,4)).join(', ')}.`]);
+ const aus=(desf['3']||0)+(desf['2']||0);if(V.length>=3&&aus/V.length>=0.5)G.push(['m',`${aus} de ${V.length} visitas com desfecho ausente/recusada.`]);
+ if(buscas.length)G.push([buscaEf?'i':'m',`${buscas.length} visita(s) de busca ativa (consulta/exame/vacina); ${buscaEf} seguida(s) de atendimento registrado em até 30 dias.`]);
+ if(semV2)G.push(['i',`${semV2} visita(s) importada(s) antes desta versão — sem motivo, medidas e GPS. Reimporte o lote dessas fichas para completar.`]);
+ if(!centro&&V.some(v=>v.v2))G.push(['i','Fichas sem coordenadas GPS suficientes para checar a localização.']);
+ return{p,f,eqC,acsRespNome,acsResp,V,linhas,R,gaps,meses,mesesSem,profs,desf,mots,At,grupos,G,membros,famV,centro,ult,fim,ini,buscas,buscaEf}}
+const VDP_SEV={a:['#b2352c','#fdecea','Conferir'],m:['#8a5a00','#fff6e0','Atenção'],i:['#1d4f7a','#e8f1fa','Info']};
+const vdpTag=([sv,t])=>{const c=VDP_SEV[sv];return `<div class="small" style="margin:2px 0;padding:3px 7px;border-radius:6px;background:${c[1]};color:${c[0]}"><b>${c[2]}:</b> ${esc(t)}</div>`};
+function vdpCtx(s,C){const mapa={};const ids=Object.keys(C.profs);ids.forEach((cns,i)=>{mapa['A'+String(i+1).padStart(2,'0')]=acsName(cns)});const cod=cns=>'A'+String(ids.indexOf(cns)+1).padStart(2,'0');
+ const p=C.p,id=idade(p.nasc);
+ const L=[`AUDITORIA DAS VISITAS DOMICILIARES DE UM PACIENTE — Itacarambi (MG) · Período ${brDate(C.ini)||'início'} a ${brDate(C.fim)||'hoje'}`,
+  `Paciente (anonimizado): ${p.naoCad?'NÃO localizado no cadastro municipal':'cadastrado, situação '+(p.situacao||'Ativo')} · ${id!=null?id+' anos':'idade não informada'}${p.sexo?' · sexo '+p.sexo:''}`,
+  `Grupos/listas de indicadores em que aparece: ${C.grupos.length?C.grupos.map(c=>c+' '+IND[c].curto).join(', '):'nenhum'}`,
+  `Equipe do cadastro: ${C.eqC?C.eqC.nome:'—'} · microárea do cadastro: ${C.f.ma??'—'} · ACS responsável pela microárea: ${C.acsResp&&C.acsResp.cns&&C.profs[C.acsResp.cns]!=null?cod(C.acsResp.cns):(C.acsResp&&C.acsResp.cns?'outro ACS (não registrou visita a ela no período)':'não identificado')}`,
+  `Domicílio: ${C.membros.length} outra(s) pessoa(s) na família; ${C.famV.length} visita(s) a familiares no período.`,
+  `Totais: ${C.V.length} visitas (${Object.entries(C.desf).map(([k,n])=>`${DESFECHO[k]||'desfecho '+k} ${n}`).join(', ')}) · profissionais: ${Object.entries(C.profs).map(([c,n])=>cod(c)+' '+n).join(', ')||'—'}`,
+  `Intervalos entre visitas realizadas (dias): ${C.gaps.join(', ')||'—'} · última realizada: ${brDate(C.ult)||'—'} · meses do período sem visita realizada: ${C.mesesSem.length}/${C.meses.length}`,
+  `Motivos registrados (nº de visitas): ${Object.entries(C.mots).map(([m,n])=>`${VD_MOTIVO[m]||m} ${n}`).join('; ')||'nenhum'}`,
+  `Atendimentos individuais/odontológicos da pessoa no período: ${C.At.length}${C.At.length?' — '+C.At.slice(0,20).map(a=>`${brDate(a.data)} ${AUD_CAT_NOME[audCat(a)]||''}`).join('; '):''} · buscas ativas (consulta/exame/vacina): ${C.buscas.length}, seguidas de atendimento em até 30 dias: ${C.buscaEf}`,
+  `Checagem de GPS: ${C.centro?'sim (distância ao ponto habitual do domicílio; limiar '+VDP_DIST+' m)':'sem coordenadas suficientes'}`,
+  '','ACHADOS GERAIS CALCULADOS PELO SISTEMA:',...(C.G.length?C.G.map(([sv,t])=>`- [${VDP_SEV[sv][2]}] ${t}`):['- nenhum']),
+  '','LINHA DO TEMPO DAS VISITAS (data · dia da semana · turno · profissional · desfecho · motivos · medidas · carga do ACS no dia · familiares visitados no mesmo dia · achados):'];
+ const DS=['dom','seg','ter','qua','qui','sex','sáb'];
+ for(const x of C.linhas.slice(-150)){const v=x.v;const med=[v.peso?'peso '+v.peso:'',v.altura?'altura '+v.altura:'',v.pas&&v.pad?'PA '+v.pas+'/'+v.pad:'',v.glic?'glicemia '+v.glic:'',v.temp?'temp '+v.temp:''].filter(Boolean).join(', ');
+  L.push(`${x.i+1}. ${brDate(v.data)} (${DS[audDiaSem(v.data)]}${v.hora?' '+v.hora:''}) · ${TURNO[v.turno]||'turno ?'} · ${cod(v.prof)} · ${DESFECHO[v.desfecho]||'?'} · ${v.v2?(vdMotTxt(v.motivos)||'sem motivo'):'motivo não importado'}${med?' · '+med:''} · ${x.nDia} visitas do ACS no dia · ${x.fam} familiar(es) no mesmo dia${x.dist!=null?' · GPS a '+x.dist+' m':''}${x.al.length?' · ACHADOS: '+x.al.map(a=>a[1]).join('; '):''}`)}
+ return{ctx:L.join('\n'),mapa}}
+function vdpTela(el,s){
+ const C=vdpCalc(s);
+ const busca=`<div class="noprint" style="margin-bottom:12px;position:relative"><label class="small" style="display:block">Paciente — nome, CNS ou CPF <input type="search" id="vdpQ" value="${esc(s.q||'')}" placeholder="Digite ao menos 3 letras ou o CNS/CPF…" style="width:100%" autocomplete="off"></label><div id="vdpRes"></div></div>
+  <div class="bar noprint" style="margin-bottom:12px;flex-wrap:wrap"><label class="small">De <input type="date" id="vdpDe" value="${esc(s.de)}"></label><label class="small">Até <input type="date" id="vdpAte" value="${esc(s.ate)}"></label><span class="mini">Deixe em branco para auditar todas as fichas importadas.</span></div>`;
+ if(!C){el.innerHTML=busca+'<div class="empty">Busque e escolha um paciente para auditar todas as visitas registradas para ele nas fichas importadas.</div>';vdpLigar(el,s);return}
+ const p=C.p,F=C.f;const nAl=C.linhas.reduce((n,x)=>n+x.al.filter(a=>a[0]==='a').length,0)+C.G.filter(g=>g[0]==='a').length;
+ const kpi=(l,v,sub)=>`<div class="card kpi" style="box-shadow:none"><span class="l">${l}</span><span class="v">${v}</span>${sub?`<span class="s">${sub}</span>`:''}</div>`;
+ const DS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+ el.innerHTML=busca+`<div class="card" style="box-shadow:none;margin-bottom:12px;background:#f7faf8">
+   <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><b style="font-size:15px">${esc(p.nome)}</b>${p.nasc?` · ${esc(idadeTxt(p.nasc))} (${brDate(p.nasc)})`:''}${p.situacao&&p.situacao!=='Ativo'?` · <span class="tag" style="background:#fdecea;color:#b2352c">${esc(p.situacao)}</span>`:''}
+    <div class="mini">${p.cns?'CNS '+esc(p.cns):''}${p.cpf?' · CPF '+esc(p.cpf):''}${F.logr?' · '+esc(endereco(F)):''}</div>
+    <div class="mini">${C.eqC?esc(C.eqC.nome):'Sem equipe no cadastro'}${F.ma!=null?' · MA '+esc(F.ma)+' · ACS '+esc(C.acsRespNome||'—'):''}${C.grupos.length?' · Listas: '+C.grupos.map(c=>esc(c+' '+IND[c].curto)).join(', '):''}</div></div>
+    <button class="btn noprint" id="vdpTroca">Trocar paciente</button></div></div>
+  <div class="grid g4" style="margin-bottom:12px">${kpi('Visitas no período',C.V.length,`${C.R.length} realizadas · ${(C.desf['3']||0)} ausente · ${(C.desf['2']||0)} recusa`)}${kpi('Última realizada',C.ult?brDate(C.ult):'—',C.ult&&C.fim?vdDiasEntre(C.ult,C.fim)+' dias antes do fim do período':'')}${kpi('Profissionais',Object.keys(C.profs).length,Object.keys(C.profs).map(acsName).join(', ').slice(0,80))}${kpi('Pontos a conferir',nAl,'achados marcados em vermelho')}</div>
+  ${C.G.length?`<div style="margin-bottom:12px">${C.G.map(vdpTag).join('')}</div>`:''}
+  <div class="tw" style="max-height:460px;margin-bottom:12px"><table><thead><tr><th>#</th><th>Data</th><th>Turno</th><th>Profissional</th><th>Desfecho</th><th>Motivos</th><th>Medidas</th><th class="num">Visitas do ACS no dia</th><th class="num">Família no dia</th><th>Achados</th></tr></thead><tbody>${C.linhas.slice().reverse().map(x=>{const v=x.v;const med=[v.peso?v.peso+' kg':'',v.altura?v.altura+' cm':'',v.pas&&v.pad?'PA '+v.pas+'/'+v.pad:'',v.glic?'Glic '+v.glic:''].filter(Boolean).join(' · ');
+    return `<tr${x.al.some(a=>a[0]==='a')?' style="background:#fff7f6"':''}><td class="num">${x.i+1}</td><td style="white-space:nowrap">${brDate(v.data)}<div class="mini">${DS[audDiaSem(v.data)]}${v.hora?' '+esc(v.hora):''}</div></td><td class="small">${esc(TURNO[v.turno]||'—')}</td><td class="small">${esc(acsName(v.prof))}<div class="mini">${esc(audEqTxt(v.ine))}${v.ma?' · MA '+esc(v.ma):''}</div></td><td class="small">${esc(DESFECHO[v.desfecho]||'—')}</td><td class="small">${v.v2?(esc(vdMotTxt(v.motivos))||'<span class="muted">sem motivo</span>'):'<span class="muted">reimportar</span>'}</td><td class="small">${esc(med)||'—'}</td><td class="num"${x.nDia>40?' style="color:#b2352c;font-weight:600"':''}>${x.nDia}</td><td class="num">${x.fam||'—'}</td><td>${x.al.map(vdpTag).join('')||'<span class="mini">✓</span>'}</td></tr>`}).join('')||'<tr><td colspan="10" class="muted">Nenhuma visita no período.</td></tr>'}</tbody></table></div>
+  ${C.At.length?`<details style="margin-bottom:12px"><summary class="small"><b>${C.At.length}</b> atendimento(s) individual/odontológico da pessoa no período (para cruzar com as buscas ativas)</summary><div class="small" style="margin-top:6px">${C.At.map(a=>`${brDate(a.data)} · ${esc(AUD_CAT_NOME[audCat(a)]||'')} · ${esc(profNome(a.prof)||'')}`).join('<br>')}</div></details>`:''}
+  <label class="small noprint" style="display:block;margin-bottom:10px">Foco da auditoria (opcional) <input type="text" id="auFoco" value="${esc(s.foco||'')}" placeholder="Ex.: a família diz que não recebe visita há meses; conferir se as visitas de gestante foram feitas de fato…" style="width:100%"></label><div id="auOut"></div>`;
+ vdpLigar(el,s);$('#auFoco',el).oninput=e=>{s.foco=e.target.value};$('#vdpTroca',el).onclick=()=>{s.pac='';s.q='';render()};
+ const chave='audvdp|'+[s.pac,s.de,s.ate].join('|');
+ iaSaida($('#auOut',el),chave,{titulo:'Auditoria de visitas domiciliares — '+p.nome+' · '+(brDate(C.ini)||'início')+' a '+(brDate(C.fim)||'hoje'),rotulo:'Auditar com IA',
+  sub:'A IA analisa a linha do tempo das fichas de visita deste paciente. O nome, CNS, CPF, endereço e GPS dele não são enviados.',
+  gerar:async()=>{const{ctx,mapa}=vdpCtx(s,C);const perg=(s.foco?'Foco pedido pela coordenação: '+s.foco+'\n':'')+'Faça a auditoria das visitas deste paciente.';let t;
+   try{t=await iaPedir('auditoria_vd_paciente',ctx,perg)}catch(e){if(!/desconhecida/i.test(e.message||''))throw e;
+    t=await iaPedir('auditoria_vd',ctx,perg+'\nATENÇÃO: aqui a auditoria é de UM paciente (não de vários ACS). Estruture em: ## Resumo do caso · ## Regularidade e cobertura das visitas · ## Achados que pedem conferência (cite data e código do ACS) · ## Coerência dos motivos com o perfil do paciente · ## Recomendações (o que conferir com o ACS, a família e o tablet/ficha).')}
+   return audNomes(t,mapa)}})}
+function vdpLigar(el,s){const q=$('#vdpQ',el),res=$('#vdpRes',el);
+ const mostra=()=>{const L=vdpBuscar(q.value);s.q=q.value;
+  res.innerHTML=!q.value.trim()||q.value.trim().length<3?'':L.length?`<div class="card" style="box-shadow:0 4px 14px rgba(0,0,0,.12);position:absolute;z-index:20;left:0;right:0;max-height:320px;overflow:auto;padding:4px">${L.map(p=>{const f=p.naoCad?{}:famOf(p);const nv=visitas().filter(v=>p.naoCad?(v.cns===p.cns&&p.cns)||(v.cpf===p.cpf&&p.cpf):personOfVisit(v)===p).length;return `<div class="vdpOpt" data-c="${esc(p.cod)}" style="padding:6px 8px;cursor:pointer;border-bottom:1px solid #eee"><b>${esc(p.nome)}</b> <span class="mini">${p.nasc?esc(idadeTxt(p.nasc))+' · ':''}${p.cns?'CNS '+esc(p.cns):p.cpf?'CPF '+esc(p.cpf):''}${f.eq?' · '+esc(eqName(f.eq))+' MA '+esc(f.ma):''} · <b>${nv}</b> visita(s)</span></div>`}).join('')}</div>`:'<div class="mini" style="padding:6px">Ninguém encontrado com esse nome/número.</div>';
+  $$('.vdpOpt',res).forEach(o=>o.onclick=()=>{s.pac=o.dataset.c;s.q='';render()})};
+ q.oninput=mostra;if(s.q&&!s.pac){mostra();q.focus();q.setSelectionRange(q.value.length,q.value.length)}
+ $('#vdpDe',el).onchange=e=>{s.de=e.target.value;render()};$('#vdpAte',el).onchange=e=>{s.ate=e.target.value;render()}}
 function iaChat(el,tipo){const H=IA.hist[tipo];
   const sug=tipo==='dados'?['Qual equipe mais piorou em C4 em relação à competência anterior?','Em quais indicadores o município está abaixo de "Bom"?','Qual item do C2 tem a pior cobertura e em quais equipes?','Quais 3 ações dariam mais pontos no próximo quadrimestre?']
     :['O que conta como consulta no C2?','Por que a visita do ACS não contou no C4?','Como é calculado o C7?','Qual a diferença entre o C5 e o C6?'];

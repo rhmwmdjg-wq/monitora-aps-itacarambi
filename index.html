@@ -2345,7 +2345,7 @@ function vIA(m){
   const tabs=[['resumo','📝 Análise da competência'],['plano','🎯 Plano por equipe'],['acs','💬 Mensagem para ACS'],['audat','🔎 Auditoria de atendimentos'],['audvd','🏠 Auditoria de visitas ACS'],['dados','📊 Perguntar aos dados'],['regras','📘 Dúvidas sobre indicadores']];
   m.innerHTML=head('Assistente IA',comp?`Competência ${compLabel(comp)} · textos gerados por IA a partir dos números do sistema — revise antes de usar`:'Importe as listas do SIAPS para usar o assistente')+
    `<div class="card"><div class="tabs noprint">${tabs.map(([k,t])=>`<button class="tab ${s.tab===k?'on':''}" data-iat="${k}">${t}</button>`).join('')}</div><div id="iaBody"></div>
-    <p class="mini noprint" style="margin:14px 0 0">🔒 Para a IA vão apenas números agregados (por equipe, indicador ou profissional identificado por código). Nomes de pacientes e de profissionais, CPF, CNS, endereços e telefones não saem deste aparelho.</p></div>`;
+    <p class="mini noprint" style="margin:14px 0 0">🔒 Para a IA vão apenas números agregados, datas e códigos (por equipe, indicador ou profissional identificado por código). Nomes de pacientes e de profissionais, CPF, CNS, endereços e telefones não saem deste aparelho. Nas auditorias, a <b>lista nominal para conferência</b> é montada aqui no seu aparelho, abaixo do texto da IA, e sai na impressão e no Excel.</p></div>`;
   $$('[data-iat]',m).forEach(b=>b.onclick=()=>{s.tab=b.dataset.iat;render()});
   const body=$('#iaBody',m);
   if(!comp&&!['regras','audat','audvd'].includes(s.tab)){body.innerHTML='<div class="empty">Nenhuma competência importada ainda.</div>';return}
@@ -2458,13 +2458,152 @@ function audAtendCalc(s){
    Object.assign(R,{semProc,mediaProc:nProc/fao.length,gest,nec,procs:audTop(pr,6),consOd:audTop(tc,5)})}
   return R}).sort((a,b)=>a.cat.localeCompare(b.cat)||b.n-a.n);
  return{F,profs,profsOpc,eqs:audEqOpts(base)}}
-function audAtendCtx(s,C){const mapa={};const p2=n=>String(n).padStart(2,'0');
+/* ===== Lista nominal para conferência (os nomes ficam neste aparelho) =====
+   A IA continua recebendo apenas números, datas e códigos. A lista com NOME do paciente,
+   data e hora de cada registro é montada aqui, no navegador, para a coordenação conferir
+   registro por registro, exportar em Excel e imprimir junto do texto da auditoria. */
+const AUD_DS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const AUD_LST_MAX=800;
+const audFlagTag=t=>`<span class="tag red">${esc(t)}</span>`;
+function audFiltraLst(L,st,txtOf){
+ let R=st.so==='ach'?L.filter(l=>l.fl.length):L;
+ const q=norm(st.q||'');if(q)R=R.filter(l=>norm(txtOf(l)).includes(q));
+ return R}
+function audLstBar(st,n,nAch,ids){
+ return `<div class="split noprint" style="flex-wrap:wrap;gap:10px;align-items:flex-end;margin:6px 0 10px">
+  <div class="bar" style="flex-wrap:wrap">
+   <label class="small">Mostrar <select id="${ids}So"><option value="ALL" ${st.so!=='ach'?'selected':''}>Todos os registros (${fmt(n)})</option><option value="ach" ${st.so==='ach'?'selected':''}>Somente achados (${fmt(nAch)})</option></select></label>
+   <label class="small">Buscar <input type="search" id="${ids}Q" value="${esc(st.q||'')}" placeholder="nome, CNS, profissional…" style="min-width:230px"></label>
+  </div>
+  <div class="bar"><button class="btn" id="${ids}Xp">⬇ Excel da conferência</button><button class="btn" onclick="imprimir()">🖨 Imprimir</button></div></div>`}
+
+/* ---- Atendimentos: uma linha por registro, com os achados marcados ---- */
+function audAtLinhas(C){
+ const lim=cat=>cat==='odonto'?20:30;
+ const nDia={},horas={},pacDia={};
+ for(const x of C.F){const k=(x.prof||'?')+'|'+x.data;nDia[k]=(nDia[k]||0)+1;
+  const mi=audMin(x.hora);if(mi!=null)(horas[k]=horas[k]||[]).push(mi);
+  if(x.cns)pacDia[k+'|'+x.cns]=(pacDia[k+'|'+x.cns]||0)+1}
+ const seqS={},repS={};
+ for(const k in horas){const t=horas[k].slice().sort((a,b)=>a-b),cnt={},sq=new Set();
+  for(const v of t)cnt[v]=(cnt[v]||0)+1;
+  for(let i=1;i<t.length;i++)if(t[i]-t[i-1]<3){sq.add(t[i]);sq.add(t[i-1])}
+  seqS[k]=sq;repS[k]=new Set(Object.keys(cnt).filter(v=>cnt[v]>1).map(Number))}
+ const L=C.F.map(x=>{const cat=audCat(x),k=(x.prof||'?')+'|'+x.data,mi=audMin(x.hora),ds=audDiaSem(x.data),p=personOfAtend(x),fl=[];
+  if(ds===0||ds===6)fl.push('fim de semana');
+  if(mi==null)fl.push('sem hora registrada');
+  else{if(mi<7*60||mi>=19*60)fl.push('fora do horário');
+   if(seqS[k]&&seqS[k].has(mi))fl.push('em sequência (<3 min)');
+   if(repS[k]&&repS[k].has(mi))fl.push('hora repetida no dia');}
+  if(!x.cns)fl.push('sem CNS do cidadão');else if(!p)fl.push('cidadão não localizado no cadastro');
+  if(x.cns&&pacDia[k+'|'+x.cns]>1)fl.push('mesmo paciente repetido no dia');
+  if(nDia[k]>lim(cat))fl.push('dia muito cheio ('+nDia[k]+' atend.)');
+  if(x.tipo==='fai'){
+   if(!x.ciap&&!x.cid10)fl.push('sem CIAP2/CID-10');
+   if(!String(x.condutas||'').trim())fl.push('sem conduta/desfecho');
+   const ci=String(x.ciap||'').toUpperCase(),cd=String(x.cid10||'').toUpperCase();
+   if((/K86|K87/.test(ci)||/I1[0-5]/.test(cd))&&!(x.pas&&x.pad))fl.push('hipertensão sem PA aferida');
+   if((/T89|T90/.test(ci)||/E1[0-4]/.test(cd))&&!(x.pas&&x.pad))fl.push('diabetes sem PA aferida')}
+  else if(x.tipo==='fao'&&!(x.proc&&x.proc.length))fl.push('sem procedimento registrado');
+  return{x,cat,p,nDia:nDia[k],fl}});
+ L.sort((a,b)=>String(a.x.data).localeCompare(String(b.x.data))||String(a.x.hora||'').localeCompare(String(b.x.hora||''))||String(profNome(a.x.prof)||'').localeCompare(String(profNome(b.x.prof)||'')));
+ return L}
+function audAtDet(x){const d=[];
+ if(x.tipo==='fai'){d.push((x.ciap||x.cid10)?('CIAP/CID '+[x.ciap,x.cid10].filter(Boolean).join(' ')):'sem CIAP/CID');
+  if(x.pas&&x.pad)d.push('PA '+x.pas+'/'+x.pad);if(x.peso)d.push(f1(x.peso)+' kg');if(x.altura)d.push(f1(x.altura)+' cm');
+  if(x.exames&&x.exames.length)d.push(x.exames.length+' exame(s)');
+  d.push(String(x.condutas||'').trim()?'com conduta':'sem conduta');
+  if(AUD_TIPO_AT[x.tipoAtend])d.push(AUD_TIPO_AT[x.tipoAtend]);
+  if(AUD_LOCAL[x.local])d.push(AUD_LOCAL[x.local])}
+ else{d.push(x.proc&&x.proc.length?('Proc. '+x.proc.join(', ')):'sem procedimento');
+  if(x.gestante)d.push('gestante');if(x.necEsp)d.push('nec. especiais')}
+ return d.join(' · ')}
+const audAtBusca=l=>[l.p?l.p.nome:'',l.x.cns,profNome(l.x.prof),audEqTxt(l.x.ine),l.fl.join(' ')].join(' ');
+function audAtLstTabela(R,total){
+ if(!R.length)return '<div class="empty">Nenhum registro para este filtro.</div>';
+ const cap=R.slice(0,AUD_LST_MAX);
+ return `<div class="tw" style="max-height:520px"><table><thead><tr><th>#</th><th>Data</th><th>Hora</th><th>Paciente</th><th>Profissional</th><th>Ficha</th><th>Registro</th><th class="num">Nº no dia</th><th>Achados</th></tr></thead><tbody>${cap.map((l,i)=>{const x=l.x;
+  return `<tr${l.fl.length?' style="background:#fff7f6"':''}><td class="num">${i+1}</td><td class="small" style="white-space:nowrap">${brDate(x.data)}<div class="mini">${AUD_DS[audDiaSem(x.data)]}</div></td><td class="small">${esc(x.hora||'—')}</td><td>${l.p?`<b>${esc(l.p.nome)}</b>`:'<span class="tag red">não localizado</span>'}<div class="mini">${esc(x.cns||'sem CNS')}</div></td><td class="small">${esc(profNome(x.prof)||('CNS '+x.prof))}<div class="mini">${esc(AUD_CAT_NOME[l.cat]||'')} · ${esc(audEqTxt(x.ine))}</div></td><td class="small">${x.tipo==='fai'?'Individual':'Odonto'}</td><td class="small">${esc(audAtDet(x))}</td><td class="num">${l.nDia}</td><td>${l.fl.map(audFlagTag).join(' ')||'<span class="mini">✓</span>'}</td></tr>`}).join('')}</tbody></table></div>
+  ${R.length>AUD_LST_MAX?`<p class="mini">Mostrando os primeiros ${fmt(AUD_LST_MAX)} de ${fmt(R.length)} registros do filtro — baixe o Excel para ver todos.</p>`:`<p class="mini">${fmt(R.length)} registro(s) exibido(s) de ${fmt(total)} no filtro da auditoria.</p>`}`}
+function audAtXls(R,s){
+ const out=R.map(l=>{const x=l.x,e=eqByINE(x.ine);return{Data:brDate(x.data),'Dia da semana':AUD_DS[audDiaSem(x.data)],Hora:x.hora||'',Paciente:l.p?l.p.nome:'(não localizado no cadastro)','CNS cidadão':x.cns||'',Profissional:profNome(x.prof)||('CNS '+x.prof),Categoria:AUD_CAT_NOME[l.cat]||'',Equipe:e?e.nome:('INE '+x.ine),Ficha:x.tipo==='fai'?'Atendimento individual':'Odontológico','Atend. do profissional no dia':l.nDia,CIAP2:x.ciap||'','CID-10':x.cid10||'',PA:x.pas&&x.pad?x.pas+'/'+x.pad:'',Peso:x.peso||'',Altura:x.altura||'',Conduta:x.condutas||'',Procedimentos:x.proc?x.proc.join(', '):'','Tipo de atendimento':AUD_TIPO_AT[x.tipoAtend]||'','Local':AUD_LOCAL[x.local]||'',Achados:l.fl.join('; '),'Conferido (anotar)':'','Observação da conferência':''}});
+ const ws=XLSX.utils.json_to_sheet(out);ws['!cols']=[{wch:11},{wch:12},{wch:7},{wch:34},{wch:17},{wch:28},{wch:14},{wch:18},{wch:20},{wch:12},{wch:12},{wch:10},{wch:9},{wch:7},{wch:7},{wch:24},{wch:24},{wch:30},{wch:10},{wch:46},{wch:16},{wch:34}];
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Conferência');
+ XLSX.writeFile(wb,`auditoria_atendimentos_${s.de||'inicio'}_a_${s.ate||'hoje'}.xlsx`)}
+function audAtLista(el,s,C){
+ const L=audAtLinhas(C),nAch=L.filter(l=>l.fl.length).length;
+ s.lst=s.lst||{so:'ALL',q:''};const st=s.lst;
+ el.innerHTML=`<h3 style="font-size:14px;margin:18px 0 2px">📋 Lista nominal para conferência — ${esc(brDate(s.de)||'início')} a ${esc(brDate(s.ate)||'hoje')}</h3>
+  <div class="mini" style="margin-bottom:4px">Um registro por linha, com nome do paciente, data e hora. Em vermelho, o que pede conferência. Montada neste aparelho — estes nomes não vão para a IA.</div>
+  ${audLstBar(st,L.length,nAch,'auL')}<div id="auLT"></div>`;
+ const redraw=()=>{const R=audFiltraLst(L,st,audAtBusca);$('#auLT',el).innerHTML=audAtLstTabela(R,L.length)};
+ $('#auLSo',el).onchange=e=>{st.so=e.target.value;redraw()};
+ $('#auLQ',el).oninput=e=>{st.q=e.target.value;redraw()};
+ $('#auLXp',el).onclick=()=>{const R=audFiltraLst(L,st,audAtBusca);if(!R.length)return toast('Nada para exportar neste filtro.');audAtXls(R,s);logAction('Auditoria','Excel da conferência de atendimentos')};
+ redraw()}
+/* Ocorrências com data para a IA (sem nome: paciente vira pac#) */
+function audAtOcorr(C,mapaInv,max=240){
+ const L=audAtLinhas(C).filter(l=>l.fl.length);const out=[];const pac={};let np=0;
+ for(const l of L.slice(0,max)){const cod=mapaInv[l.x.prof||'?']||'P??';
+  let pc='';if(l.x.cns){if(!pac[l.x.cns])pac[l.x.cns]='pac#'+String(++np).padStart(2,'0');pc=' · '+pac[l.x.cns]}
+  out.push(`${brDate(l.x.data)} (${AUD_DS[audDiaSem(l.x.data)]})${l.x.hora?' '+l.x.hora:' sem hora'} · ${cod}${pc} · ${l.x.tipo==='fai'?'individual':'odonto'} · ${l.nDia} no dia · ACHADOS: ${l.fl.join('; ')}`)}
+ return{linhas:out,total:L.length}}
+
+/* ---- Visitas dos ACS: uma linha por visita ---- */
+function audVdLinhas(C){
+ const nDia={},pesDia={},pesQt={};
+ for(const v of C.F){const k=(v.prof||'?')+'|'+v.data,id=v.cns||v.cpf;nDia[k]=(nDia[k]||0)+1;
+  if(id){pesDia[k+'|'+id]=(pesDia[k+'|'+id]||0)+1;pesQt[(v.prof||'?')+'|'+id]=(pesQt[(v.prof||'?')+'|'+id]||0)+1}}
+ const L=C.F.map(v=>{const k=(v.prof||'?')+'|'+v.data,id=v.cns||v.cpf,p=personOfVisit(v),ds=audDiaSem(v.data),fl=[];
+  if(ds===0||ds===6)fl.push('fim de semana');
+  if(!id)fl.push('sem CNS/CPF do cidadão');else if(!p)fl.push('cidadão não localizado no cadastro');
+  if(id&&pesDia[k+'|'+id]>1)fl.push('mesma pessoa repetida no dia');
+  if(nDia[k]>40)fl.push('dia muito cheio ('+nDia[k]+' visitas)');
+  if(v.fora)fl.push('marcada fora de área');
+  if(id&&pesQt[(v.prof||'?')+'|'+id]>=4)fl.push('revisita (4+ no período)');
+  if(v.v2&&!(v.motivos&&v.motivos.length))fl.push('sem motivo da visita');
+  return{v,p,nDia:nDia[k],fl}});
+ L.sort((a,b)=>String(a.v.data).localeCompare(String(b.v.data))||String(a.v.turno||'').localeCompare(String(b.v.turno||''))||String(acsName(a.v.prof)).localeCompare(String(acsName(b.v.prof))));
+ return L}
+const audVdBusca=l=>[l.p?l.p.nome:'',l.v.cns,l.v.cpf,acsName(l.v.prof),audEqTxt(l.v.ine),'MA '+(l.v.ma||''),l.fl.join(' ')].join(' ');
+function audVdLstTabela(R,total){
+ if(!R.length)return '<div class="empty">Nenhuma visita para este filtro.</div>';
+ const cap=R.slice(0,AUD_LST_MAX);
+ return `<div class="tw" style="max-height:520px"><table><thead><tr><th>#</th><th>Data</th><th>Turno</th><th>Pessoa visitada</th><th>ACS</th><th>Desfecho</th><th>Motivos</th><th class="num">Nº no dia</th><th>Achados</th></tr></thead><tbody>${cap.map((l,i)=>{const v=l.v;
+  return `<tr${l.fl.length?' style="background:#fff7f6"':''}><td class="num">${i+1}</td><td class="small" style="white-space:nowrap">${brDate(v.data)}<div class="mini">${AUD_DS[audDiaSem(v.data)]}${v.hora?' '+esc(v.hora):''}</div></td><td class="small">${esc(TURNO[v.turno]||'—')}</td><td>${l.p?`<b>${esc(l.p.nome)}</b>`:'<span class="tag red">não localizado</span>'}<div class="mini">${esc(v.cns||v.cpf||'sem CNS/CPF')}</div></td><td class="small">${esc(acsName(v.prof))}<div class="mini">${esc(audEqTxt(v.ine))}${v.ma?' · MA '+esc(v.ma):''}</div></td><td class="small">${esc(DESFECHO[v.desfecho]||'—')}</td><td class="small">${v.v2?(esc(vdMotTxt(v.motivos))||'<span class="muted">sem motivo</span>'):'<span class="muted">reimportar ficha</span>'}</td><td class="num">${l.nDia}</td><td>${l.fl.map(audFlagTag).join(' ')||'<span class="mini">✓</span>'}</td></tr>`}).join('')}</tbody></table></div>
+  ${R.length>AUD_LST_MAX?`<p class="mini">Mostrando as primeiras ${fmt(AUD_LST_MAX)} de ${fmt(R.length)} visitas do filtro — baixe o Excel para ver todas.</p>`:`<p class="mini">${fmt(R.length)} visita(s) exibida(s) de ${fmt(total)} no filtro da auditoria.</p>`}`}
+function audVdXls(R,s){
+ const out=R.map(l=>{const v=l.v,e=eqByINE(v.ine);return{Data:brDate(v.data),'Dia da semana':AUD_DS[audDiaSem(v.data)],Hora:v.hora||'',Turno:TURNO[v.turno]||v.turno||'','Pessoa visitada':l.p?l.p.nome:'(não localizada no cadastro)','CNS cidadão':v.cns||'','CPF cidadão':v.cpf||'',ACS:acsName(v.prof),Equipe:e?e.nome:('INE '+v.ine),Microárea:v.ma||'','Fora de área':v.fora?'Sim':'Não',Desfecho:DESFECHO[v.desfecho]||v.desfecho||'',Motivos:v.v2?vdMotTxt(v.motivos):'(ficha antiga — reimportar)','Visitas do ACS no dia':l.nDia,PA:v.pas&&v.pad?v.pas+'/'+v.pad:'',Peso:v.peso||'',Altura:v.altura||'',Achados:l.fl.join('; '),'Conferido (anotar)':'','Observação da conferência':''}});
+ const ws=XLSX.utils.json_to_sheet(out);ws['!cols']=[{wch:11},{wch:12},{wch:7},{wch:8},{wch:34},{wch:17},{wch:13},{wch:26},{wch:18},{wch:10},{wch:11},{wch:11},{wch:40},{wch:12},{wch:9},{wch:7},{wch:7},{wch:46},{wch:16},{wch:34}];
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Conferência');
+ XLSX.writeFile(wb,`auditoria_visitas_acs_${s.de||'inicio'}_a_${s.ate||'hoje'}.xlsx`)}
+function audVdLista(el,s,C){
+ const L=audVdLinhas(C),nAch=L.filter(l=>l.fl.length).length;
+ s.lst=s.lst||{so:'ALL',q:''};const st=s.lst;
+ el.innerHTML=`<h3 style="font-size:14px;margin:18px 0 2px">📋 Lista nominal para conferência — ${esc(brDate(s.de)||'início')} a ${esc(brDate(s.ate)||'hoje')}</h3>
+  <div class="mini" style="margin-bottom:4px">Uma visita por linha, com nome da pessoa visitada, data, turno e motivos. Em vermelho, o que pede conferência. Montada neste aparelho — estes nomes não vão para a IA.</div>
+  ${audLstBar(st,L.length,nAch,'avL')}<div id="avLT"></div>`;
+ const redraw=()=>{const R=audFiltraLst(L,st,audVdBusca);$('#avLT',el).innerHTML=audVdLstTabela(R,L.length)};
+ $('#avLSo',el).onchange=e=>{st.so=e.target.value;redraw()};
+ $('#avLQ',el).oninput=e=>{st.q=e.target.value;redraw()};
+ $('#avLXp',el).onclick=()=>{const R=audFiltraLst(L,st,audVdBusca);if(!R.length)return toast('Nada para exportar neste filtro.');audVdXls(R,s);logAction('Auditoria','Excel da conferência de visitas')};
+ redraw()}
+function audVdOcorr(C,mapaInv,max=240){
+ const L=audVdLinhas(C).filter(l=>l.fl.length);const out=[];const pes={};let np=0;
+ for(const l of L.slice(0,max)){const cod=mapaInv[l.v.prof||'?']||'A??',id=l.v.cns||l.v.cpf;
+  let pc='';if(id){if(!pes[id])pes[id]='pes#'+String(++np).padStart(2,'0');pc=' · '+pes[id]}
+  out.push(`${brDate(l.v.data)} (${AUD_DS[audDiaSem(l.v.data)]})${l.v.hora?' '+l.v.hora:''} · ${TURNO[l.v.turno]||'turno ?'} · ${cod}${pc} · MA ${l.v.ma||'?'} · ${DESFECHO[l.v.desfecho]||'?'} · ${l.nDia} no dia · ACHADOS: ${l.fl.join('; ')}`)}
+ return{linhas:out,total:L.length}}
+/* Volume por dia, por profissional (para a IA citar datas) */
+function audDiasTxt(F,cns,max=40){const d={};for(const x of F)if((x.prof||'?')===cns)d[x.data]=(d[x.data]||0)+1;
+ const e=Object.entries(d).sort();return e.slice(0,max).map(([k,n])=>`${brDate(k)} (${AUD_DS[audDiaSem(k)]}) ${n}`).join(' · ')+(e.length>max?` … +${e.length-max} dia(s)`:'')}
+function audAtendCtx(s,C){const mapa={},inv={};const p2=n=>String(n).padStart(2,'0');
  const L=[`AUDITORIA DE ATENDIMENTOS — Itacarambi (MG) · Período ${brDate(s.de)||'início'} a ${brDate(s.ate)||'hoje'} · Equipe: ${s.ine==='ALL'?'todas':audEqTxt(s.ine)} · Categoria: ${(AUD_CATS.find(c=>c[0]===s.cat)||[])[1]}`,
   `Total auditado: ${C.F.length} atendimentos de ${C.profs.length} profissional(is). Profissionais identificados por código (Pxx).`,
   'Limiares usados: dia "muito cheio" = mais de 30 atendimentos (médico/enfermeiro) ou 20 (odontologia); "em sequência" = intervalo menor que 3 minutos entre dois atendimentos do mesmo profissional no mesmo dia; "fora do horário" = antes das 7h ou a partir das 19h.',''];
  const med={};for(const R of C.profs){(med[R.cat]=med[R.cat]||[]).push(R.mediaDia)}
  L.push('Média de atendimentos por dia trabalhado, por categoria (mediana): '+Object.entries(med).map(([c,v])=>{v.sort((a,b)=>a-b);return `${AUD_CAT_NOME[c]} ${f1n(v[Math.floor(v.length/2)])}`}).join('; '),'');
- C.profs.forEach((R,i)=>{const cod='P'+p2(i+1);mapa[cod]=profNome(R.cns)||('profissional CNS '+R.cns);const pc=v=>`${v} (${f1n(pct(v,R.n))}%)`;
+ C.profs.forEach((R,i)=>{const cod='P'+p2(i+1);mapa[cod]=profNome(R.cns)||('profissional CNS '+R.cns);inv[R.cns]=cod;const pc=v=>`${v} (${f1n(pct(v,R.n))}%)`;
   L.push(`${cod} — ${AUD_CAT_NOME[R.cat]} · equipe principal: ${R.eq}${R.nEq>1?` (registrou em ${R.nEq} equipes/INE)`:''}`);
   L.push(`  Volume: ${R.n} atendimentos (FAI ${R.nFai}, FAO ${R.nFao}) em ${R.dias} dias com registro · média ${f1n(R.mediaDia)}/dia · máximo ${R.maxDia} em ${brDate(R.maxDiaData)} · ${R.diasAcima} dia(s) muito cheio(s) · ${R.fds} em sábado/domingo`);
   L.push(`  Horário: ${pc(R.semHora)} sem hora registrada · ${pc(R.foraHor)} fora do horário · ${pc(R.seq)} em sequência (<3 min) · ${pc(R.horaRep)} com hora idêntica a outro do mesmo dia`);
@@ -2477,7 +2616,12 @@ function audAtendCtx(s,C){const mapa={};const p2=n=>String(n).padStart(2,'0');
   if(R.nFao){const po=v=>`${v} (${f1n(pct(v,R.nFao))}%)`;
    L.push(`  FAO: ${po(R.semProc)} sem procedimento registrado · média ${f1n(R.mediaProc)} procedimentos/atendimento · ${R.gest} gestantes · ${R.nec} com necessidades especiais`);
    L.push(`  Procedimentos SIGTAP mais registrados: ${R.procs.map(([k,n])=>`${k} ${n}`).join(', ')||'nenhum'} · Tipo de consulta odontológica (código e-SUS): ${R.consOd.map(([k,n])=>`${k}: ${n}`).join('; ')}`)}
+  L.push(`  Dias com registro (data e nº de atendimentos): ${audDiasTxt(C.F,R.cns)||'—'}`);
   L.push('')});
+ const oc=audAtOcorr(C,inv);
+ L.push('OCORRÊNCIAS DATADAS QUE PEDEM CONFERÊNCIA (uma por registro; o paciente vai apenas como pac#NN — o nome está na lista nominal impressa pela coordenação):');
+ L.push(`Total de registros com achado: ${oc.total}${oc.total>oc.linhas.length?` — abaixo os ${oc.linhas.length} primeiros, em ordem de data`:''}.`);
+ L.push(oc.linhas.length?oc.linhas.join('\n'):'Nenhum achado nos registros deste filtro.');
  return{ctx:L.join('\n'),mapa}}
 function audAtendTabela(C){if(!C.profs.length)return '<div class="empty">Nenhum atendimento para os filtros escolhidos.</div>';
  const al=(v,n,lim)=>{const p=pct(v,n);return `<td class="num"${v&&p>=lim?' style="color:#b2352c;font-weight:600"':''}>${v?f1(p)+'%':'—'}</td>`};
@@ -2489,12 +2633,13 @@ function iaTabAuditAt(el){
  const chave='audat|'+[s.de,s.ate,s.ine,s.cat,s.prof].join('|');
  el.innerHTML=audFiltroBar(s,{eqs:C.eqs,cats:AUD_CATS,profs:C.profsOpc,rotProf:'Profissional'})+
   `<div class="small" style="margin-bottom:8px"><b>${fmt(C.F.length)}</b> atendimento(s) de <b>${C.profs.length}</b> profissional(is) no filtro. Em vermelho: valores que merecem conferência.</div>${audAtendTabela(C)}
-   <label class="small noprint" style="display:block;margin-bottom:10px">Foco da auditoria (opcional) <input type="text" id="auFoco" value="${esc(s.foco)}" placeholder="Ex.: verificar registros em lote, qualidade do registro de hipertensos, produção da odontologia…" style="width:100%"></label><div id="auOut"></div>`;
+   <label class="small noprint" style="display:block;margin-bottom:10px">Foco da auditoria (opcional) <input type="text" id="auFoco" value="${esc(s.foco)}" placeholder="Ex.: verificar registros em lote, qualidade do registro de hipertensos, produção da odontologia…" style="width:100%"></label><div id="auOut"></div><div id="auLista"></div>`;
  audLigarFiltros(el,s);$('#auFoco',el).oninput=e=>{s.foco=e.target.value};
+ audAtLista($('#auLista',el),s,C);
  if(!C.profs.length)return;
  const titulo='Auditoria de atendimentos — '+(s.prof!=='ALL'?(profNome(s.prof)||'profissional'):(AUD_CATS.find(c=>c[0]===s.cat)||[])[1])+' · '+brDate(s.de)+' a '+brDate(s.ate);
  iaSaida($('#auOut',el),chave,{titulo,rotulo:'Auditar com IA',sub:'A IA analisa os números acima e aponta inconsistências, possíveis falhas de registro e boas práticas.',
-  gerar:async()=>{const{ctx,mapa}=audAtendCtx(s,C);const t=await iaPedir('auditoria',ctx,s.foco?('Foco pedido pela coordenação: '+s.foco):'Faça a auditoria.');return audNomes(t,mapa)}})}
+  gerar:async()=>{const{ctx,mapa}=audAtendCtx(s,C);const t=await iaPedir('auditoria',ctx,(s.foco?('Foco pedido pela coordenação: '+s.foco):'Faça a auditoria.')+'\n\nCOMO ESCREVER OS ACHADOS: use a seção OCORRÊNCIAS DATADAS do contexto. Para cada achado relevante, cite a DATA (dd/mm) e a hora quando houver, o código do profissional e o que precisa ser conferido. Agrupe por profissional e liste as datas uma por linha, em ordem cronológica, para a coordenação conferir registro por registro. Não invente datas que não estejam no contexto e não tente citar nomes de pacientes (eles não vão para você; a coordenação tem a lista nominal com os nomes).');return audNomes(t,mapa)}})}
 
 /* ===== Visitas domiciliares dos ACS ===== */
 function audVisitCalc(s){
@@ -2522,18 +2667,23 @@ function audVisitCalc(s){
    diasAcima:Object.values(porDia).filter(n=>n>40).length,fds,semCns,naoLoc,fora,dupDia,rep,pes:Object.keys(pesQt).length,
    real:des['1']||0,recus:des['2']||0,aus:des['3']||0,eq:eqo?eqo.nome:audEqTxt(V[0].ine),maP,nMa:Object.keys(ma).length,foraMaP:V.filter(v=>String(v.ma||'?')!==String(maP)).length,cob}}).sort((a,b)=>b.n-a.n);
  return{F,acs,profsOpc,eqs:audEqOpts(base),diasPer}}
-function audVisitCtx(s,C){const mapa={};const p2=n=>String(n).padStart(2,'0');
+function audVisitCtx(s,C){const mapa={},inv={};const p2=n=>String(n).padStart(2,'0');
  const L=[`AUDITORIA DE VISITAS DOMICILIARES DOS ACS — Itacarambi (MG) · Período ${brDate(s.de)||'início'} a ${brDate(s.ate)||'hoje'}${C.diasPer?` (${C.diasPer} dias corridos)`:''} · Equipe: ${s.ine==='ALL'?'todas':audEqTxt(s.ine)}`,
   `Total auditado: ${C.F.length} visitas de ${C.acs.length} ACS (identificados por código Axx).`,
   'Limiares: dia "muito cheio" = mais de 40 visitas; "revisita excessiva" = mesma pessoa visitada 4 ou mais vezes no período. Cobertura = pessoas/famílias ativas no cadastro da microárea principal do ACS com ao menos 1 visita REALIZADA no período.',''];
- C.acs.forEach((R,i)=>{const cod='A'+p2(i+1);mapa[cod]=acsName(R.cns);const pc=v=>`${v} (${f1n(pct(v,R.n))}%)`;
+ C.acs.forEach((R,i)=>{const cod='A'+p2(i+1);mapa[cod]=acsName(R.cns);inv[R.cns]=cod;const pc=v=>`${v} (${f1n(pct(v,R.n))}%)`;
   L.push(`${cod} — ${R.eq} · microárea principal ${R.maP||'—'}${R.nMa>1?` (registrou em ${R.nMa} microáreas; ${pc(R.foraMaP)} fora da principal)`:''}`);
   L.push(`  Volume: ${R.n} visitas em ${R.dias} dias com registro · média ${f1n(R.mediaDia)}/dia · máximo ${R.maxDia} em ${brDate(R.maxDiaData)} · máximo num turno: ${R.maxTurno} (${R.maxTurnoTxt}) · ${R.diasAcima} dia(s) muito cheio(s) · ${R.fds} em sábado/domingo`);
   L.push(`  Desfecho: realizada ${pc(R.real)} · recusada ${pc(R.recus)} · ausente ${pc(R.aus)}`);
   L.push(`  Identificação: ${pc(R.semCns)} sem CNS/CPF do cidadão · ${pc(R.naoLoc)} cidadão não localizado no cadastro · ${pc(R.fora)} marcadas "fora de área" · ${R.dupDia} visita(s) repetida(s) à mesma pessoa no mesmo dia · ${R.rep} pessoa(s) com revisita excessiva · ${R.pes} pessoas distintas visitadas`);
   if(R.cob){const c=R.cob;L.push(`  Cobertura da MA ${R.maP}: ${c.pesV}/${c.pessoas} pessoas (${f1n(pct(c.pesV,c.pessoas))}%) · ${c.famV}/${c.fams} famílias (${f1n(pct(c.famV,c.fams))}%)`);
    L.push('  Grupos prioritários visitados: '+c.grupos.map(([n,t,v])=>`${n} ${v}/${t}${t?` (${f1n(pct(v,t))}%)`:''}`).join('; '))}
+  L.push(`  Dias com registro (data e nº de visitas): ${audDiasTxt(C.F,R.cns)||'—'}`);
   L.push('')});
+ const oc=audVdOcorr(C,inv);
+ L.push('OCORRÊNCIAS DATADAS QUE PEDEM CONFERÊNCIA (uma por visita; a pessoa vai apenas como pes#NN — o nome está na lista nominal impressa pela coordenação):');
+ L.push(`Total de visitas com achado: ${oc.total}${oc.total>oc.linhas.length?` — abaixo as ${oc.linhas.length} primeiras, em ordem de data`:''}.`);
+ L.push(oc.linhas.length?oc.linhas.join('\n'):'Nenhum achado nas visitas deste filtro.');
  return{ctx:L.join('\n'),mapa}}
 function audVisitTabela(C){if(!C.acs.length)return '<div class="empty">Nenhuma visita para os filtros escolhidos.</div>';
  const al=(v,n,lim)=>{const p=pct(v,n);return `<td class="num"${v&&p>=lim?' style="color:#b2352c;font-weight:600"':''}>${v?f1(p)+'%':'—'}</td>`};
@@ -2553,12 +2703,13 @@ function iaTabAuditVDAcs(el){
  const chave='audvd|'+[s.de,s.ate,s.ine,s.prof].join('|');
  el.innerHTML=audFiltroBar(s,{eqs:C.eqs,profs:C.profsOpc,rotProf:'ACS'})+
   `<div class="small" style="margin-bottom:8px"><b>${fmt(C.F.length)}</b> visita(s) de <b>${C.acs.length}</b> ACS no filtro. Em vermelho: valores que merecem conferência.</div>${audVisitTabela(C)}
-   <label class="small noprint" style="display:block;margin-bottom:10px">Foco da auditoria (opcional) <input type="text" id="auFoco" value="${esc(s.foco)}" placeholder="Ex.: visitas em excesso num só dia, cobertura de gestantes, muitas visitas sem identificar o cidadão…" style="width:100%"></label><div id="auOut"></div>`;
+   <label class="small noprint" style="display:block;margin-bottom:10px">Foco da auditoria (opcional) <input type="text" id="auFoco" value="${esc(s.foco)}" placeholder="Ex.: visitas em excesso num só dia, cobertura de gestantes, muitas visitas sem identificar o cidadão…" style="width:100%"></label><div id="auOut"></div><div id="avLista"></div>`;
  audLigarFiltros(el,s);$('#auFoco',el).oninput=e=>{s.foco=e.target.value};
+ audVdLista($('#avLista',el),s,C);
  if(!C.acs.length)return;
  const titulo='Auditoria de visitas domiciliares — '+(s.prof!=='ALL'?acsName(s.prof):(s.ine==='ALL'?'todos os ACS':audEqTxt(s.ine)))+' · '+brDate(s.de)+' a '+brDate(s.ate);
  iaSaida($('#auOut',el),chave,{titulo,rotulo:'Auditar com IA',sub:'A IA analisa os números acima e aponta inconsistências, padrões atípicos e cobertura da microárea.',
-  gerar:async()=>{const{ctx,mapa}=audVisitCtx(s,C);const t=await iaPedir('auditoria_vd',ctx,s.foco?('Foco pedido pela coordenação: '+s.foco):'Faça a auditoria.');return audNomes(t,mapa)}})}
+  gerar:async()=>{const{ctx,mapa}=audVisitCtx(s,C);const t=await iaPedir('auditoria_vd',ctx,(s.foco?('Foco pedido pela coordenação: '+s.foco):'Faça a auditoria.')+'\n\nCOMO ESCREVER OS ACHADOS: use a seção OCORRÊNCIAS DATADAS do contexto. Para cada achado relevante, cite a DATA (dd/mm) e a hora quando houver, o código do profissional e o que precisa ser conferido. Agrupe por profissional e liste as datas uma por linha, em ordem cronológica, para a coordenação conferir registro por registro. Não invente datas que não estejam no contexto e não tente citar nomes de pacientes (eles não vão para você; a coordenação tem a lista nominal com os nomes).');return audNomes(t,mapa)}})}
 /* ===== Auditoria de visitas com foco em UM paciente =====
    Tudo é calculado aqui, a partir das Fichas de Visita Domiciliar importadas.
    Para a IA vão só sexo, idade, grupos e a linha do tempo das visitas (datas, ACS por código, motivos, desfecho, achados).

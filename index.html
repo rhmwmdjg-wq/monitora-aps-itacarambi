@@ -819,7 +819,7 @@ const NAV=[
  {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS / Procedimentos','steth'],['vita','Vitamina A','vita'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
  {t:'Sistema',items:[['acessos','Acessos das equipes','key'],['config','Dados e backup','db']]}
 ];
-const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'},vita:{rep:'busca',ref:'',eq:'ALL',ma:'ALL',faixa:'ALL',sit:'DEVE',atraso:'',q:'',tel:'ALL',bk:'ALL',page:0,crianca:'',gr:'acs',rano:'',foco:'',gano:''}};
+const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'},vita:{rep:'busca',ref:'',eq:'ALL',ma:'ALL',faixa:'ALL',sit:'DEVE',atraso:'',q:'',tel:'ALL',bk:'ALL',vis:'ALL',page:0,crianca:'',gr:'acs',rano:'',foco:'',gano:'',projIni:'',margem:'10',aeq:'',ama:''}};
 function nav(){$('#nav').innerHTML=NAV.map(g=>`<div class="navgroup">${g.t}</div>`+g.items.map(([k,t,i])=>`<button class="nav ${UI.view===k?'on':''}" data-v="${k}">${ico(i)}<span>${t}</span></button>`).join('')).join('');
   $$('#nav .nav').forEach(b=>b.onclick=()=>{UI.view=b.dataset.v;render();closeSide()})}
 function closeSide(){$('#side').classList.remove('open');$('#ovl').classList.remove('on')}
@@ -913,7 +913,9 @@ function alertasHome(){const hoje=TODAY.toISOString().slice(0,10);
  const cset=new Set();if(byCod.C2)for(const r of byCod.C2){const p=matchRow(r).p;if(!p||!p.nasc)continue;const d2=addYears(p.nasc,2),dias=Math.floor((new Date(d2+'T00:00:00')-TODAY)/MS_DAY);if(dias<0||dias>90)continue;const ev=rowEval('C2',r);if(ev.dn&&ev.pend.length)cset.add(p.cod)}
  const vp=visitasPorPessoa(),ap=atendsPorPessoa(),seen=new Set(),fila=[];
  for(const cod of ['C4','C5','C6','C3']){if(!byCod[cod])continue;for(const r of byCod[cod]){const p=matchRow(r).p;if(!p||seen.has(p.cod))continue;const ev=rowEval(cod,r);if(!(ev.dn&&ev.pend.length))continue;if(ap.has(p.cod)||vp.has(p.cod))continue;seen.add(p.cod);fila.push({p,cod})}}
- return{gDPP:gset.size,crias:cset.size,fila};
+ let vitaVence=0,vitaAtr=0;
+ try{for(const x of vitaUniverso(vCompAtual())){if(x.st==='VENCE')vitaVence++;else if(x.st==='ATRASADA')vitaAtr++}}catch(e){}
+ return{gDPP:gset.size,crias:cset.size,fila,vitaVence,vitaAtr};
 }
 function vHome(m){
   const comp=compAtual();const P=ativos();const F=[...DB.fam.values()].filter(f=>f.qtd>0);
@@ -950,7 +952,9 @@ function vHome(m){
            <div class="st ${A.gDPP?'no':'ok'}"><b>${fmt(A.gDPP)}</b> gestante(s) com DPP vencida</div>
            <div class="st ${A.crias?'no':'ok'}"><b>${fmt(A.crias)}</b> criança(s) <2 com pendência e fazendo 2 anos (≤90d)</div>
            <div class="st ${A.fila.length?'no':'ok'}"><b>${fmt(A.fila.length)}</b> pessoa(s) com pendência sem atendimento e sem visita</div>
+           <div class="st ${(A.vitaVence+A.vitaAtr)?'no':'ok'}"><b>${fmt(A.vitaVence+A.vitaAtr)}</b> criança(s) precisam de vitamina A em ${compLabel(vCompAtual())}${A.vitaAtr?' — '+fmt(A.vitaAtr)+' já atrasada(s)':''}</div>
          </div>
+         ${(A.vitaVence+A.vitaAtr)?`<div class="bar noprint" style="margin-top:10px"><button class="btn" data-go="vita">💊 Abrir a busca ativa de vitamina A</button></div>`:''}
          ${A.fila.length?`<div class="mini" style="margin:10px 0 4px">Fila prioritária (pendência, sem atendimento e sem visita):</div>${A.fila.slice(0,8).map(x=>`<div class="split small" style="padding:4px 0;border-bottom:1px solid #f0f3f1"><span><b>${esc(x.p.nome)}</b> <span class="muted">· ${x.cod} ${esc(IND[x.cod].curto)}</span></span><button class="btn sm" data-al="${x.p.cod}">Abrir</button></div>`).join('')}${A.fila.length>8?`<div class="mini" style="margin-top:6px">+ ${A.fila.length-8} outra(s)…</div>`:''}`:'<div class="mini" style="margin-top:8px">Nenhuma pendência “fria” — bom trabalho. ✓</div>'}
          </div>`})()}
      </div>
@@ -3058,6 +3062,22 @@ function vitaInfo(p){
  return{end,eqId:f?f.eq:'',eq:f?eqName(f.eq):'',maCod:f?f.ma:'',acs:ma?ma.acs:'',acsCod:ma?ma.acsCod:'',
   mae:p.mae||'',resp,tel:p.tel||'',bairro:f?(f.exp||''):''}}
 
+/* ---- visitas do ACS no mes de referencia (Ficha de Visita Domiciliar) ----
+   Serve para conferir a folha do ACS: quem ele diz que nao localizou tem visita
+   registrada no e-SUS? Quem ele visitou voltou com algum retorno marcado? */
+let _vitaVis=null,_vitaVisK='';
+function vitaVisitasMes(ref){
+ const k=ref+'|'+(S.visits||[]).length;
+ if(_vitaVis&&_vitaVisK===k)return _vitaVis;
+ const m=new Map();
+ for(const v of (S.visits||[])){
+  if(!v.cns||!v.data||String(v.data).slice(0,7)!==ref)continue;
+  const p=DB.byCNS.get(v.cns);if(!p)continue;
+  if(!m.has(p.cod))m.set(p.cod,[]);m.get(p.cod).push(v)}
+ for(const arr of m.values())arr.sort((a,b)=>a.data<b.data?-1:1);
+ _vitaVis=m;_vitaVisK=k;return m}
+const vitaVisTxt=vis=>!vis.length?'':vis.map(v=>brDate(v.data)+(v.desfecho&&DESFECHO[v.desfecho]?' ('+DESFECHO[v.desfecho].toLowerCase()+')':'')).join(', ');
+
 /* ---- situacao de uma crianca no mes de referencia ---- */
 function vitaSit(p,ref,B){
  const fim=vCompFim(ref);
@@ -3075,14 +3095,15 @@ function vitaSit(p,ref,B){
  else{st='ATRASADA';atraso=vCompDiff(venc,ref)}
  const faixa=idadeM==null?'':idadeM<6?'0-5':idadeM<12?'6-11':idadeM<24?'12-23':idadeM<60?'24-59':'60+';
  const mk=(S.vitaMk||{})[p.cod+'|'+ref]||null;
- return{p,idadeM,idadeTxt:vIdadeTxt(idadeM),doses,ult,nDoses:doses.length,nunca:!ult,venc,atraso,st,faixa,
+ const vis=vitaVisitasMes(ref).get(p.cod)||[];
+ return{p,idadeM,idadeTxt:vIdadeTxt(idadeM),doses,ult,nDoses:doses.length,nunca:!ult,venc,atraso,st,faixa,vis,
   dose:idadeM!=null&&idadeM>=VITA_IDADE_MIN&&idadeM<=VITA_IDADE_MAX?vDoseUI(idadeM):'',
   deve:st==='VENCE'||st==='ATRASADA',elegivel,mk,bk:mk?mk.st:'pendente',info:vitaInfo(p)}}
 
 /* ---- universo: criancas de 0 a 59 meses no mes de referencia ---- */
 let _vitaUniv=null,_vitaUnivK='';
 function vitaUniverso(ref){
- const k=ref+'|'+DB.pes.size+'|'+(S.vitaDoses||[]).length+'|'+Object.keys(S.vitaMk||{}).length+'|'+(_vitaC?1:0);
+ const k=ref+'|'+DB.pes.size+'|'+(S.procedimentos||[]).length+'|'+(S.visits||[]).length+'|'+(S.vitaDoses||[]).length+'|'+Object.keys(S.vitaMk||{}).length;
  if(_vitaUniv&&_vitaUnivK===k)return _vitaUniv;
  const B=vitaBase(),fim=vCompFim(ref),out=[];
  for(const p of DB.pes.values()){
@@ -3111,6 +3132,8 @@ function vitaFiltrado(){
   if(s.tel==='COM'&&!i.tel)return false;
   if(s.tel==='SEM'&&i.tel)return false;
   if(s.bk!=='ALL'&&x.bk!==s.bk)return false;
+  if(s.vis==='COM'&&!x.vis.length)return false;
+  if(s.vis==='SEM'&&x.vis.length)return false;
   if(q&&!(norm(x.p.nome).includes(q)||norm(i.mae).includes(q)||norm(i.end).includes(q)||norm(i.acs).includes(q)||(qd.length>=5&&String(x.p.cns||'').includes(qd))))return false;
   return true})}
 
@@ -3214,6 +3237,7 @@ function vtBusca(el){
    <td class="small addr">${esc(I.end)||'<span class="muted">—</span>'}${I.bairro?'<div class="mini">'+esc(I.bairro)+'</div>':''}</td>
    <td class="small" style="white-space:nowrap">${I.tel?esc(I.tel):'<span class="muted">—</span>'}</td>
    <td class="small vt-sc">${esc(I.eq)}<div class="mini">MA ${esc(I.maCod)}${I.acs?' · '+esc(I.acs):''}</div></td>
+   <td class="small vt-sc">${x.vis.length?esc(vitaVisTxt(x.vis)):'<span class="muted">sem visita no mes</span>'}</td>
    <td class="small" style="white-space:nowrap">${x.ult?brDate(x.ult.data):'<span class="tag red">nunca</span>'}
      <div class="mini">${x.nDoses?fmt(x.nDoses)+' dose(s)':'—'}</div></td>
    <td class="small" style="white-space:nowrap"><b>${esc(x.dose)}</b><div class="mini">vence ${compLabel(x.venc)}</div></td>
@@ -3224,7 +3248,7 @@ function vtBusca(el){
      <span class="vt-box"></span>Recusou&nbsp;&nbsp;<span class="vt-box"></span>Mudou-se</td>
    <td class="vt-pr" style="min-width:95px"></td></tr>`};
  const cab=`<tr><th class="num">#</th><th>Crianca</th><th>Nome da mae</th><th>Endereco</th><th>Telefone</th>
-   <th class="vt-sc">Equipe / MA</th><th>Ultima dose</th><th>Dose indicada</th><th class="vt-sc">Situacao</th>
+   <th class="vt-sc">Equipe / MA</th><th class="vt-sc">Visita do ACS no mes</th><th>Ultima dose</th><th>Dose indicada</th><th class="vt-sc">Situacao</th>
    <th class="vt-pr">Retorno do ACS</th><th class="vt-pr">Observacao</th></tr>`;
  let n=0;
  const blocos=grupos.map(([g,arr])=>{
@@ -3252,9 +3276,10 @@ function vitaXls(){
   'Data de nascimento':brDate(x.p.nasc),Idade:x.idadeTxt,'Nome da mae':x.info.mae||(x.info.resp?'Resp.: '+x.info.resp:''),
   'Endereco':x.info.end,Telefone:x.info.tel,CNS:x.p.cns||'','Ultima dose':x.ult?brDate(x.ult.data):'nunca',
   'Doses acumuladas':x.nDoses,'Dose indicada':x.dose,'Vence em':x.venc?compLabel(x.venc):'',
-  'Atraso (meses)':x.atraso,'Situacao':VITA_ST[x.st].t,'Retorno da busca':VITA_BK[x.bk]||''}));
+  'Atraso (meses)':x.atraso,'Situacao':VITA_ST[x.st].t,'Retorno da busca':VITA_BK[x.bk]||'',
+  'Visita do ACS no mes':vitaVisTxt(x.vis)}));
  const ws=XLSX.utils.json_to_sheet(out);
- ws['!cols']=[{wch:16},{wch:9},{wch:24},{wch:30},{wch:13},{wch:12},{wch:28},{wch:34},{wch:14},{wch:17},{wch:12},{wch:9},{wch:13},{wch:11},{wch:9},{wch:16},{wch:17}];
+ ws['!cols']=[{wch:16},{wch:9},{wch:24},{wch:30},{wch:13},{wch:12},{wch:28},{wch:34},{wch:14},{wch:17},{wch:12},{wch:9},{wch:13},{wch:11},{wch:9},{wch:16},{wch:17},{wch:26}];
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Busca ativa vitamina A');
  XLSX.writeFile(wb,`busca_ativa_vitamina_a_${s.ref}.xlsx`)}
 /* ===================== Aba: retorno do ACS ===================== */
@@ -3304,6 +3329,7 @@ function vtRetorno(el){
    <td><b>${esc(x.p.nome)}</b><div class="mini">${brDate(x.p.nasc)} · ${esc(x.idadeTxt)} · <b>${esc(x.dose)}</b></div></td>
    <td class="small addr">${esc(I.end)}<div class="mini">${esc(I.eq)} · MA ${esc(I.maCod)}${I.acs?' · '+esc(I.acs):''}${I.tel?' · '+esc(I.tel):''}</div></td>
    <td class="small" style="white-space:nowrap">${x.ult?brDate(x.ult.data):'<span class="tag red">nunca</span>'}<div class="mini"><span class="tag ${st.cls}">${esc(st.t)}</span></div></td>
+   <td class="small">${x.vis.length?esc(vitaVisTxt(x.vis)):'<span class="muted">—</span>'}</td>
    <td class="small">${x.bk==='pendente'?'<span class="muted">sem retorno</span>':'<b>'+esc(VITA_BK[x.bk])+'</b>'}
      ${x.mk&&x.mk.dt?'<div class="mini">dose em '+brDate(x.mk.dt)+'</div>':''}
      ${x.mk&&x.mk.tent?'<div class="mini">'+x.mk.tent+' tentativa(s)</div>':''}</td>
@@ -3316,8 +3342,8 @@ function vtRetorno(el){
      ${x.bk!=='pendente'?'<button class="btn" data-vt="limpar" data-cod="'+esc(x.p.cod)+'">Limpar</button>':''}</td></tr>`}).join('');
  el.innerHTML=`<div class="info">Aqui a <b>enfermeira ou a coordenacao</b> lanca o que voltou da folha do ACS. Marcar <b>Tomou</b> registra a dose no sistema (ela ja passa a contar na busca ativa e nos relatorios) e a deixa na fila de <b>pendentes de lancamento no e-SUS</b>, para alguem digitar no PEC depois.</div>
   <div class="card" style="box-shadow:none;margin-top:14px"><h3>Criancas da busca ativa <small>${compLabel(ref)} · ${fmt(L.length)}</small></h3>
-   <div class="tw" style="max-height:620px"><table><thead><tr><th>Crianca</th><th>Endereco / equipe</th><th>Ultima dose</th><th>Retorno</th><th>Data da dose</th><th>Registrar</th></tr></thead>
-   <tbody>${rows||'<tr><td colspan="6" class="muted">Nenhuma crianca com esses filtros.</td></tr>'}</tbody></table></div></div>
+   <div class="tw" style="max-height:620px"><table><thead><tr><th>Crianca</th><th>Endereco / equipe</th><th>Ultima dose</th><th>Visita do ACS</th><th>Retorno</th><th>Data da dose</th><th>Registrar</th></tr></thead>
+   <tbody>${rows||'<tr><td colspan="7" class="muted">Nenhuma crianca com esses filtros.</td></tr>'}</tbody></table></div></div>
   <div class="card" style="box-shadow:none;margin-top:14px"><h3>Pendentes de lancar no e-SUS <small>${fmt(pend.length)}</small></h3>
    <div class="mini" style="margin-bottom:8px">Doses confirmadas pelo ACS e registradas aqui que ainda precisam ser digitadas na Ficha de Procedimentos do e-SUS (codigo SIGTAP ${VITA_COD}). Depois de digitar, marque como lancada.</div>
    <div class="tw" style="max-height:380px"><table><thead><tr><th>Crianca</th><th>Data da dose</th><th>Dose</th><th>Observacao</th><th>Registrado por</th><th>Acao</th></tr></thead><tbody>
@@ -3454,6 +3480,8 @@ const VITA_OC={
  SEM_ID:['Dose sem CNS do cidadao na ficha','warn'],
  FDS:['Registro em sabado/domingo','gray'],
  DIA_PICO:['Dia com volume muito acima do habitual','warn'],
+ NAOLOC_SEM_VISITA:['Marcado nao localizado sem visita registrada','warn'],
+ VISITA_SEM_RETORNO:['Visitada pelo ACS e sem retorno na folha','gray'],
  NUNCA:['Crianca de 12 meses ou mais que nunca recebeu','red'],
  ATRASO_LONGO:['Atraso de 12 meses ou mais','red']};
 function vitaAudCalc(){
@@ -3480,6 +3508,10 @@ function vitaAudCalc(){
  for(const[cns,arr]of B.semCad)oc.push({tipo:'SEM_CADASTRO',data:arr[arr.length-1].data,cod:'',nome:'CNS '+cns,
   det:fmt(arr.length)+' dose(s) com CNS que nao esta no cadastro municipal — conferir cadastro ou CNS digitado'});
  for(const x of U){
+  if(x.deve&&x.bk==='naoloc'&&!x.vis.length)oc.push({tipo:'NAOLOC_SEM_VISITA',data:'',cod:x.p.cod,nome:x.p.nome,
+   det:'o ACS marcou nao localizado em '+compLabel(ref)+', mas nao ha nenhuma Ficha de Visita Domiciliar dessa crianca no mes · '+x.info.eq+' MA '+x.info.maCod+(x.info.acs?' · '+x.info.acs:'')});
+  if(x.deve&&x.bk==='pendente'&&x.vis.length)oc.push({tipo:'VISITA_SEM_RETORNO',data:x.vis[x.vis.length-1].data,cod:x.p.cod,nome:x.p.nome,
+   det:'visitada em '+vitaVisTxt(x.vis)+' e ainda sem retorno lancado na busca ativa · '+x.info.eq+' MA '+x.info.maCod});
   if(x.nunca&&x.idadeM>=12&&x.st!=='FUTURA'&&x.st!=='EGRESSO')oc.push({tipo:'NUNCA',data:'',cod:x.p.cod,nome:x.p.nome,det:esc(x.idadeTxt)+' sem nenhuma dose registrada · '+x.info.eq+' MA '+x.info.maCod});
   else if(x.atraso>=12)oc.push({tipo:'ATRASO_LONGO',data:x.ult?x.ult.data:'',cod:x.p.cod,nome:x.p.nome,det:x.atraso+' meses desde o vencimento · ultima dose '+(x.ult?brDate(x.ult.data):'—')});
  }
@@ -3523,9 +3555,11 @@ function vitaAudCtx(A){
  for(const x of A.U){if(x.st==='FUTURA'||x.st==='EGRESSO')continue;const k=x.info.eq||'Sem equipe';
   const g=eqM.get(k)||{eleg:0,emDia:0,atr:0,nunca:0,semMae:0,semTel:0};g.eleg++;
   if(x.st==='EM_DIA')g.emDia++;if(x.st==='ATRASADA')g.atr++;if(x.nunca)g.nunca++;
-  if(!x.info.mae)g.semMae++;if(!x.info.tel)g.semTel++;eqM.set(k,g)}
- L.push('POR EQUIPE (elegiveis / em dia / % / atrasadas / nunca / sem nome da mae / sem telefone):');
- for(const[k,g]of[...eqM.entries()].sort())L.push(`- ${k}: ${g.eleg} / ${g.emDia} / ${f1n(pct(g.emDia,g.eleg))}% / ${g.atr} / ${g.nunca} / ${g.semMae} / ${g.semTel}`);
+  if(!x.info.mae)g.semMae++;if(!x.info.tel)g.semTel++;
+  if(x.deve){g.deve=(g.deve||0)+1;if(x.vis.length)g.visit=(g.visit||0)+1}
+  eqM.set(k,g)}
+ L.push('POR EQUIPE (elegiveis / em dia / % / atrasadas / nunca / sem nome da mae / sem telefone / precisam tomar / destas, visitadas pelo ACS no mes):');
+ for(const[k,g]of[...eqM.entries()].sort())L.push(`- ${k}: ${g.eleg} / ${g.emDia} / ${f1n(pct(g.emDia,g.eleg))}% / ${g.atr} / ${g.nunca} / ${g.semMae} / ${g.semTel} / ${g.deve||0} / ${g.visit||0}`);
  L.push('','ACHADOS CALCULADOS PELO SISTEMA (quantidade por tipo):');
  for(const[t,[nome]]of Object.entries(VITA_OC))if(A.cont[t])L.push(`- ${nome}: ${A.cont[t]}`);
  L.push('','OCORRENCIAS DATADAS (ate 120, sem nomes):');
@@ -3552,6 +3586,8 @@ function vtAud(el){
      SEM_ID:'A ficha foi lancada sem o CNS do cidadao: a dose conta no total, mas nao da para saber de qual crianca. Conferir a ficha de papel e corrigir no PEC.',
      FDS:'Se houve mutirao/campanha no fim de semana ou se a data foi digitada errada.',
      DIA_PICO:'Se foi mutirao/campanha (legitimo) ou digitacao em lote de fichas de papel com a mesma data.',
+     NAOLOC_SEM_VISITA:'Conferir com o ACS: o nao localizado precisa estar apoiado em visitas registradas no e-SUS (o Ministerio orienta busca ativa; o padrao da casa e 3 tentativas).',
+     VISITA_SEM_RETORNO:'O ACS esteve na casa no mes mas nada voltou na folha: cobrar o retorno ou lancar a dose se a crianca ja tomou.',
      NUNCA:'Caderneta da crianca: pode ter recebido e nao foi lancado. Entrar na busca ativa.',
      ATRASO_LONGO:'Se a crianca mudou-se, se a dose nao foi lancada ou se ha recusa da familia.'}[t]||'')}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Nenhum achado.</td></tr>'}
    </tbody></table></div></div>
@@ -3613,9 +3649,140 @@ function vtQual(el){
   ${semEnd.length?card('Criancas sem endereco',semEnd):''}
   ${semCns.length?card('Criancas sem CNS (a dose do e-SUS nao cruza com o cadastro)',semCns):''}`;
  $$('[data-crianca]',el).forEach(b=>b.onclick=()=>{UI.vita.crianca=b.dataset.crianca;UI.vita.rep='hist';render()})}
+
+/* ===================== Projecao de capsulas ===================== */
+/* Percorre mes a mes o periodo escolhido e conta, por crianca, quantas doses
+   ela vai precisar e de qual dosagem (100.000 UI ate os 11 meses, 200.000 UI
+   dos 12 aos 59). Quem ja esta vencido entra no primeiro mes do periodo.
+   As capsulas vem em frascos de 50 (Manual de Condutas Gerais do PNSVA). */
+const VITA_FRASCO=50;
+function vitaProjecao(ini,fim,margem){
+ const B=vitaBase(),meses=[];
+ for(let c=ini;vCompDiff(c,fim)>=0;c=vCompAdd(c,1))meses.push(c);
+ const porMes={};meses.forEach(m=>porMes[m]={d100:0,d200:0});
+ const eqs=new Map();let atrasadas=0,novas=0;
+ for(const p of DB.pes.values()){
+  if(!p.nasc)continue;
+  if(p.situacao&&p.situacao!=='Ativo')continue;
+  const idadeIni=vMesesEntre(p.nasc,vCompFim(ini));
+  if(idadeIni==null||idadeIni>VITA_IDADE_MAX)continue;          /* ja saiu do programa */
+  if(vMesesEntre(p.nasc,vCompFim(fim))<VITA_IDADE_MIN)continue; /* so entra depois do periodo */
+  const doses=B.porPessoa.get('P:'+p.cod)||[];
+  const ult=doses.length?doses[doses.length-1]:null;
+  let prox=ult?vCompAdd(ult.data.slice(0,7),VITA_INTERVALO):vCompAdd(p.nasc.slice(0,7),VITA_IDADE_MIN);
+  if(vCompDiff(prox,ini)>0){prox=ini;atrasadas++}
+  else if(!ult&&vCompDiff(ini,prox)>=0)novas++;
+  const I=vitaInfo(p),e=I.eqId?DB.eqById[I.eqId]:null;
+  const ch=I.eqId||'__';
+  const g=eqs.get(ch)||{nome:I.eq||'Sem equipe',unidade:(e&&e.unidade)||'',d100:0,d200:0,criancas:new Set()};
+  while(vCompDiff(prox,fim)>=0){
+   const idade=vMesesEntre(p.nasc,vCompFim(prox));
+   if(idade==null||idade>VITA_IDADE_MAX)break;
+   if(idade>=VITA_IDADE_MIN){
+    if(idade<12){g.d100++;porMes[prox].d100++}else{g.d200++;porMes[prox].d200++}
+    g.criancas.add(p.cod);
+   }
+   prox=vCompAdd(prox,VITA_INTERVALO);
+  }
+  eqs.set(ch,g);
+ }
+ const mg=1+(Number(margem)||0)/100;
+ const linhas=[...eqs.values()].map(g=>({...g,criancas:g.criancas.size,
+   c100:Math.ceil(g.d100*mg),c200:Math.ceil(g.d200*mg)}))
+  .filter(g=>g.d100||g.d200).sort((a,b)=>(b.c100+b.c200)-(a.c100+a.c200));
+ const t100=linhas.reduce((a,g)=>a+g.c100,0),t200=linhas.reduce((a,g)=>a+g.c200,0);
+ const unid=new Map();
+ for(const g of linhas){const k=g.unidade||g.nome;const u=unid.get(k)||{nome:k,c100:0,c200:0,eqs:[]};
+  u.c100+=g.c100;u.c200+=g.c200;u.eqs.push(g.nome);unid.set(k,u)}
+ return{meses,porMes,linhas,unidades:[...unid.values()].sort((a,b)=>(b.c100+b.c200)-(a.c100+a.c200)),
+  t100,t200,atrasadas,novas,margem:Number(margem)||0,
+  f100:Math.ceil(t100/VITA_FRASCO),f200:Math.ceil(t200/VITA_FRASCO)}}
+function vtProj(el){
+ const s=UI.vita;
+ const atual=vCompAtual(),semAtual=Number(atual.slice(5,7))<=6?atual.slice(0,4)+'-S1':atual.slice(0,4)+'-S2';
+ const opc=[];for(let i=0;i<5;i++){const a=Number(semAtual.slice(0,4))+Math.floor((Number(semAtual.slice(6))-1+i)/2),
+   sm=((Number(semAtual.slice(6))-1+i)%2)+1;opc.push(a+'-S'+sm)}
+ const sel=opc.includes(s.projIni)?s.projIni:opc[1];
+ const ano=sel.slice(0,4),sm=Number(sel.slice(6));
+ const ini=ano+(sm===1?'-01':'-07'),fim=ano+(sm===1?'-06':'-12');
+ const P=vitaProjecao(ini,fim,s.margem);
+ el.innerHTML=`<div class="printonly">${vitaCab('Vitamina A — previsao de capsulas','Periodo '+compLabel(ini)+' a '+compLabel(fim)+(P.margem?' · margem de '+P.margem+'%':''))}</div>
+  <div class="info noprint">Quantas capsulas vao ser necessarias no semestre escolhido, pela idade que cada crianca vai ter no mes da dose. Inclui quem ja esta atrasado (entra no primeiro mes) e quem completa 6 meses durante o periodo. Serve para o pedido ao almoxarifado.</div>
+  <div class="card noprint" style="margin-top:14px"><div class="bar">
+    <span class="mini">Semestre <select id="vtPS">${opc.map(o=>`<option value="${o}" ${sel===o?'selected':''}>${vSemLabel(o)}</option>`).join('')}</select></span>
+    <span class="mini">Margem de perda <input type="number" id="vtPM" min="0" max="100" value="${esc(String(P.margem))}" style="width:86px">%</span>
+   </div></div>
+  <div class="grid g4" style="margin-top:14px">
+   <div class="card kpi" style="box-shadow:none;border-left:4px solid #d9a514"><span class="l">Capsulas de 100.000 UI</span><span class="v">${fmt(P.t100)}</span><span class="s">${fmt(P.f100)} frasco(s) de ${VITA_FRASCO}</span></div>
+   <div class="card kpi" style="box-shadow:none;border-left:4px solid #d1493f"><span class="l">Capsulas de 200.000 UI</span><span class="v">${fmt(P.t200)}</span><span class="s">${fmt(P.f200)} frasco(s) de ${VITA_FRASCO}</span></div>
+   <div class="card kpi" style="box-shadow:none;border-left:4px solid #1f9d63"><span class="l">Doses previstas</span><span class="v">${fmt(P.t100+P.t200)}</span><span class="s">margem de ${P.margem}% ja aplicada</span></div>
+   <div class="card kpi" style="box-shadow:none;border-left:4px solid #0e7c86"><span class="l">Ja atrasadas</span><span class="v">${fmt(P.atrasadas)}</span><span class="s">entram no primeiro mes</span></div></div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Doses mes a mes</h3>
+   ${vGrafBarras(P.meses.map(m=>compLabel(m)),[{nome:'100.000 UI (6 a 11 meses)',cor:VITA_CORES.alt,vals:P.meses.map(m=>P.porMes[m].d100)},{nome:'200.000 UI (12 a 59 meses)',cor:VITA_CORES.s2,vals:P.meses.map(m=>P.porMes[m].d200)}],{alt:'doses previstas por mes',eixoY:'doses',h:262})}
+   <div class="mini">Sem a margem de perda — os totais acima ja incluem a margem.</div></div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Por unidade</h3>
+   <div class="tw"><table><thead><tr><th>Unidade</th><th>Equipes</th><th class="num">100.000 UI</th><th class="num">200.000 UI</th><th class="num">Total</th><th class="num">Frascos</th></tr></thead><tbody>
+   ${P.unidades.map(u=>`<tr><td><b>${esc(u.nome)}</b></td><td class="small">${esc(u.eqs.join(', '))}</td><td class="num">${fmt(u.c100)}</td><td class="num">${fmt(u.c200)}</td><td class="num">${fmt(u.c100+u.c200)}</td><td class="num">${fmt(Math.ceil(u.c100/VITA_FRASCO))} + ${fmt(Math.ceil(u.c200/VITA_FRASCO))}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Sem criancas no periodo.</td></tr>'}
+   <tr class="grph"><td><b>Total</b></td><td></td><td class="num"><b>${fmt(P.t100)}</b></td><td class="num"><b>${fmt(P.t200)}</b></td><td class="num"><b>${fmt(P.t100+P.t200)}</b></td><td class="num"><b>${fmt(P.f100)} + ${fmt(P.f200)}</b></td></tr>
+   </tbody></table></div></div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Por equipe</h3>
+   <div class="tw"><table><thead><tr><th>Equipe</th><th class="num">Criancas</th><th class="num">100.000 UI</th><th class="num">200.000 UI</th><th class="num">Total</th></tr></thead><tbody>
+   ${P.linhas.map(g=>`<tr><td>${esc(g.nome)}</td><td class="num">${fmt(g.criancas)}</td><td class="num">${fmt(g.c100)}</td><td class="num">${fmt(g.c200)}</td><td class="num">${fmt(g.c100+g.c200)}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">—</td></tr>'}
+   </tbody></table></div>
+   <div class="mini" style="margin-top:8px">Capsulas de 100.000 UI (amarela) para 6 a 11 meses e de 200.000 UI (vermelha) para 12 a 59 meses, em frascos de ${VITA_FRASCO}. Nao inclui a dose das puerperas, que o sistema ainda nao acompanha.</div>
+   <div class="printonly">${prAss()}</div></div>`;
+ const ps=$('#vtPS',el);if(ps)ps.onchange=e=>{UI.vita.projIni=e.target.value;render()};
+ const pm=$('#vtPM',el);if(pm)pm.onchange=e=>{UI.vita.margem=e.target.value;render()}}
+
+/* ===================== Mensagem para o ACS ===================== */
+function vtMsg(el){
+ const s=UI.vita,ref=s.ref;
+ if(!s.aeq||!DB.eqById[s.aeq])s.aeq=DB.eq[0]?.id||'';
+ const e=DB.eqById[s.aeq],mas=(e?.mas||[]).map(x=>x[0]);
+ if(!mas.map(String).includes(String(s.ama)))s.ama=mas[0]??'';
+ const info=DB.ma[s.aeq+'-'+s.ama],acsNome=(info&&info.acs)||'';
+ const lista=vitaUniverso(ref).filter(x=>x.deve&&x.info.eqId===s.aeq&&String(x.info.maCod)===String(s.ama));
+ const chave='vitaacs|'+ref+'|'+s.aeq+'|'+s.ama;
+ el.innerHTML=`<div class="info">A IA escreve a orientacao a partir dos totais; a lista com os nomes e montada aqui no seu aparelho e encaixada no texto. Nome, endereco e telefone nao sao enviados.</div>
+  <div class="bar noprint" style="margin:12px 0;flex-wrap:wrap">
+   <label class="small">Equipe <select id="vmEq">${DB.eq.map(x=>`<option value="${x.id}" ${s.aeq===x.id?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></label>
+   <label class="small">Microarea <select id="vmMa">${mas.map(x=>{const i=DB.ma[s.aeq+'-'+x];return `<option value="${esc(x)}" ${String(s.ama)===String(x)?'selected':''}>MA ${esc(x)}${i&&i.acs?' · '+esc(i.acs):''}</option>`}).join('')}</select></label></div>
+  <div class="small" style="margin-bottom:10px"><b>${lista.length}</b> crianca(s) precisam de vitamina A nesta microarea em ${compLabel(ref)}${acsNome?' · ACS '+esc(acsNome):''}.</div>
+  <div id="vmOut"></div>`;
+ $('#vmEq',el).onchange=x=>{UI.vita.aeq=x.target.value;UI.vita.ama='';render()};
+ $('#vmMa',el).onchange=x=>{UI.vita.ama=x.target.value;render()};
+ const box=$('#vmOut',el);
+ if(!lista.length){box.innerHTML='<div class="empty">Nenhuma crianca pendente nesta microarea neste mes. ✓</div>';return}
+ const listaTxt=lista.map((x,i)=>`${i+1}. *${x.p.nome}* (${x.idadeTxt}) — ${x.dose}\n   ${x.info.end||'sem endereco no cadastro'}${x.info.mae?'\n   Mae: '+x.info.mae:''}${x.info.tel?'\n   Tel: '+x.info.tel:''}\n   ${x.ult?'Ultima dose em '+brDate(x.ult.data):'*Nunca recebeu*'}${x.atraso?' · '+x.atraso+' mes(es) de atraso':''}`).join('\n');
+ const o=IA.out[chave];
+ const final=o?(o.includes('{{LISTA}}')?o.replace('{{LISTA}}',listaTxt):o+'\n\n'+listaTxt).replace(/\{\{ACS\}\}/g,acsNome.split(' ')[0]||''):'';
+ box.innerHTML=`<div class="bar noprint" style="margin-bottom:10px"><button class="btn pri" id="vmGo">✨ ${o?'Gerar de novo':'Gerar mensagem'}</button>${o?'<button class="btn" id="vmCp">📋 Copiar para o WhatsApp</button>':''}</div>
+  ${o?`<textarea id="vmTx" style="width:100%;min-height:380px;font-size:13.5px;line-height:1.45">${esc(final)}</textarea><p class="mini">Da para editar antes de copiar.</p>`:'<div class="empty">Clique em <b>Gerar mensagem</b>.</div>'}`;
+ $('#vmGo',box).onclick=async()=>{if(IA.busy)return;IA.busy=true;const b=$('#vmGo',box);b.disabled=true;b.textContent='⏳ Escrevendo…';
+  const nunca=lista.filter(x=>x.nunca).length,atr=lista.filter(x=>x.st==='ATRASADA').length;
+  const semTel=lista.filter(x=>!x.info.tel).length;
+  const fx={};for(const x of lista)fx[x.faixa]=(fx[x.faixa]||0)+1;
+  const ctx=`Assunto: busca ativa da SUPLEMENTACAO DE VITAMINA A (Programa Nacional de Suplementacao de Vitamina A).
+Equipe: ${eqName(s.aeq)} · Microarea ${s.ama} · Mes de referencia ${compLabel(ref)}
+Esquema do Ministerio da Saude: 6 a 11 meses = 100.000 UI em dose unica; 12 a 59 meses = 200.000 UI a cada 6 meses. A dose e dada na UBS e precisa ser anotada na Caderneta de Saude da Crianca e lancada na Ficha de Procedimentos do e-SUS (codigo 0101040059) para contar.
+Total de criancas que precisam da dose: ${lista.length}
+Pendencias (item: no de criancas):
+- atrasadas (passou de 6 meses desde a ultima dose): ${atr}
+- nunca receberam nenhuma dose: ${nunca}
+- vencendo neste mes: ${lista.length-atr}
+- de 6 a 11 meses (dose de 100.000 UI): ${fx['6-11']||0}
+- de 12 a 23 meses: ${fx['12-23']||0}
+- de 24 a 59 meses: ${fx['24-59']||0}
+- sem telefone no cadastro (so da para ir na casa): ${semTel}
+O que o ACS deve fazer: visitar, conferir a data da ultima dose na Caderneta de Saude da Crianca, levar ou agendar a crianca na UBS, e devolver a folha marcando quem ja tomou sem estar lancado e quem nao foi localizado depois de 3 tentativas.`;
+  try{IA.out[chave]=await iaPedir('acs',ctx,'Escreva a mensagem de WhatsApp para o ACS desta microarea sobre a busca ativa de vitamina A.');logAction('IA','Mensagem ACS vitamina A '+eqName(s.aeq)+' MA '+s.ama)}
+  catch(err){toast('⚠️ '+esc(err.message||err),8000)}finally{IA.busy=false;render()}};
+ const cp=$('#vmCp',box);if(cp)cp.onclick=()=>navigator.clipboard.writeText($('#vmTx',box).value).then(()=>toast('Mensagem copiada ✓'))}
+
 /* ===================== Aba principal ===================== */
-const VITA_TABS=[['busca','Busca ativa'],['retorno','Retorno do ACS'],['hist','Serie historica'],
- ['rel','Relatorio e graficos'],['aud','Auditoria IA'],['qual','Qualidade do cadastro']];
+const VITA_TABS=[['busca','Busca ativa'],['retorno','Retorno do ACS'],['msg','Mensagem para o ACS'],
+ ['hist','Serie historica'],['rel','Relatorio e graficos'],['proj','Previsao de capsulas'],
+ ['aud','Auditoria IA'],['qual','Qualidade do cadastro']];
 function vitaMesesRef(){
  const B=vitaBase(),atual=vCompAtual();
  let ini=vCompAdd(atual,-23);
@@ -3642,6 +3809,7 @@ function vVita(m){
     <span class="mini">Atraso minimo <input type="number" id="vtAt" min="0" max="48" value="${esc(s.atraso||'')}" placeholder="meses" style="width:92px"></span>
     <select id="vtTel"><option value="ALL">Com e sem telefone</option><option value="COM" ${s.tel==='COM'?'selected':''}>So com telefone</option><option value="SEM" ${s.tel==='SEM'?'selected':''}>So sem telefone</option></select>
     <select id="vtBk"><option value="ALL">Todos os retornos</option>${Object.entries(VITA_BK).map(([v,t])=>`<option value="${v}" ${s.bk===v?'selected':''}>${t}</option>`).join('')}</select>
+    <select id="vtVis"><option value="ALL">Com e sem visita do ACS</option><option value="COM" ${s.vis==='COM'?'selected':''}>So com visita no mes</option><option value="SEM" ${s.vis==='SEM'?'selected':''}>So sem visita no mes</option></select>
     <select id="vtGr">${[['acs','Agrupar por equipe e ACS'],['eq','Agrupar por equipe'],['nenhum','Lista unica']].map(([v,t])=>`<option value="${v}" ${s.gr===v?'selected':''}>${t}</option>`).join('')}</select>
     <input type="search" id="vtQ" placeholder="Crianca, mae, endereco ou ACS…" value="${esc(s.q||'')}" style="min-width:190px">
    </div></div>`:'')+
@@ -3651,12 +3819,12 @@ function vVita(m){
   const ev=(e.type==='search'||e.type==='number')?'change':'change';
   e.addEventListener(ev,()=>{UI.vita[campo]=e.value;if(zera)UI.vita.page=0;render()})};
  lig('vtRef','ref');lig('vtEq','eq');lig('vtMa','ma');lig('vtFx','faixa');lig('vtSit','sit');
- lig('vtAt','atraso');lig('vtTel','tel');lig('vtBk','bk');lig('vtGr','gr');lig('vtQ','q');
+ lig('vtAt','atraso');lig('vtTel','tel');lig('vtBk','bk');lig('vtVis','vis');lig('vtGr','gr');lig('vtQ','q');
  const xp=$('#vtXp',m);if(xp)xp.onclick=()=>{if(UI.vita.rep==='busca'||UI.vita.rep==='retorno')vitaXls();else{UI.vita.rep='busca';render();setTimeout(vitaXls,0)}};
  const pr=$('#vtPr',m);if(pr)pr.onclick=()=>{PRINT_LANDSCAPE=(UI.vita.rep==='busca');imprimir()};
  const out=$('#vtOut',m);
- if(!temDados){out.innerHTML=`<div class="empty">Nenhuma dose de vitamina A importada ainda.<div class="mini" style="margin-top:8px">Va em <b>Importar dados → Atendimentos e-SUS / Procedimentos</b> e arraste o lote de <b>Ficha de Procedimentos</b> (.zip). O sistema reconhece as doses pelo codigo SIGTAP ${VITA_COD}.</div></div>`;return}
- ({busca:vtBusca,retorno:vtRetorno,hist:vtHist,rel:vtRel,aud:vtAud,qual:vtQual})[s.rep](out)}
+ if(!temDados&&s.rep!=='proj'){out.innerHTML=`<div class="empty">Nenhuma dose de vitamina A importada ainda.<div class="mini" style="margin-top:8px">Va em <b>Importar dados → Atendimentos e-SUS / Procedimentos</b> e arraste o lote de <b>Ficha de Procedimentos</b> (.zip). O sistema reconhece as doses pelo codigo SIGTAP ${VITA_COD}.</div></div>`;return}
+ ({busca:vtBusca,retorno:vtRetorno,msg:vtMsg,hist:vtHist,rel:vtRel,proj:vtProj,aud:vtAud,qual:vtQual})[s.rep](out)}
 
 iniciar();
 </script>

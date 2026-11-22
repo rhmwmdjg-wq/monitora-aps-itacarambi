@@ -373,7 +373,7 @@ const KV={db:null,
  set(k,v){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok();t.onerror=()=>ok()}catch(e){ok()}})},
  clear(){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').clear();t.oncomplete=()=>ok()}catch(e){ok()}})}};
 /* Estado persistido */
-const S={pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[]};
+const S={pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[],cadLog:[]};
 const SKEYS=Object.keys(S);
 /* ===================== Acesso por equipe (painel somente consulta) ===================== */
 const PERFIL={papel:'admin',equipe:''};
@@ -819,7 +819,7 @@ const NAV=[
  {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS / Procedimentos','steth'],['vita','Vitamina A','vita'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
  {t:'Sistema',items:[['acessos','Acessos das equipes','key'],['config','Dados e backup','db']]}
 ];
-const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'},vita:{rep:'busca',ref:'',eq:'ALL',ma:'ALL',faixa:'ALL',sit:'DEVE',atraso:'',q:'',tel:'ALL',bk:'ALL',vis:'ALL',page:0,crianca:'',gr:'acs',rano:'',foco:'',gano:'',projIni:'',margem:'10',aeq:'',ama:''}};
+const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas',hq:''},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'},vita:{rep:'busca',ref:'',eq:'ALL',ma:'ALL',faixa:'ALL',sit:'DEVE',atraso:'',q:'',tel:'ALL',bk:'ALL',vis:'ALL',page:0,crianca:'',gr:'acs',rano:'',foco:'',gano:'',projIni:'',margem:'10',aeq:'',ama:''}};
 function nav(){$('#nav').innerHTML=NAV.map(g=>`<div class="navgroup">${g.t}</div>`+g.items.map(([k,t,i])=>`<button class="nav ${UI.view===k?'on':''}" data-v="${k}">${ico(i)}<span>${t}</span></button>`).join('')).join('');
   $$('#nav .nav').forEach(b=>b.onclick=()=>{UI.view=b.dataset.v;render();closeSide()})}
 function closeSide(){$('#side').classList.remove('open');$('#ovl').classList.remove('on')}
@@ -1767,12 +1767,16 @@ function parseIndXML(text,fileName){const dom=new DOMParser().parseFromString(te
  const one=(r,t)=>{const e=r.getElementsByTagName(t)[0];return e?e.textContent.trim():''};
  const u=dom.getElementsByTagName('identificacaoUsuarioCidadao')[0]||dom,g=t=>one(u,t);
  const cs=dom.getElementsByTagName('condicoesDeSaude')[0],c=t=>cs?one(cs,t):'',b=t=>c(t)==='true';
- return{arquivo:fileName,nome:g('nomeCidadao'),mae:g('nomeMaeCidadao'),pai:g('nomePaiCidadao'),nasc:msIso(g('dataNascimentoCidadao')),sexo:g('sexoCidadao'),cpf:onlyDig(g('cpfCidadao')),cns:onlyDig(g('numeroCnsCidadao')||g('cnsCidadao')),resp:onlyDig(g('cnsResponsavelFamiliar')),tel:onlyDig(g('telefoneCelular')),raca:g('racaCorCidadao'),ma:g('microArea'),ine:one(dom,'ineDadoSerializado'),saida:one(dom,'motivoSaidaCidadao'),cond:{dia:b('statusTemDiabetes'),hiper:b('statusTemHipertensaoArterial'),fumante:b('statusEhFumante'),acamado:b('statusEstaAcamado'),domic:b('statusEstaDomiciliado')}}}
+ const hdr=dom.getElementsByTagName('headerTransport')[0];
+ const sai=dom.getElementsByTagName('saidaCidadaoCadastro')[0];
+ return{arquivo:fileName,nome:g('nomeCidadao'),mae:g('nomeMaeCidadao'),pai:g('nomePaiCidadao'),nasc:msIso(g('dataNascimentoCidadao')),sexo:g('sexoCidadao'),cpf:onlyDig(g('cpfCidadao')),cns:onlyDig(g('numeroCnsCidadao')||g('cnsCidadao')),resp:onlyDig(g('cnsResponsavelFamiliar')),tel:onlyDig(g('telefoneCelular')),raca:g('racaCorCidadao'),ma:g('microArea'),ine:one(dom,'ineDadoSerializado'),saida:one(dom,'motivoSaidaCidadao'),
+  data:msIso(hdr?one(hdr,'dataAtendimento'):''),obito:sai?msIso(one(sai,'dataObito')):'',numeroDO:sai?one(sai,'numeroDO'):'',cond:{dia:b('statusTemDiabetes'),hiper:b('statusTemHipertensaoArterial'),fumante:b('statusEhFumante'),acamado:b('statusEstaAcamado'),domic:b('statusEstaDomiciliado')}}}
 function parseDomXML(text,fileName){const dom=new DOMParser().parseFromString(text,'application/xml');if(dom.getElementsByTagName('parsererror').length)throw new Error('XML inválido');
  const one=(r,t)=>{const e=r.getElementsByTagName(t)[0];return e?e.textContent.trim():''};
  const e=dom.getElementsByTagName('enderecoLocalPermanencia')[0]||dom,g=t=>one(e,t);
  const fam=dom.getElementsByTagName('familias')[0],m=dom.getElementsByTagName('condicaoMoradia')[0];
- return{arquivo:fileName,ine:one(dom,'ineDadoSerializado'),ma:g('microArea'),logr:g('nomeLogradouro'),n:g('numero'),compl:g('complemento'),cep:onlyDig(g('cep')),bairro:g('bairro'),tel:g('telefoneContato')||g('telefoneResidencia'),respCns:onlyDig(fam?one(fam,'numeroCnsResponsavel'):''),membros:fam?one(fam,'numeroMembrosFamilia'):'',prontuario:fam?one(fam,'numeroProntuario'):'',moradia:{moradores:m?one(m,'nuMoradores'):'',comodos:m?one(m,'nuComodos'):'',agua:m?one(m,'abastecimentoAgua'):'',lixo:m?one(m,'destinoLixo'):'',esgoto:m?one(m,'formaEscoamentoBanheiro'):'',energia:m?one(m,'stDisponibilidadeEnergiaEletrica'):'',acesso:m?one(m,'tipoAcessoDomicilio'):'',tipo:m?one(m,'tipoDomicilio'):''}}}
+ const hdrD=dom.getElementsByTagName('headerTransport')[0];
+ return{arquivo:fileName,ine:one(dom,'ineDadoSerializado'),ma:g('microArea'),data:msIso(hdrD?one(hdrD,'dataAtendimento'):''),logr:g('nomeLogradouro'),n:g('numero'),compl:g('complemento'),cep:onlyDig(g('cep')),bairro:g('bairro'),tel:g('telefoneContato')||g('telefoneResidencia'),respCns:onlyDig(fam?one(fam,'numeroCnsResponsavel'):''),membros:fam?one(fam,'numeroMembrosFamilia'):'',prontuario:fam?one(fam,'numeroProntuario'):'',moradia:{moradores:m?one(m,'nuMoradores'):'',comodos:m?one(m,'nuComodos'):'',agua:m?one(m,'abastecimentoAgua'):'',lixo:m?one(m,'destinoLixo'):'',esgoto:m?one(m,'formaEscoamentoBanheiro'):'',energia:m?one(m,'stDisponibilidadeEnergiaEletrica'):'',acesso:m?one(m,'tipoAcessoDomicilio'):'',tipo:m?one(m,'tipoDomicilio'):''}}}
 let ESUS_PENDING={ind:[],dom:[]};
 function matchPessoaInd(i){if(i.cpf&&DB.byCPF.has(i.cpf))return DB.byCPF.get(i.cpf);if(i.cns&&DB.byCNS.has(i.cns))return DB.byCNS.get(i.cns);return null}
 async function importarESUS(files){const errs=[];ESUS_PENDING={ind:[],dom:[]};
@@ -1787,49 +1791,133 @@ function renderESUS(){const box=$('#esPrev');if(!box)return;const{ind,dom}=ESUS_
  const tInd=ind.length?`<div class="tw" style="max-height:300px"><table><thead><tr><th>Pessoa (e-SUS)</th><th>Nasc.</th><th>Sexo</th><th>CPF/CNS</th><th>Tel</th><th>Condições</th><th>No cadastro</th><th>Saída</th></tr></thead><tbody>${ind.map(i=>{const p=matchPessoaInd(i);const cond=[i.cond.hiper?'Hipertenso':'',i.cond.dia?'Diabético':'',i.cond.fumante?'Fumante':'',i.cond.acamado?'Acamado':'',i.cond.domic?'Domiciliado':''].filter(Boolean).join(', ');return `<tr><td><b>${esc(i.nome)}</b></td><td class="small">${brDate(i.nasc)}</td><td class="small">${SEXO_E[i.sexo]||''}</td><td class="small">${i.cpf?fmtCPF(i.cpf):(i.cns||'—')}</td><td class="small">${i.tel||''}</td><td class="small">${cond||'—'}</td><td class="small">${p?esc(p.nome)+' · '+eqChip(famOf(p).eq):'<span class="tag green">novo (será criado)</span>'}</td><td class="small">${i.saida?'<span class="tag">saída ('+esc(i.saida)+')</span>':'—'}</td></tr>`}).join('')}</tbody></table></div>`:'';
  const tDom=dom.length?`<div class="tw" style="max-height:300px"><table><thead><tr><th>Endereço (e-SUS)</th><th>Bairro</th><th>Tel</th><th>MA</th><th>Resp. (CNS)</th><th>Família no cadastro</th></tr></thead><tbody>${dom.map(d=>{const resp=DB.byCNS.get(d.respCns),f=resp&&resp.fam?DB.fam.get(resp.fam):null;return `<tr><td><b>${esc(d.logr)}${d.n?', '+esc(d.n):''}</b>${d.compl?' – '+esc(d.compl):''}</td><td class="small">${esc(d.bairro||'')}</td><td class="small">${d.tel||''}</td><td class="small">MA ${esc(d.ma||'—')}</td><td class="small">${d.respCns||'—'}</td><td class="small">${f?esc(f.logr)+' '+(f.n||'')+' · '+eqChip(f.eq):'<span class="tag green">novo (será criado)</span>'}</td></tr>`}).join('')}</tbody></table></div>`:'';
  box.innerHTML=`<div class="mini" style="margin-bottom:8px"><b>${ind.length}</b> cadastro(s) individual(is) · <b>${dom.length}</b> domiciliar(es)</div>${ind.length?`<h3 style="font-size:13px;margin:8px 0 6px">Individuais</h3>`+tInd:''}${dom.length?`<h3 style="font-size:13px;margin:12px 0 6px">Domiciliares</h3>`+tDom:''}${!ind.length&&!dom.length?'<div class="muted small">Importe os .zip acima para conferir.</div>':''}`}
+/* Motivo de saida do cadastro (LEDI · MotivoSaida): 135 = obito. */
+const MOTIVO_OBITO='135';
+const CAD_LABEL={nome:'Nome',nasc:'Data de nascimento',sexo:'Sexo',cpf:'CPF',cns:'CNS',tel:'Telefone',
+ mae:'Nome da mae',raca:'Raca/cor',situacao:'Situacao',obito:'Data do obito',fam:'Familia / microarea',
+ hiper:'Hipertensao',dia:'Diabetes',fumante:'Fumante',acamado:'Acamado',domic:'Domiciliado',
+ logr:'Logradouro',n:'Numero',cep:'CEP',compl:'Complemento',bairro:'Bairro',ma:'Microarea',eq:'Equipe',moradia:'Moradia'};
+/* Registra o que mudou, de onde veio e qual era o valor anterior, para dar para auditar depois.
+   Guarda os 8.000 ultimos lancamentos. */
+function cadHist(tipo,cod,nome,campo,de,para,i){
+ if(!S.cadLog)S.cadLog=[];
+ S.cadLog.push({quando:new Date().toISOString(),tipo,cod,nome,campo,
+  de:de===undefined||de===null?'':String(de),para:para===undefined||para===null?'':String(para),
+  origem:'e-SUS',ficha:(i&&i.data)||'',arquivo:(i&&i.arquivo)||''});
+ if(S.cadLog.length>8000)S.cadLog.splice(0,S.cadLog.length-8000)}
+const cadTxt=(c,v)=>v===''||v===undefined||v===null?'—':
+ c==='sexo'?(SEXO_E[v]||v):c==='raca'?(RACA[String(v)]||v):
+ (c==='nasc'||c==='obito')?brDate(v):
+ ['hiper','dia','fumante','acamado','domic'].includes(c)?(v===true||v==='true'?'sim':'nao'):String(v);
+
 async function aplicarESUS(){const{ind,dom}=ESUS_PENDING;if(!ind.length&&!dom.length){toast('Importe os arquivos primeiro');return}
- if(!confirm(`Aplicar as atualizações do e-SUS no cadastro?\n\n• ${ind.length} pessoas\n• ${dom.length} domicílios\n\nPessoas e famílias NOVAS serão criadas; as existentes serão atualizadas. Campos vazios são preenchidos e condições (hipertensão, diabetes, fumante, acamado, domiciliado) gravadas. Saídas marcam "Mudou-se".`))return;
- let np=0,npNovo=0,nf=0,nfNovo=0,ign=0;
+ if(!confirm(`Aplicar as atualizacoes do e-SUS no cadastro?\n\n• ${ind.length} pessoas\n• ${dom.length} domicilios\n\nA ficha manda: campo preenchido na ficha substitui o que esta aqui. Campo vazio na ficha nao apaga nada.\nFicha mais antiga que a ultima ja aplicada aquela pessoa e ignorada.\nMicroarea, equipe e familia sao atualizados junto.\nTudo que mudar fica no historico de alteracoes.`))return;
+ let np=0,npNovo=0,nf=0,nfNovo=0,ign=0,nVelha=0,nMudou=0,nObito=0,nVoltou=0,nTerr=0;
+ const avisos={obito:[],cond:[],semFam:[]};
+ const gravar=(p,ch,i)=>{if(!Object.keys(ch).length)return false;
+  for(const c of Object.keys(ch))cadHist('pessoa',p.cod,p.nome,c,p[c],ch[c],i);
+  if(p.orig)S.pEdit[p.cod]={...(S.pEdit[p.cod]||{}),...ch};
+  else{const n=S.pNew.find(z=>z.cod===p.cod);if(n)Object.assign(n,ch)}
+  return true};
  for(const i of ind){const p=matchPessoaInd(i);
   if(!p){if((!i.cns&&!i.cpf)||!i.nome){ign++;continue}
-   S.pNew.push({cod:'N'+String(S.seq).padStart(5,'0'),nome:i.nome,nasc:i.nasc,cpf:i.cpf,cns:i.cns,sexo:SEXO_E[i.sexo]||'',tel:i.tel,mae:i.mae,raca:i.raca,situacao:i.saida?'Mudou-se':'Ativo',chefe:false,fam:'',obs:'',hiper:i.cond.hiper||undefined,dia:i.cond.dia||undefined,fumante:i.cond.fumante||undefined,acamado:i.cond.acamado||undefined,domic:i.cond.domic||undefined,orig:false});S.seq++;npNovo++;continue}
+   const sit=i.saida?(String(i.saida)===MOTIVO_OBITO?'Óbito':'Mudou-se'):'Ativo';
+   S.pNew.push({cod:'N'+String(S.seq).padStart(5,'0'),nome:i.nome,nasc:i.nasc,cpf:i.cpf,cns:i.cns,sexo:SEXO_E[i.sexo]||'',tel:i.tel,mae:i.mae,raca:i.raca,situacao:sit,obito:i.obito||undefined,chefe:false,fam:'',obs:'',fiData:i.data||'',
+    hiper:i.cond.hiper||undefined,dia:i.cond.dia||undefined,fumante:i.cond.fumante||undefined,acamado:i.cond.acamado||undefined,domic:i.cond.domic||undefined,orig:false});
+   S.seq++;npNovo++;continue}
+  /* ficha mais antiga que a ultima aplicada nessa pessoa nao desfaz o que ja esta aqui */
+  if(i.data&&p.fiData&&i.data<p.fiData){nVelha++;continue}
   const ch={};
-  if(i.nasc&&!p.nasc)ch.nasc=i.nasc;
-  if(i.sexo&&!p.sexo)ch.sexo=SEXO_E[i.sexo]||'';
-  if(i.tel&&p.tel!==i.tel)ch.tel=i.tel;
-  if(i.mae&&!p.mae)ch.mae=i.mae;
-  if(i.raca&&!p.raca)ch.raca=i.raca;
-  if(i.cond.hiper&&!p.hiper)ch.hiper=true;
-  if(i.cond.dia&&!p.dia)ch.dia=true;
-  if(i.cond.fumante&&p.fumante===undefined)ch.fumante=true;
-  if(i.cond.acamado&&p.acamado===undefined)ch.acamado=true;
-  if(i.cond.domic&&p.domic===undefined)ch.domic=true;
-  if(i.saida&&p.situacao==='Ativo')ch.situacao='Mudou-se';
-  if(Object.keys(ch).length){if(p.orig)S.pEdit[p.cod]={...(S.pEdit[p.cod]||{}),...ch};else{const n=S.pNew.find(z=>z.cod===p.cod);if(n)Object.assign(n,ch)}np++}}
+  const sobre=(campo,valor)=>{if(valor!==''&&valor!==undefined&&valor!==null&&String(valor)!==String(p[campo]||''))ch[campo]=valor};
+  sobre('nome',i.nome);sobre('nasc',i.nasc);sobre('sexo',i.sexo!==''?(SEXO_E[i.sexo]||''):'');
+  sobre('cpf',i.cpf);sobre('cns',i.cns);sobre('tel',i.tel);sobre('mae',i.mae);sobre('raca',i.raca);
+  /* Condicoes de saude: a ficha marca, mas nao desmarca. Um "false" na ficha nao
+     apaga hipertensao/diabetes que vieram das listas nominais do SIAPS (base dos C4/C5). */
+  for(const[k,v]of Object.entries(i.cond)){
+   if(v&&!p[k])ch[k]=true;
+   else if(!v&&p[k]===true)avisos.cond.push({nome:p.nome,cod:p.cod,campo:k})}
+  /* Saida do cadastro */
+  if(i.saida){
+   const novo=String(i.saida)===MOTIVO_OBITO?'Óbito':'Mudou-se';
+   if(p.situacao!==novo){ch.situacao=novo;novo==='Óbito'?nObito++:nMudou++}
+   if(i.obito&&p.obito!==i.obito)ch.obito=i.obito;
+  }else if(p.situacao==='Mudou-se'){ch.situacao='Ativo';nVoltou++}
+  else if(p.situacao==='Óbito'){avisos.obito.push({nome:p.nome,cod:p.cod})}
+  if(i.data&&i.data!==p.fiData)ch.fiData=i.data;
+  if(gravar(p,ch,i))np++}
+ buildDB();
+ /* Territorio pela ficha individual: segue o responsavel familiar informado na ficha */
+ for(const i of ind){const p=matchPessoaInd(i);if(!p||!i.resp)continue;
+  if(i.data&&p.fiData&&i.data<p.fiData)continue;
+  const r=DB.byCNS.get(i.resp);
+  if(!r||!r.fam){if(i.ma)avisos.semFam.push({nome:p.nome,cod:p.cod,ma:i.ma});continue}
+  if(r.fam===p.fam)continue;
+  cadHist('pessoa',p.cod,p.nome,'fam',famLabel(p.fam),famLabel(r.fam),i);
+  if(p.orig)S.pEdit[p.cod]={...(S.pEdit[p.cod]||{}),fam:r.fam};
+  else{const n=S.pNew.find(z=>z.cod===p.cod);if(n)n.fam=r.fam}
+  nTerr++}
  buildDB();
  for(const d of dom){const resp=DB.byCNS.get(d.respCns);
   if(resp&&resp.fam){const f=DB.fam.get(resp.fam);if(f){const ch={};
-   if(d.logr&&d.logr!==f.logr)ch.logr=d.logr.toUpperCase();
-   if(d.n&&d.n!==f.n)ch.n=d.n;
-   if(d.cep&&d.cep!==f.cep)ch.cep=d.cep;
-   if(d.compl&&(f.compl||'')!==d.compl)ch.compl=d.compl;
-   if(d.bairro&&f.bairro!==d.bairro)ch.bairro=d.bairro;
-   if(d.tel&&f.tel!==d.tel)ch.tel=d.tel;
-   if(d.ma&&!f.ma)ch.ma=d.ma;
+   const sobreF=(campo,valor)=>{if(valor!==''&&valor!==undefined&&valor!==null&&String(valor)!==String(f[campo]||''))ch[campo]=valor};
+   sobreF('logr',d.logr?d.logr.toUpperCase():'');sobreF('n',d.n);sobreF('cep',d.cep);
+   sobreF('compl',d.compl);sobreF('bairro',d.bairro);sobreF('tel',d.tel);
+   sobreF('ma',d.ma);
+   const e=d.ine?eqByINE(d.ine):null;if(e)sobreF('eq',e.id);
    if(d.moradia)ch.moradia=d.moradia;
-   if(Object.keys(ch).length){if(f.orig)S.fEdit[f.cod]={...(S.fEdit[f.cod]||{}),...ch};else{const n=S.fNew.find(z=>z.cod===f.cod);if(n)Object.assign(n,ch)}nf++}}continue}
+   if(ch.ma||ch.eq)nTerr++;
+   if(Object.keys(ch).length){
+    for(const c of Object.keys(ch))if(c!=='moradia')cadHist('familia',f.cod,endereco(f)||f.cod,c,f[c],ch[c],d);
+    if(f.orig)S.fEdit[f.cod]={...(S.fEdit[f.cod]||{}),...ch};else{const n=S.fNew.find(z=>z.cod===f.cod);if(n)Object.assign(n,ch)}nf++}}continue}
   if(!d.logr){ign++;continue}
   let f=[...DB.fam.values()].find(ff=>ff.ma===d.ma&&norm(ff.logr||'')===norm(d.logr)&&(ff.n||'')===(d.n||''));
   if(!f){f={cod:'F'+String(S.seq).padStart(5,'0'),eq:(eqByINE(d.ine)||{}).id||'',ma:d.ma,num:d.prontuario||'',logr:d.logr.toUpperCase(),n:d.n,cep:d.cep||'39470000',compl:d.compl,bairro:d.bairro,tel:d.tel,exp:1,comp:0,orig:false,moradia:d.moradia};S.fNew.push(f);S.seq++;nfNovo++}
   if(resp){if(resp.orig)S.pEdit[resp.cod]={...(S.pEdit[resp.cod]||{}),fam:f.cod};else{const n=S.pNew.find(z=>z.cod===resp.cod);if(n)n.fam=f.cod}}}
- await save('pEdit','pNew','fEdit','fNew','seq','esusLog');
- S.eSusLog.push({quando:new Date().toISOString(),inds:ind.length,doms:dom.length,pessoas:np,pessoasNovas:npNovo,familias:nf,familiasNovas:nfNovo,naoLoc:ign});
- logAction('Cadastros e-SUS aplicados',`${np} pessoas atualizadas · ${npNovo} novas · ${nf} famílias atualizadas · ${nfNovo} novas · ${ign} ignorados`);
- buildDB();toast(`${np} pessoa(s) e ${nf} família(s) atualizadas ✓ · ${npNovo} pessoa(s) e ${nfNovo} família(s) NOVAS ✓ · ${ign} ignorado(s)`);ESUS_PENDING={ind:[],dom:[]};render()}
+ await save('pEdit','pNew','fEdit','fNew','seq','eSusLog','cadLog');
+ S.eSusLog.push({quando:new Date().toISOString(),inds:ind.length,doms:dom.length,pessoas:np,pessoasNovas:npNovo,
+  familias:nf,familiasNovas:nfNovo,naoLoc:ign,velhas:nVelha,mudou:nMudou,obito:nObito,voltou:nVoltou,terr:nTerr});
+ await save('eSusLog');
+ logAction('Cadastros e-SUS aplicados',`${np} pessoas atualizadas · ${npNovo} novas · ${nf} familias · ${nTerr} mudancas de territorio · ${nMudou} saidas · ${nObito} obitos · ${nVoltou} reativadas · ${nVelha} fichas antigas ignoradas`);
+ buildDB();
+ const av=[];
+ if(nVelha)av.push(`${nVelha} ficha(s) mais antigas que a ultima ja aplicada foram ignoradas.`);
+ if(avisos.obito.length)av.push(`<b>${avisos.obito.length} pessoa(s) marcadas como obito</b> vieram numa ficha sem saida. O sistema NAO reativou automaticamente — confira uma a uma: ${avisos.obito.slice(0,6).map(x=>esc(x.nome)).join(', ')}${avisos.obito.length>6?'…':''}`);
+ if(avisos.cond.length)av.push(`${avisos.cond.length} pessoa(s) com condicao marcada aqui vieram sem a marcacao na ficha (hipertensao/diabetes etc.). Nao foram desmarcadas, para nao quebrar os indicadores C4/C5.`);
+ if(avisos.semFam.length)av.push(`${avisos.semFam.length} pessoa(s) com microarea na ficha mas sem responsavel familiar localizado — o vinculo nao pode ser movido.`);
+ ESUS_PENDING={ind:[],dom:[]};render();
+ toast(`${np} pessoa(s) e ${nf} familia(s) atualizadas ✓ · ${npNovo} pessoa(s) e ${nfNovo} familia(s) NOVAS · ${nTerr} mudanca(s) de territorio`+(av.length?'<br><br>'+av.join('<br>'):''),av.length?14000:6000)}
+function cadHistUI(el){if(!el)return;
+ const L=(S.cadLog||[]);const s=UI.cad;const q=norm(s.hq||'');
+ const F=L.filter(x=>!q||norm(x.nome).includes(q)||norm(CAD_LABEL[x.campo]||x.campo).includes(q)||norm(x.de).includes(q)||norm(x.para).includes(q)).slice().reverse();
+ const porCampo={};for(const x of L)porCampo[x.campo]=(porCampo[x.campo]||0)+1;
+ el.innerHTML=`<div class="split" style="flex-wrap:wrap;gap:10px"><h3 style="margin:0">Alterações feitas pelas importações <small>${fmt(L.length)}</small></h3>
+   <div class="bar"><input type="search" id="chQ" placeholder="Pessoa, campo ou valor…" value="${esc(s.hq||'')}" style="min-width:200px">
+   ${L.length?'<button class="btn" id="chXp">Exportar Excel</button>':''}</div></div>
+  <div class="mini" style="margin:6px 0 10px">O que cada importação do e-SUS mudou no cadastro, com o valor anterior. Guarda os 8.000 lançamentos mais recentes.
+   ${Object.keys(porCampo).length?' Campos mais alterados: '+Object.entries(porCampo).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([c,n])=>esc(CAD_LABEL[c]||c)+' ('+fmt(n)+')').join(', ')+'.':''}</div>
+  <div class="tw" style="max-height:420px"><table><thead><tr><th>Quando</th><th>Quem</th><th>Campo</th><th>Antes</th><th>Depois</th><th>Data da ficha</th></tr></thead><tbody>
+  ${F.slice(0,400).map(x=>`<tr><td class="small">${new Date(x.quando).toLocaleString('pt-BR')}</td>
+    <td class="small">${esc(x.nome)}<div class="mini">${x.tipo==='familia'?'família':'pessoa'}</div></td>
+    <td class="small">${esc(CAD_LABEL[x.campo]||x.campo)}</td>
+    <td class="small muted">${esc(cadTxt(x.campo,x.de))}</td>
+    <td class="small"><b>${esc(cadTxt(x.campo,x.para))}</b></td>
+    <td class="small">${x.ficha?brDate(x.ficha):'—'}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Nenhuma alteração registrada ainda.</td></tr>'}
+  </tbody></table>${F.length>400?`<div class="mini">Mostrando 400 de ${fmt(F.length)}.</div>`:''}</div>`;
+ const bq=$('#chQ',el);if(bq)bq.onchange=e=>{UI.cad.hq=e.target.value;render()};
+ const xp=$('#chXp',el);if(xp)xp.onclick=()=>{
+  const out=F.map(x=>({Quando:new Date(x.quando).toLocaleString('pt-BR'),Tipo:x.tipo,Codigo:x.cod,Quem:x.nome,
+   Campo:CAD_LABEL[x.campo]||x.campo,Antes:cadTxt(x.campo,x.de),Depois:cadTxt(x.campo,x.para),
+   'Data da ficha':x.ficha?brDate(x.ficha):'',Origem:x.origem,Arquivo:x.arquivo}));
+  const ws=XLSX.utils.json_to_sheet(out);ws['!cols']=[{wch:18},{wch:9},{wch:10},{wch:30},{wch:22},{wch:28},{wch:28},{wch:13},{wch:9},{wch:30}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Alteracoes do cadastro');
+  XLSX.writeFile(wb,`alteracoes_cadastro_${new Date().toISOString().slice(0,10)}.xlsx`)}}
+const famLabel=cod=>{const f=DB.fam.get(cod);return f?((endereco(f)||cod)+' · '+(f.eq||'?')+' MA '+(f.ma||'?')):(cod||'sem familia')};
 function vESUS(m){m.innerHTML=head('Cadastros e-SUS','Importe os lotes de Cadastro Individual e Domiciliar do e-SUS (.zip) para atualizar o cadastro do sistema. Você confere tudo antes de aplicar.')+
  `<div class="card noprint"><div class="drop" id="esDrop"><div style="font-size:28px">📥</div><b>Arraste aqui os lotes do e-SUS (cadastro individual e/ou domiciliar)</b><div class="muted">.zip ou .xml · o tipo é reconhecido automaticamente</div><input type="file" id="esFi" accept=".zip,.xml" multiple hidden></div></div>
   <div class="card noprint" style="margin-top:14px"><div class="split"><h3 style="margin:0">Conferência da importação</h3><button class="btn pri" id="esAp">Aplicar atualizações ao cadastro</button></div><div id="esPrev" style="margin-top:10px"></div></div>
-  <div class="card noprint" style="margin-top:14px"><h3>Histórico de aplicações <small>${S.eSusLog.length}</small></h3><div class="tw" style="max-height:220px"><table><thead><tr><th>Quando</th><th class="num">Ind.</th><th class="num">Dom.</th><th class="num">Pess. at.</th><th class="num">Pess. novas</th><th class="num">Fam. at.</th><th class="num">Fam. novas</th><th class="num">Não localizados</th></tr></thead><tbody>${S.eSusLog.slice().reverse().map(l=>`<tr><td class="small">${new Date(l.quando).toLocaleString('pt-BR')}</td><td class="num">${l.inds}</td><td class="num">${l.doms}</td><td class="num">${l.pessoas}</td><td class="num">${l.pessoasNovas||0}</td><td class="num">${l.familias}</td><td class="num">${l.familiasNovas||0}</td><td class="num">${l.naoLoc}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">Nenhuma ainda.</td></tr>'}</tbody></table></div></div>`;
+  <div class="card noprint" style="margin-top:14px"><h3>Histórico de aplicações <small>${S.eSusLog.length}</small></h3><div class="tw" style="max-height:220px"><table><thead><tr><th>Quando</th><th class="num">Ind.</th><th class="num">Dom.</th><th class="num">Pess. at.</th><th class="num">Pess. novas</th><th class="num">Fam. at.</th><th class="num">Território</th><th class="num">Saídas</th><th class="num">Óbitos</th><th class="num">Reativadas</th><th class="num">Fichas antigas</th></tr></thead><tbody>${S.eSusLog.slice().reverse().map(l=>`<tr><td class="small">${new Date(l.quando).toLocaleString('pt-BR')}</td><td class="num">${l.inds}</td><td class="num">${l.doms}</td><td class="num">${l.pessoas}</td><td class="num">${l.pessoasNovas||0}</td><td class="num">${l.familias}</td><td class="num">${l.terr??'—'}</td><td class="num">${l.mudou??'—'}</td><td class="num">${l.obito??'—'}</td><td class="num">${l.voltou??'—'}</td><td class="num">${l.velhas??'—'}</td></tr>`).join('')||'<tr><td colspan="11" class="muted">Nenhuma ainda.</td></tr>'}</tbody></table></div></div>
+  <div class="card noprint" style="margin-top:14px" id="esHist"></div>`;
+ cadHistUI($('#esHist',m));
  const drop=$('#esDrop'),fi=$('#esFi');drop.onclick=()=>fi.click();
  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');
  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');

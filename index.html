@@ -1977,8 +1977,10 @@ async function importarAtend(files){let nf=0,no=0,nproc=0,jaT=0,nvit=0;const err
   }
  }finally{impProg('')}
  const nomeArq=files.length===1?files[0].name:(files.length+' arquivos');
- S.atendsLog.push({quando:new Date().toISOString(),arquivo:nomeArq,fai:nf,fao:no,total:todosAtends().length});
- if(nproc)S.procedimentosLog.push({quando:new Date().toISOString(),arquivo:nomeArq,novas:nproc,total:S.procedimentos.length,vita:nvit});
+ const quando=new Date().toISOString();
+ S.atendsLog.push({quando,arquivo:nomeArq,fai:nf,fao:no,total:todosAtends().length,
+  proc:nproc,vita:nvit,totalProc:(S.procedimentos||[]).length,totalVita:(S.procedimentos||[]).filter(a=>a.procs&&a.procs.indexOf(VITA_COD)>=0).length});
+ if(nproc)S.procedimentosLog.push({quando,arquivo:nomeArq,novas:nproc,total:S.procedimentos.length,vita:nvit});
  impProg('Salvando&hellip;');await respira();
  await save('atends','atendsOdonto','atendsLog','procedimentos','procedimentosLog');_apc=null;_ppl=null;_vitaC=null;
  logAction('Atendimentos e-SUS importados',nf+' individuais, '+no+' odontologicos, '+nproc+' procedimentos ('+nvit+' vitamina A), '+jaT+' ja existiam');
@@ -2077,6 +2079,24 @@ function atNaoLoc(){const F=atendFiltered().filter(x=>!personOfAtend(x));
  return `<h3>Pacientes não localizados no cadastro <small>${F.length}</small></h3><div class="mini" style="margin-bottom:8px">Atendimentos cujo CNS do paciente não consta no cadastro — e quem atendeu.</div><div class="tw" style="max-height:600px"><table><thead><tr><th>Data / Hora</th><th>Quem atendeu</th><th>CNS do paciente</th><th>Códigos</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="muted">Todos localizados 🎉</td></tr>'}</tbody></table></div>`}
 function exportAtend(){const out=atendFiltered().map(x=>{const p=personOfAtend(x),e=eqByINE(x.ine),sc=p?scoresPessoa(p):[];return{Data:brDate(x.data),Hora:x.hora||'',Tipo:x.tipo==='fai'?'Individual':'Odontológico',Profissional:acsName(x.prof),CBO:x.cbo,Equipe:e?e.nome:('INE '+x.ine),Paciente:p?p.nome:'(não localizado)','CNS cidadão':x.cns,PA:x.pas?x.pas+'/'+x.pad:'',Peso:x.peso||'',Altura:x.altura||'',CIAP:x.ciap||'',Condutas:x.condutas||'',Procedimentos:x.proc?x.proc.join(', '):'',Gestante:x.gestante?'Sim':'','Pontua para':sc.join(', ')}});
  const ws=XLSX.utils.json_to_sheet(out);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Atendimentos');XLSX.writeFile(wb,`atendimentos_esus_${new Date().toISOString().slice(0,10)}.xlsx`)}
+/* O log de procedimentos e separado do de atendimentos; nas importacoes feitas antes
+   desta versao os dois registros tinham instantes diferentes, por isso o casamento
+   tambem tenta pelo nome do arquivo dentro de uma janela de 2 minutos. */
+function atLogLinhas(){
+ const pl=(S.procedimentosLog||[]).slice();
+ const achaProc=l=>pl.find(x=>x.quando===l.quando)||
+   pl.find(x=>x.arquivo===l.arquivo&&Math.abs(new Date(x.quando)-new Date(l.quando))<120000)||null;
+ const linhas=S.atendsLog.slice().reverse().map(l=>{
+  const q=achaProc(l)||{};
+  const nproc=l.proc!==undefined?l.proc:(q.novas||0);
+  const nvit=l.vita!==undefined?l.vita:(q.vita!==undefined?q.vita:null);
+  const tproc=l.totalProc!==undefined?l.totalProc:q.total;
+  return `<tr><td class="small">${new Date(l.quando).toLocaleString('pt-BR')}</td><td class="small">${esc(l.arquivo)}</td>
+   <td class="num">${fmt(l.fai||0)}</td><td class="num">${fmt(l.fao||0)}</td>
+   <td class="num">${nproc?fmt(nproc):'<span class="muted">—</span>'}</td>
+   <td class="num">${nvit==null?'<span class="muted">?</span>':(nvit?'<b>'+fmt(nvit)+'</b>':'0')}</td>
+   <td class="num">${fmt(l.total||0)}${tproc!==undefined?'<div class="mini">'+fmt(tproc)+' proc.</div>':''}</td></tr>`});
+ return linhas.join('')||'<tr><td colspan="7" class="muted">Nenhuma ainda.</td></tr>'}
 function vATEND(m){const a=UI.atend,all=todosAtends();
  const ines=[...new Set(all.map(x=>x.ine))].filter(Boolean).sort(),profs=[...new Set(all.map(x=>x.prof))].filter(Boolean).sort();const profCbo={};for(const x of all)if(x.prof&&!profCbo[x.prof])profCbo[x.prof]=x.cbo;
  m.innerHTML=head('Atendimentos e-SUS / Procedimentos','Fichas de Atendimento Individual (FAI), Odontológico (FAO) e de Procedimentos do e-SUS — importação acumulativa. Use para conferir os indicadores pela produção. As doses de vitamina A vêm na Ficha de Procedimentos e aparecem na aba Vitamina A.',`<button class="btn" id="atProf">Identificar profissionais</button><button class="btn" id="atPr">🖨 Imprimir / PDF</button>`)+
@@ -2094,7 +2114,8 @@ function vATEND(m){const a=UI.atend,all=todosAtends();
    <select id="aRep">${[['resumo','Resumo'],['nominal','Atendimentos nominais'],['naoloc','Não localizados'],['conf2','Conferência SIAPS × e-SUS'],['flag','Marcados sem o ministério'],['prof','Por profissional'],['medicoes','Medições (PA/peso/altura)'],['odonto','Odontológico'],['raca','Por raça/cor'],['conferencia','Conferência de indicadores']].map(([v,t])=>`<option value="${v}" ${a.rep===v?'selected':''}>${t}</option>`).join('')}</select>
    <button class="btn" id="aXp">Exportar Excel</button></div></div>
    <div class="card" style="margin-top:14px" id="aOut"></div>
-   <div class="card noprint" style="margin-top:14px"><h3>Importações <small>${S.atendsLog.length}</small></h3><div class="tw" style="max-height:200px"><table><thead><tr><th>Quando</th><th>Arquivo</th><th class="num">FAI</th><th class="num">FAO</th><th class="num">Acumulado</th></tr></thead><tbody>${S.atendsLog.slice().reverse().map(l=>`<tr><td class="small">${new Date(l.quando).toLocaleString('pt-BR')}</td><td class="small">${esc(l.arquivo)}</td><td class="num">${l.fai}</td><td class="num">${l.fao}</td><td class="num">${l.total}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">Nenhuma ainda.</td></tr>'}</tbody></table></div></div>`
+   <div class="card noprint" style="margin-top:14px"><h3>Importações <small>${S.atendsLog.length}</small></h3><div class="tw" style="max-height:230px"><table><thead><tr><th>Quando</th><th>Arquivo</th><th class="num">FAI</th><th class="num">FAO</th><th class="num">Procedimentos</th><th class="num">Vitamina A</th><th class="num">Acumulado</th></tr></thead><tbody>${atLogLinhas()}</tbody></table></div>
+    <div class="mini" style="margin-top:6px">Acumulado: atendimentos (FAI + FAO) e, embaixo, procedimentos. As doses de vitamina A vêm dentro dos procedimentos e aparecem na aba <b>Vitamina A</b>.</div></div>`
    :`<div class="empty" style="margin-top:14px">Nenhum atendimento importado ainda. Arraste o .zip acima.</div>`);
  const drop=$('#atDrop'),fi=$('#atFi');drop.onclick=()=>fi.click();
  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');

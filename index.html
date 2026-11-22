@@ -149,6 +149,13 @@ tr.click{cursor:pointer} tr.click:hover td{background:#f3f8f5}
   .g2,.g3,.g4{grid-template-columns:1fr}
   .hb{grid-template-columns:120px 1fr 46px}
 }
+/* Vitamina A */
+.vt-pr{display:none}
+.vt-box{display:inline-block;width:11px;height:11px;border:1.3px solid #555;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.vt-ln{display:inline-block;border-bottom:1px solid #888;min-width:62px;height:11px}
+.click{cursor:pointer;color:var(--brand-deep);text-decoration:underline dotted;text-underline-offset:3px}
+.click:hover{color:var(--brand)}
+@media print{.vt-pr{display:table-cell}.vt-sc{display:none}}
 /* Impressos */
 .printhd{display:block;border-bottom:2px solid var(--brand);padding-bottom:8px;margin-bottom:14px}
 .printhd .ph-t{font-weight:800;color:var(--brand-ink);font-size:15px;letter-spacing:-.2px}
@@ -351,7 +358,8 @@ const ICON={
  key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/>',
  db:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
  alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>',
- spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>'};
+ spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+ vita:'<path d="M9.5 3.2a4.6 4.6 0 0 1 5 0"/><path d="M7.2 6.1c-2 2.4-2 6.3.3 8.6l3.1 3.1a2 2 0 0 0 2.8 0l3.1-3.1c2.3-2.3 2.3-6.2.3-8.6z"/><path d="M12 9.2v5.4M9.6 11.9h4.8"/><path d="M5 20.5c2.2-1.2 4.6-1.8 7-1.8s4.8.6 7 1.8"/>'};
 const ico=(n,s=18)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
 let PRINT_LANDSCAPE=false;
 function setPrintOrient(land){let st=document.getElementById('printOrient');if(!st){st=document.createElement('style');st.id='printOrient';document.head.appendChild(st)}st.textContent=land?'@page{size:A4 landscape;margin:10mm 10mm 18mm}':'@page{size:A4 portrait;margin:11mm 9mm 20mm}';const b=document.getElementById('orientBtn');if(b)b.textContent=land?'🖨 Paisagem':'🖨 Retrato'}
@@ -365,7 +373,7 @@ const KV={db:null,
  set(k,v){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok();t.onerror=()=>ok()}catch(e){ok()}})},
  clear(){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').clear();t.oncomplete=()=>ok()}catch(e){ok()}})}};
 /* Estado persistido */
-const S={pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[]};
+const S={pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[]};
 const SKEYS=Object.keys(S);
 /* ===================== Acesso por equipe (painel somente consulta) ===================== */
 const PERFIL={papel:'admin',equipe:''};
@@ -390,6 +398,7 @@ function snapshotEquipe(eqId){
   imports,log:[],lastBackup:new Date().toISOString(),
   visits:(S.visits||[]).filter(keep),atends:(S.atends||[]).filter(keep),atendsOdonto:(S.atendsOdonto||[]).filter(keep),
   coletivas:(S.coletivas||[]).filter(x=>sameIne(x.ine)),consumo:(S.consumo||[]).filter(keep),procedimentos:(S.procedimentos||[]).filter(keep),
+  vitaDoses:(S.vitaDoses||[]).filter(d=>pes.has(d.cod)),vitaMk:Object.fromEntries(Object.entries(S.vitaMk||{}).filter(([k])=>pes.has(k.split('|')[0]))),vitaLog:[],
   mkEdit:Object.fromEntries(Object.entries(S.mkEdit||{}).filter(([k])=>rk.has(k.split('|')[0]))),
   visitsLog:[],eSusLog:[],atendsLog:[],coletivasLog:[],consumoLog:[],procedimentosLog:[]};
  return{sistema:'aps-itacarambi',tipo:'painel-equipe',equipe:eqId,geradoEm:new Date().toISOString(),
@@ -807,14 +816,14 @@ function allComps(){return[...new Set(S.imports.map(i=>i.comp))].sort()}
 /* ===================== Navegação ===================== */
 const NAV=[
  {t:'Acompanhar',items:[['home','O que fazer agora','todo'],['ind','Indicadores','target'],['rel','Relatórios','doc'],['ia','Assistente IA','spark']]},
- {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS','steth'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
+ {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS','steth'],['vita','Vitamina A','vita'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
  {t:'Sistema',items:[['acessos','Acessos das equipes','key'],['config','Dados e backup','db']]}
 ];
-const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'}};
+const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'},vita:{rep:'busca',ref:'',eq:'ALL',ma:'ALL',faixa:'ALL',sit:'DEVE',atraso:'',q:'',tel:'ALL',bk:'ALL',page:0,crianca:'',gr:'acs',rano:'',foco:'',gano:''}};
 function nav(){$('#nav').innerHTML=NAV.map(g=>`<div class="navgroup">${g.t}</div>`+g.items.map(([k,t,i])=>`<button class="nav ${UI.view===k?'on':''}" data-v="${k}">${ico(i)}<span>${t}</span></button>`).join('')).join('');
   $$('#nav .nav').forEach(b=>b.onclick=()=>{UI.view=b.dataset.v;render();closeSide()})}
 function closeSide(){$('#side').classList.remove('open');$('#ovl').classList.remove('on')}
-function render(){if(isEquipe()&&!['home','ind','rel','acs','atend'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ia:vIA,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0);compBar();stkQueue()}
+function render(){if(isEquipe()&&!['home','ind','rel','acs','atend','vita'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ia:vIA,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,vita:vVita,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0);compBar();stkQueue()}
 function head(t,sub,actions=''){return `<div class="top"><div><h1>${t}</h1><p>${sub}</p></div><div class="bar noprint">${actions}</div></div>`}
 function ativos(){return[...DB.pes.values()].filter(p=>p.situacao==='Ativo')}
 const eqName=id=>DB.eqById[id]?DB.eqById[id].nome:('INE '+id);
@@ -1560,8 +1569,22 @@ function vConfig(m){const ne=Object.keys(S.pEdit).length,nf=Object.keys(S.fEdit)
 
 /* ===================== VISITAS DOS ACS (e-SUS APS) ===================== */
 async function inflateRaw(bytes){if(typeof DecompressionStream==='undefined')throw new Error('Este navegador não sabe descompactar .zip. Use Chrome/Edge atualizado.');const ds=new DecompressionStream('deflate-raw');const st=new Blob([bytes]).stream().pipeThrough(ds);return new Uint8Array(await new Response(st).arrayBuffer())}
-async function readZip(buf){const dv=new DataView(buf),u8=new Uint8Array(buf);let e=-1;for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65558);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break}}if(e<0)throw new Error('Arquivo .zip inválido');const count=dv.getUint16(e+10,true);let off=dv.getUint32(e+16,true);const files=[];for(let n=0;n<count;n++){if(dv.getUint32(off,true)!==0x02014b50)break;const method=dv.getUint16(off+10,true),csize=dv.getUint32(off+20,true),nlen=dv.getUint16(off+28,true),elen=dv.getUint16(off+30,true),clen=dv.getUint16(off+32,true),lho=dv.getUint32(off+42,true);files.push({name:new TextDecoder().decode(u8.subarray(off+46,off+46+nlen)),method,csize,lho});off+=46+nlen+elen+clen}
- const out=[],td=new TextDecoder('utf-8');for(const f of files){if(f.name.endsWith('/'))continue;const lnlen=dv.getUint16(f.lho+26,true),lelen=dv.getUint16(f.lho+28,true),start=f.lho+30+lnlen+lelen,comp=u8.subarray(start,start+f.csize);let b;if(f.method===0)b=comp;else if(f.method===8)b=await inflateRaw(comp);else throw new Error('Compressão não suportada ('+f.method+')');out.push({name:f.name,text:td.decode(b)})}return out}
+/* Indice do .zip (diretorio central) sem descomprimir nada ainda.
+   Um lote de procedimentos pode trazer 40 mil fichas / 200 MB: descomprimir tudo
+   de uma vez estoura a memoria do navegador, por isso o conteudo e lido um a um. */
+function zipIndex(buf){const dv=new DataView(buf),u8=new Uint8Array(buf);let e=-1;for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65558);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break}}if(e<0)throw new Error('Arquivo .zip invalido');
+ let count=dv.getUint16(e+10,true),off=dv.getUint32(e+16,true);
+ if(count===0xFFFF||off===0xFFFFFFFF){for(let i=e-20;i>=0;i--){if(dv.getUint32(i,true)===0x07064b50){const lo=Number(dv.getBigUint64(i+8,true));if(dv.getUint32(lo,true)===0x06064b50){count=Number(dv.getBigUint64(lo+32,true));off=Number(dv.getBigUint64(lo+48,true))}break}}}
+ const td=new TextDecoder(),files=[];for(let n=0;n<count;n++){if(dv.getUint32(off,true)!==0x02014b50)break;const method=dv.getUint16(off+10,true),csize=dv.getUint32(off+20,true),nlen=dv.getUint16(off+28,true),elen=dv.getUint16(off+30,true),clen=dv.getUint16(off+32,true),lho=dv.getUint32(off+42,true);files.push({name:td.decode(u8.subarray(off+46,off+46+nlen)),method,csize,lho});off+=46+nlen+elen+clen}
+ return{dv,u8,files}}
+async function zipText(z,f){const lnlen=z.dv.getUint16(f.lho+26,true),lelen=z.dv.getUint16(f.lho+28,true),start=f.lho+30+lnlen+lelen,comp=z.u8.subarray(start,start+f.csize);let b;if(f.method===0)b=comp;else if(f.method===8)b=await inflateRaw(comp);else throw new Error('Compressao nao suportada ('+f.method+')');return new TextDecoder('utf-8').decode(b)}
+async function readZip(buf){const z=zipIndex(buf),out=[];for(const f of z.files){if(f.name.endsWith('/'))continue;out.push({name:f.name,text:await zipText(z,f)})}return out}
+/* Aviso de progresso para lotes grandes */
+const respira=()=>new Promise(r=>setTimeout(r,0));
+function impProg(txt){let el=document.getElementById('impProg');
+ if(!txt){if(el)el.remove();return}
+ if(!el){el=document.createElement('div');el.id='impProg';el.className='noprint';el.style.cssText='position:fixed;right:18px;bottom:18px;z-index:180;background:linear-gradient(135deg,#0f6b41,#1f9d63);color:#fff;padding:13px 17px;border-radius:14px;box-shadow:0 12px 44px rgba(16,24,20,.28);font-size:13px;font-weight:700;max-width:330px;line-height:1.45';document.body.appendChild(el)}
+ el.innerHTML=txt}
 function msIso(ms){const n=Number(String(ms==null?'':ms).replace(/\D/g,''));if(!n)return '';const d=new Date(n);return isNaN(d.getTime())?'':d.toISOString().slice(0,10)}
 function msHora(ms){const n=Number(String(ms==null?'':ms).replace(/\D/g,''));if(!n)return '';const d=new Date(n);return isNaN(d.getTime())?'':d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
 /* Motivos da visita (dicionário LEDI e-SUS APS · MotivoVisita) */
@@ -1839,6 +1862,24 @@ function parseProcedXML(text,fileName){const dom=new DOMParser().parseFromString
  for(let i=0;i<ats.length;i++){const a=ats[i],g=t=>one(a,t);const med=a.getElementsByTagName('medicoes')[0],m=t=>med?one(med,t):'';const procs=[];const ps=a.getElementsByTagName('procedimentos');for(let j=0;j<ps.length;j++){const c=ps[j].textContent.trim();if(c)procs.push(c.toUpperCase().replace(/[.\-]/g,''))}
   out.push({id:fichaId+'|'+g('cnsCidadao')+'|'+i,ficha:fichaId,prof:one(hdr,'profissionalCNS'),cbo:one(hdr,'cboCodigo_2002'),cnes:one(hdr,'cnes'),ine:one(hdr,'ine'),data:msIso(g('dataHoraInicialAtendimento')||one(hdr,'dataAtendimento')),cns:g('cnsCidadao'),nasc:msIso(g('dtNascimento')),sexo:g('sexo'),procs,pas:Number(m('pressaoArterialSistolica'))||0,pad:Number(m('pressaoArterialDiastolica'))||0,peso:Number(m('peso'))||0,altura:Number(m('altura'))||0,arquivo:fileName})}
  return out}
+/* Parser rapido da Ficha de Procedimentos (sem DOMParser): num lote de 40 mil
+   fichas o DOMParser leva minutos; aqui o resultado tem exatamente o mesmo formato
+   de parseProcedXML, inclusive o "id", para a deduplicacao continuar valendo. */
+function _pOne(t,tag){const m=new RegExp('<'+tag+'>([^<]*)<\\/'+tag+'>').exec(t);return m?m[1].trim():''}
+function parseProcedFast(text,fileName){
+ const hm=/<headerTransport>([\s\S]*?)<\/headerTransport>/.exec(text),hdr=hm?hm[1]:'';
+ const fichaId=_pOne(text,'uuidFicha')||fileName;
+ const prof=_pOne(hdr,'profissionalCNS'),cbo=_pOne(hdr,'cboCodigo_2002'),cnes=_pOne(hdr,'cnes'),ine=_pOne(hdr,'ine'),dh=_pOne(hdr,'dataAtendimento');
+ const out=[];const rx=/<atendProcedimentos>([\s\S]*?)<\/atendProcedimentos>/g;let m,i=0;
+ while((m=rx.exec(text))){const a=m[1];
+  const procs=[],rp=/<procedimentos>([^<]*)<\/procedimentos>/g;let p;
+  while((p=rp.exec(a))){const c=p[1].trim().toUpperCase().replace(/[.\-]/g,'');if(c)procs.push(c)}
+  const md=/<medicoes>([\s\S]*?)<\/medicoes>/.exec(a),mm=md?md[1]:'';const cns=_pOne(a,'cnsCidadao');
+  out.push({id:fichaId+'|'+cns+'|'+i,ficha:fichaId,prof,cbo,cnes,ine,
+   data:msIso(_pOne(a,'dataHoraInicialAtendimento')||dh),cns,nasc:msIso(_pOne(a,'dtNascimento')),sexo:_pOne(a,'sexo'),procs,
+   pas:Number(_pOne(mm,'pressaoArterialSistolica'))||0,pad:Number(_pOne(mm,'pressaoArterialDiastolica'))||0,
+   peso:Number(_pOne(mm,'peso'))||0,altura:Number(_pOne(mm,'altura'))||0,arquivo:fileName});i++}
+ return out}
 const atends=()=>S.atends||[];const odontos=()=>S.atendsOdonto||[];
 const todosAtends=()=>atends().concat(odontos());
 const personOfAtend=a=>a.cns?DB.byCNS.get(a.cns):null;
@@ -1902,20 +1943,48 @@ function esusConfirma(cod,k,p){if(!p)return false;const A=atendsPorPessoa().get(
  }
  if(cod==='C7'){if(k==='A')return exameFeito(p,EX_CITO,36);if(k==='D')return exameFeito(p,EX_MAMO,24)}
  return false}
-async function importarAtend(files){let nf=0,no=0,nproc=0,jaT=0;const errs=[];if(!S.atends)S.atends=[];if(!S.atendsOdonto)S.atendsOdonto=[];if(!S.procedimentos)S.procedimentos=[];
+async function importarAtend(files){let nf=0,no=0,nproc=0,jaT=0,nvit=0;const errs=[];
+ if(!S.atends)S.atends=[];if(!S.atendsOdonto)S.atendsOdonto=[];if(!S.procedimentos)S.procedimentos=[];
  const byId=new Map(todosAtends().map(a=>[a.id,a]));
  const byProc=new Map((S.procedimentos||[]).map(a=>[a.id,a]));
- for(const f of files){try{const arr=[];if(/\.zip$/i.test(f.name)){for(const en of await readZip(await f.arrayBuffer()))if(/\.xml$/i.test(en.name))arr.push(en.text)}else if(/\.xml$/i.test(f.name))arr.push(await f.text());else{errs.push('Ignorado: '+esc(f.name));continue}
-  for(const x of arr){
-   if(x.indexOf('fichaAtendimentoIndividualMasterTransport')>=0){for(const a of parseFAIXML(x,f.name)){const ex=byId.get(a.id);if(ex){jaT++;if(!ex.cid10&&a.cid10){ex.cid10=a.cid10;ex.ciap=a.ciap||ex.ciap}if(!ex.exames&&a.exames&&a.exames.length)ex.exames=a.exames;continue}byId.set(a.id,a);S.atends.push(a);nf++}}
-   else if(x.indexOf('fichaAtendimentoOdontologicoMasterTransport')>=0){for(const a of parseFAOXML(x,f.name)){if(byId.has(a.id)){jaT++;continue}byId.set(a.id,a);S.atendsOdonto.push(a);no++}}
-   else if(x.indexOf('fichaProcedimento')>=0){for(const a of parseProcedXML(x,f.name)){if(byProc.has(a.id)){jaT++;continue}byProc.set(a.id,a);S.procedimentos.push(a);nproc++}}
-   else{errs.push('Tipo não reconhecido em '+esc(f.name));continue}}
- }catch(e){errs.push('<b>'+esc(f.name)+'</b>: '+esc(e.message))}}
- S.atendsLog.push({quando:new Date().toISOString(),arquivo:files.length===1?files[0].name:(files.length+' arquivos'),fai:nf,fao:no,total:todosAtends().length});
- if(nproc)S.procedimentosLog.push({quando:new Date().toISOString(),arquivo:files.length===1?files[0].name:(files.length+' arquivos'),novas:nproc,total:S.procedimentos.length});
- await save('atends','atendsOdonto','atendsLog','procedimentos','procedimentosLog');_apc=null;_ppl=null;logAction('Atendimentos e-SUS importados',`${nf} individuais, ${no} odontológicos, ${nproc} procedimentos, ${jaT} já existiam`);
- if(errs.length)toast(errs.join('<br>'),9000);else toast(`${nf+no} atendimento(s) e ${nproc} procedimento(s) novo(s)${jaT?' · '+jaT+' já existiam':''} ✓`);
+ const trata=(x,nome)=>{
+  if(x.indexOf('fichaAtendimentoIndividualMasterTransport')>=0){for(const a of parseFAIXML(x,nome)){const ex=byId.get(a.id);if(ex){jaT++;if(!ex.cid10&&a.cid10){ex.cid10=a.cid10;ex.ciap=a.ciap||ex.ciap}if(!ex.exames&&a.exames&&a.exames.length)ex.exames=a.exames;continue}byId.set(a.id,a);S.atends.push(a);nf++}}
+  else if(x.indexOf('fichaAtendimentoOdontologicoMasterTransport')>=0){for(const a of parseFAOXML(x,nome)){if(byId.has(a.id)){jaT++;continue}byId.set(a.id,a);S.atendsOdonto.push(a);no++}}
+  else if(x.indexOf('fichaProcedimento')>=0){for(const a of parseProcedFast(x,nome)){if(byProc.has(a.id)){jaT++;continue}byProc.set(a.id,a);S.procedimentos.push(a);nproc++;if(a.procs&&a.procs.indexOf(VITA_COD)>=0)nvit++}}
+  else throw new Error('Tipo de ficha nao reconhecido')};
+ try{
+  for(const f of files){
+   try{
+    if(/\.zip$/i.test(f.name)){
+     impProg('Abrindo <b>'+esc(f.name)+'</b>&hellip;');await respira();
+     const z=zipIndex(await f.arrayBuffer());
+     const xs=z.files.filter(en=>/\.xml$/i.test(en.name)&&!en.name.endsWith('/'));
+     if(!xs.length){errs.push('<b>'+esc(f.name)+'</b>: nenhum .xml dentro do .zip');continue}
+     for(let k=0;k<xs.length;k++){
+      let x=null;
+      try{x=await zipText(z,xs[k])}catch(e){if(errs.length<40)errs.push('<b>'+esc(xs[k].name)+'</b>: '+esc(e.message))}
+      if(x!==null){try{trata(x,f.name)}catch(e){if(errs.length<40)errs.push('<b>'+esc(xs[k].name)+'</b>: '+esc(e.message))}}
+      x=null;
+      if((k+1)%300===0||k===xs.length-1){
+       impProg('Importando <b>'+esc(f.name)+'</b><br>'+fmt(k+1)+' de '+fmt(xs.length)+' fichas'+
+        '<div style="font-weight:500;opacity:.9;margin-top:5px">'+fmt(nf+no)+' atendimento(s) &middot; '+fmt(nproc)+' procedimento(s)'+(nvit?' &middot; '+fmt(nvit)+' vitamina A':'')+'</div>');
+       await respira()}
+     }
+    }
+    else if(/\.xml$/i.test(f.name))trata(await f.text(),f.name);
+    else{errs.push('Ignorado: '+esc(f.name));continue}
+   }catch(e){errs.push('<b>'+esc(f.name)+'</b>: '+esc(e.message))}
+  }
+ }finally{impProg('')}
+ const nomeArq=files.length===1?files[0].name:(files.length+' arquivos');
+ S.atendsLog.push({quando:new Date().toISOString(),arquivo:nomeArq,fai:nf,fao:no,total:todosAtends().length});
+ if(nproc)S.procedimentosLog.push({quando:new Date().toISOString(),arquivo:nomeArq,novas:nproc,total:S.procedimentos.length,vita:nvit});
+ impProg('Salvando&hellip;');await respira();
+ await save('atends','atendsOdonto','atendsLog','procedimentos','procedimentosLog');_apc=null;_ppl=null;_vitaC=null;
+ logAction('Atendimentos e-SUS importados',nf+' individuais, '+no+' odontologicos, '+nproc+' procedimentos ('+nvit+' vitamina A), '+jaT+' ja existiam');
+ impProg('');
+ if(errs.length)toast(errs.slice(0,12).join('<br>')+(errs.length>12?'<br>&hellip; e mais '+(errs.length-12)+' aviso(s)':''),9000);
+ else toast(fmt(nf+no)+' atendimento(s) e '+fmt(nproc)+' procedimento(s) novo(s)'+(nvit?' &middot; '+fmt(nvit)+' dose(s) de vitamina A':'')+(jaT?' &middot; '+fmt(jaT)+' ja existiam':'')+' &#10003;');
  await aplicarConfirmacoesTodos();
  render()}
 function atendFiltered(){const a=UI.atend;const q=norm(a.q),qd=onlyDig(a.q);return todosAtends().filter(x=>{
@@ -2884,6 +2953,690 @@ function wireChrome(){
     if(e.key==='Escape')closeSide();
   });
 }
+/* ============================================================================
+   VITAMINA A — Programa Nacional de Suplementacao de Vitamina A (PNSVA)
+   Esquema do Ministerio da Saude (Portaria GM/MS n. 729/2005 e Manual de
+   Condutas Gerais do PNSVA):
+     - criancas de  6 a 11 meses -> 100.000 UI, dose unica
+     - criancas de 12 a 59 meses -> 200.000 UI, uma vez a cada 6 meses
+   No e-SUS APS a dose e registrada na Ficha de Procedimentos com o codigo
+   SIGTAP 0101040059 (ADMINISTRACAO DE VITAMINA A).
+   Regra da casa: dose repetida para a MESMA crianca no MESMO mes conta uma vez
+   so — vale o ultimo lancamento; os descartados ficam guardados para auditoria.
+   ============================================================================ */
+const VITA_COD='0101040059';
+const VITA_INTERVALO=6;              /* meses entre doses */
+const VITA_IDADE_MIN=6, VITA_IDADE_MAX=59;
+const VITA_CORES={s1:'#1f9d63',s2:'#2563eb',tot:'#0f6b41',alt:'#d9a514'};
+const VITA_ST={
+ ATRASADA:{t:'Atrasada',cls:'red',ord:1},
+ VENCE:{t:'Vence neste mes',cls:'warn',ord:2},
+ EM_DIA:{t:'Em dia',cls:'green',ord:3},
+ FUTURA:{t:'Ainda nao elegivel',cls:'gray',ord:4},
+ EGRESSO:{t:'Saiu da faixa',cls:'gray',ord:5}};
+const VITA_BK={pendente:'Sem retorno',tomou:'Tomou (a lancar)',naoloc:'Nao localizado',recusa:'Recusou',mudou:'Mudou-se'};
+
+/* ---- aritmetica de competencia (YYYY-MM) ---- */
+const vCompDiff=(a,b)=>{const[y1,m1]=a.split('-').map(Number),[y2,m2]=b.split('-').map(Number);return(y2*12+m2)-(y1*12+m1)};
+const vCompAdd=(c,n)=>{const[y,m]=c.split('-').map(Number);const t=y*12+(m-1)+n;return String(Math.floor(t/12))+'-'+String(t%12+1).padStart(2,'0')};
+const vCompFim=c=>{const[y,m]=c.split('-').map(Number);return c+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0')};
+const vHoje=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const vCompAtual=()=>vHoje().slice(0,7);
+const vSem=d=>String(d).slice(0,4)+(Number(String(d).slice(5,7))<=6?'-S1':'-S2');
+const vSemLabel=k=>k.slice(5)+'/'+k.slice(0,4);
+function vMesesEntre(a,b){if(!a||!b)return null;const[y1,m1,d1]=a.split('-').map(Number),[y2,m2,d2]=b.split('-').map(Number);let mm=(y2-y1)*12+(m2-m1);if(d2<d1)mm--;return mm}
+const vIdadeTxt=mm=>mm==null?'—':(mm<24?mm+(mm===1?' mes':' meses'):Math.floor(mm/12)+' anos'+(mm%12?' e '+(mm%12)+'m':''));
+const vDoseUI=mm=>mm<12?'100.000 UI':'200.000 UI';
+
+/* ---- doses: e-SUS (ficha de procedimentos) + lancamentos do sistema ---- */
+let _vitaC=null;
+function vitaBase(){
+ if(_vitaC)return _vitaC;
+ const brutas=[];
+ for(const a of (S.procedimentos||[])){
+  if(!a.procs||a.procs.indexOf(VITA_COD)<0||!a.data)continue;
+  const p=a.cns?DB.byCNS.get(a.cns):null;
+  brutas.push({cod:p?p.cod:'',cns:a.cns||'',nasc:(p&&p.nasc)||a.nasc||'',data:a.data,prof:a.prof||'',cbo:a.cbo||'',
+   cnes:a.cnes||'',ine:a.ine||'',origem:'esus',ficha:a.ficha,arquivo:a.arquivo,id:a.id});
+ }
+ for(const d of (S.vitaDoses||[])){
+  const p=DB.pes.get(d.cod);if(!d.data)continue;
+  brutas.push({cod:d.cod,cns:(p&&p.cns)||'',nasc:(p&&p.nasc)||'',data:d.data,prof:'',cbo:'',cnes:'',ine:'',
+   origem:'sistema',pendESUS:!d.lancadoESUS,por:d.por||'',obs:d.obs||'',ref:d.ref||'',id:'sis|'+d.cod+'|'+d.data});
+ }
+ brutas.sort((x,y)=>x.data<y.data?-1:x.data>y.data?1:0);
+ /* dedup: mesma crianca + mesmo mes = 1 dose (vale o ultimo lancamento).
+    Ficha sem CNS e sem cadastro nao da para identificar: nunca e deduplicada. */
+ const pKey=d=>d.cod?('P:'+d.cod):d.cns?('C:'+d.cns):('X:'+d.id);
+ const grp=new Map(),dups=[];
+ for(const d of brutas){
+  const id=pKey(d),ch=id.slice(0,2)==='X:'?id:(id+'|'+d.data.slice(0,7));
+  const ant=grp.get(ch);
+  if(ant)dups.push({mantida:d,descartada:ant,cod:d.cod,cns:d.cns,comp:d.data.slice(0,7)});
+  grp.set(ch,d);
+ }
+ const porPessoa=new Map(),semCad=new Map(),semId=[];
+ for(const d of grp.values()){
+  const k=pKey(d);
+  if(k.slice(0,2)==='X:'){semId.push(d);continue}
+  if(!porPessoa.has(k))porPessoa.set(k,[]);
+  porPessoa.get(k).push(d);
+  if(!d.cod){if(!semCad.has(d.cns))semCad.set(d.cns,[]);semCad.get(d.cns).push(d)}
+ }
+ for(const arr of porPessoa.values())arr.sort((a,b)=>a.data<b.data?-1:1);
+ _vitaC={todas:[...grp.values()],porPessoa,dups,semCad,semId,brutas:brutas.length};
+ return _vitaC}
+
+/* ---- dados do cadastro que a busca ativa precisa ---- */
+function vitaInfo(p){
+ const f=p.fam?DB.fam.get(p.fam):null;
+ const end=f&&f.logr?(f.logr+(f.n?', '+f.n:'')+(f.comp||f.compl?' – '+(f.comp||f.compl):'')):'';
+ const ma=f?DB.ma[f.eq+'-'+f.ma]:null;
+ let resp='';
+ if(!p.mae&&f){const ms=DB.members.get(f.cod)||[];const c=ms.find(x=>x.chefe);if(c&&c.cod!==p.cod)resp=c.nome}
+ return{end,eqId:f?f.eq:'',eq:f?eqName(f.eq):'',maCod:f?f.ma:'',acs:ma?ma.acs:'',acsCod:ma?ma.acsCod:'',
+  mae:p.mae||'',resp,tel:p.tel||'',bairro:f?(f.exp||''):''}}
+
+/* ---- situacao de uma crianca no mes de referencia ---- */
+function vitaSit(p,ref,B){
+ const fim=vCompFim(ref);
+ const idadeM=vMesesEntre(p.nasc,fim);
+ const doses=(B.porPessoa.get('P:'+p.cod)||[]).filter(d=>d.data.slice(0,7)<=ref);
+ const ult=doses.length?doses[doses.length-1]:null;
+ const elegivel=vCompAdd(p.nasc.slice(0,7),VITA_IDADE_MIN);
+ const venc=ult?vCompAdd(ult.data.slice(0,7),VITA_INTERVALO):elegivel;
+ let st,atraso=0;
+ if(idadeM==null)st='FUTURA';
+ else if(idadeM<VITA_IDADE_MIN)st='FUTURA';
+ else if(idadeM>VITA_IDADE_MAX)st='EGRESSO';
+ else if(ref<venc)st='EM_DIA';
+ else if(ref===venc)st='VENCE';
+ else{st='ATRASADA';atraso=vCompDiff(venc,ref)}
+ const faixa=idadeM==null?'':idadeM<6?'0-5':idadeM<12?'6-11':idadeM<24?'12-23':idadeM<60?'24-59':'60+';
+ const mk=(S.vitaMk||{})[p.cod+'|'+ref]||null;
+ return{p,idadeM,idadeTxt:vIdadeTxt(idadeM),doses,ult,nDoses:doses.length,nunca:!ult,venc,atraso,st,faixa,
+  dose:idadeM!=null&&idadeM>=VITA_IDADE_MIN&&idadeM<=VITA_IDADE_MAX?vDoseUI(idadeM):'',
+  deve:st==='VENCE'||st==='ATRASADA',elegivel,mk,bk:mk?mk.st:'pendente',info:vitaInfo(p)}}
+
+/* ---- universo: criancas de 0 a 59 meses no mes de referencia ---- */
+let _vitaUniv=null,_vitaUnivK='';
+function vitaUniverso(ref){
+ const k=ref+'|'+DB.pes.size+'|'+(S.vitaDoses||[]).length+'|'+Object.keys(S.vitaMk||{}).length+'|'+(_vitaC?1:0);
+ if(_vitaUniv&&_vitaUnivK===k)return _vitaUniv;
+ const B=vitaBase(),fim=vCompFim(ref),out=[];
+ for(const p of DB.pes.values()){
+  if(!p.nasc)continue;
+  const mm=vMesesEntre(p.nasc,fim);
+  if(mm==null||mm<0||mm>VITA_IDADE_MAX)continue;
+  if(p.situacao&&p.situacao!=='Ativo')continue;
+  out.push(vitaSit(p,ref,B));
+ }
+ out.sort((a,b)=>{const d=VITA_ST[a.st].ord-VITA_ST[b.st].ord;if(d)return d;if(b.atraso!==a.atraso)return b.atraso-a.atraso;return norm(a.p.nome)<norm(b.p.nome)?-1:1});
+ _vitaUniv=out;_vitaUnivK=k;return out}
+
+/* ---- filtros da aba ---- */
+function vitaFiltrado(){
+ const s=UI.vita,ref=s.ref||vCompAtual();
+ const q=norm(s.q),qd=onlyDig(s.q);
+ return vitaUniverso(ref).filter(x=>{
+  const i=x.info;
+  if(s.eq!=='ALL'&&i.eqId!==s.eq)return false;
+  if(s.ma!=='ALL'&&String(i.eqId+'-'+i.maCod)!==s.ma)return false;
+  if(s.faixa!=='ALL'&&x.faixa!==s.faixa)return false;
+  if(s.sit==='DEVE'&&!x.deve)return false;
+  if(s.sit==='NUNCA'&&!(x.deve&&x.nunca))return false;
+  if(s.sit!=='ALL'&&s.sit!=='DEVE'&&s.sit!=='NUNCA'&&x.st!==s.sit)return false;
+  if(s.atraso&&x.atraso<Number(s.atraso))return false;
+  if(s.tel==='COM'&&!i.tel)return false;
+  if(s.tel==='SEM'&&i.tel)return false;
+  if(s.bk!=='ALL'&&x.bk!==s.bk)return false;
+  if(q&&!(norm(x.p.nome).includes(q)||norm(i.mae).includes(q)||norm(i.end).includes(q)||norm(i.acs).includes(q)||(qd.length>=5&&String(x.p.cns||'').includes(qd))))return false;
+  return true})}
+
+/* ---- agrupamento para impressao ---- */
+function vitaGrupos(L,modo){
+ const g=new Map();
+ for(const x of L){
+  const i=x.info;
+  const k=modo==='eq'?(i.eq||'Sem equipe'):modo==='acs'?((i.eq||'Sem equipe')+' § MA '+(i.maCod||'?')+(i.acs?' — '+i.acs:''))
+    :'Itacarambi';
+  if(!g.has(k))g.set(k,[]);g.get(k).push(x)}
+ return [...g.entries()].sort((a,b)=>a[0]<b[0]?-1:1)}
+
+/* Cabecalho dos impressos.
+   vitaCab() embute os dois logos em base64 (cerca de 210 KB) a cada chamada; a lista de
+   busca ativa sai quebrada por equipe e microarea (dezenas de blocos), o que geraria
+   megabytes de HTML. Aqui os logos entram uma unica vez, como imagem de fundo em CSS. */
+let _vitaLogoCss=false;
+function vitaLogoCss(){if(_vitaLogoCss)return;_vitaLogoCss=true;
+ const st=document.createElement('style');st.id='vitaLogoCss';
+ st.textContent='.vt-banner{display:block;width:100%;height:78px;margin:0 0 6px;background:url("'+LOGO_PREF+'") center/contain no-repeat}'+
+  '.vt-brasao{flex:none;width:56px;height:66px;background:url("'+LOGO_BRASAO+'") center/contain no-repeat}'+
+  '@media print{.vt-banner{height:70px}.vt-brasao{width:49px;height:58px}}';
+ document.head.appendChild(st)}
+function vitaCab(t,sub){vitaLogoCss();
+ return '<div class="printhd"><div class="vt-banner" role="img" aria-label="Prefeitura Municipal de Itacarambi"></div>'+
+  '<div class="ph-row"><div class="vt-brasao" role="img" aria-label="Brasao de Itacarambi"></div>'+
+  '<div class="ph-r"><b>'+esc(t)+'</b><div class="mini">'+esc(sub||'')+'</div>'+
+  '<div class="mini">Emitido em '+new Date().toLocaleString('pt-BR')+'</div></div></div></div>'}
+
+/* ===================== Graficos (SVG puro) ===================== */
+function vTick(max){const alvo=Math.max(max,1)/4,p=Math.pow(10,Math.floor(Math.log10(Math.max(alvo,1))));for(const k of[1,2,2.5,5,10])if(p*k>=alvo)return p*k;return p*10}
+function vBarPath(x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h));return `M${x} ${y+h}V${y+r}a${r} ${r} 0 0 1 ${r} ${-r}h${w-2*r}a${r} ${r} 0 0 1 ${r} ${r}V${y+h}Z`}
+/* barras agrupadas: grupos=['2025','2026'], series=[{nome,cor,vals:[]}] */
+function vGrafBarras(grupos,series,o={}){
+ if(!grupos.length)return '<div class="empty">Sem dados no periodo.</div>';
+ const W=o.w||760,H=o.h||302,ml=54,mr=16,mt=14,mb=48,iw=W-ml-mr,ih=H-mt-mb;
+ const max=Math.max(1,...series.flatMap(s=>s.vals.map(v=>v||0)));
+ const tk=vTick(max),topo=Math.max(tk,Math.ceil(max/tk)*tk),y=v=>mt+ih-(v/topo)*ih;
+ const band=iw/grupos.length,nS=series.length,gap=2;
+ let bar=Math.min(24,(band*0.66-gap*(nS-1))/nS);if(bar<3)bar=Math.max(2,(band*0.86-gap*(nS-1))/nS);
+ const gw=bar*nS+gap*(nS-1),rotular=grupos.length*nS<=18&&bar>=11;
+ let g='';
+ for(let t=0;t<=topo+0.001;t+=tk)g+=`<line x1="${ml}" x2="${ml+iw}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" stroke="#e7ebe9" stroke-width="1"/>`+
+  `<text x="${ml-9}" y="${(y(t)+4).toFixed(1)}" text-anchor="end" font-size="10.5" fill="#7a8781">${fmt(t)}</text>`;
+ let b='';
+ grupos.forEach((gl,gi)=>{
+  const x0=ml+gi*band+(band-gw)/2;
+  series.forEach((se,si)=>{
+   const v=se.vals[gi]||0,x=x0+si*(bar+gap),h=Math.max(v>0?2:0,mt+ih-y(v));
+   if(v>0)b+=`<path d="${vBarPath(x,y(v),bar,h,4)}" fill="${se.cor}"><title>${esc(gl)} · ${esc(se.nome)}: ${fmt(v)}</title></path>`;
+   if(rotular&&v>0)b+=`<text x="${(x+bar/2).toFixed(1)}" y="${(y(v)-6).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#41514a">${fmt(v)}</text>`;
+  });
+  b+=`<text x="${(ml+gi*band+band/2).toFixed(1)}" y="${mt+ih+18}" text-anchor="middle" font-size="11" font-weight="600" fill="#41514a">${esc(gl)}</text>`;
+ });
+ const leg=nS>1?`<div class="bar" style="gap:16px;flex-wrap:wrap;margin:2px 0 6px">${series.map(se=>`<span class="mini" style="display:inline-flex;align-items:center;gap:6px"><i style="width:11px;height:11px;border-radius:3px;background:${se.cor};display:inline-block"></i>${esc(se.nome)}</span>`).join('')}</div>`:'';
+ return leg+`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:${H}px" role="img" aria-label="${esc(o.alt||'grafico de barras')}">${g}`+
+  `<line x1="${ml}" x2="${ml+iw}" y1="${mt+ih}" y2="${mt+ih}" stroke="#d6ddda" stroke-width="1"/>${b}`+
+  (o.eixoY?`<text x="14" y="${mt+ih/2}" transform="rotate(-90 14 ${mt+ih/2})" text-anchor="middle" font-size="10.5" fill="#7a8781">${esc(o.eixoY)}</text>`:'')+`</svg>`}
+/* barras horizontais de percentual (cobertura por equipe) */
+function vGrafHoriz(itens,o={}){
+ if(!itens.length)return '<div class="empty">Sem dados.</div>';
+ const lw=o.lw||170,W=o.w||760,rowH=30,H=itens.length*rowH+26,iw=W-lw-74;
+ let b='';
+ itens.forEach((it,i)=>{
+  const yy=i*rowH+8,p=Math.max(0,Math.min(100,it.v)),w=Math.max(p>0?3:0,iw*p/100);
+  const cor=p>=80?'#1f9d63':p>=50?'#5fae3a':p>=25?'#d9a514':'#d1493f';
+  b+=`<text x="${lw-10}" y="${yy+15}" text-anchor="end" font-size="11" fill="#41514a">${esc(it.nome)}</text>`+
+   `<rect x="${lw}" y="${yy+4}" width="${iw}" height="14" rx="4" fill="#f0f4f2"/>`+
+   `<path d="${vBarPath(lw,yy+4,w,14,4)}" fill="${cor}"><title>${esc(it.nome)}: ${f1(p)}%${it.sub?' ('+esc(it.sub)+')':''}</title></path>`+
+   `<text x="${lw+iw+8}" y="${yy+15}" font-size="11" font-weight="700" fill="#41514a">${f1(p)}%</text>`;
+ });
+ return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="${esc(o.alt||'cobertura')}">${b}</svg>`}
+
+/* ===================== Resumo (KPIs) ===================== */
+function vitaKpis(L){
+ const n=L.length,eleg=L.filter(x=>x.st!=='FUTURA'&&x.st!=='EGRESSO');
+ const emDia=eleg.filter(x=>x.st==='EM_DIA').length,vence=eleg.filter(x=>x.st==='VENCE').length;
+ const atr=eleg.filter(x=>x.st==='ATRASADA').length,nunca=eleg.filter(x=>x.nunca).length;
+ const fut=L.filter(x=>x.st==='FUTURA').length;
+ return{n,eleg:eleg.length,emDia,vence,atr,nunca,fut,cob:pct(emDia,eleg.length)}}
+function vitaKpiHTML(K,ref){
+ const c=(l,v,s,cor)=>`<div class="card kpi" style="box-shadow:none;border-left:4px solid ${cor}"><span class="l">${l}</span><span class="v">${v}</span><span class="s">${s}</span></div>`;
+ return `<div class="grid g4">
+  ${c('Elegiveis (6–59 meses)',fmt(K.eleg),fmt(K.fut)+' ainda nao elegiveis (0–5 m)','#0e7c86')}
+  ${c('Em dia',fmt(K.emDia),f1(K.cob)+'% dos elegiveis','#1f9d63')}
+  ${c('Vence em '+compLabel(ref),fmt(K.vence),'precisa tomar neste mes','#d9a514')}
+  ${c('Atrasadas',fmt(K.atr),fmt(K.nunca)+' nunca receberam','#d1493f')}</div>`}
+
+/* ===================== Aba: busca ativa ===================== */
+function vtBusca(el){
+ const s=UI.vita,ref=s.ref,L=vitaFiltrado(),K=vitaKpis(vitaUniverso(ref));
+ const grupos=vitaGrupos(L,s.gr);
+ const linha=(x,i)=>{
+  const I=x.info,st=VITA_ST[x.st];
+  return `<tr>
+   <td class="num small">${i}</td>
+   <td><b class="click" data-crianca="${esc(x.p.cod)}">${esc(x.p.nome)}</b>
+     <div class="mini">${brDate(x.p.nasc)} · ${esc(x.idadeTxt)}${x.p.cns?' · CNS '+esc(x.p.cns):''}</div></td>
+   <td class="small">${I.mae?esc(I.mae):(I.resp?'<span class="muted">Resp.: </span>'+esc(I.resp):'<span class="tag warn">sem nome da mae</span>')}</td>
+   <td class="small addr">${esc(I.end)||'<span class="muted">—</span>'}${I.bairro?'<div class="mini">'+esc(I.bairro)+'</div>':''}</td>
+   <td class="small" style="white-space:nowrap">${I.tel?esc(I.tel):'<span class="muted">—</span>'}</td>
+   <td class="small vt-sc">${esc(I.eq)}<div class="mini">MA ${esc(I.maCod)}${I.acs?' · '+esc(I.acs):''}</div></td>
+   <td class="small" style="white-space:nowrap">${x.ult?brDate(x.ult.data):'<span class="tag red">nunca</span>'}
+     <div class="mini">${x.nDoses?fmt(x.nDoses)+' dose(s)':'—'}</div></td>
+   <td class="small" style="white-space:nowrap"><b>${esc(x.dose)}</b><div class="mini">vence ${compLabel(x.venc)}</div></td>
+   <td class="vt-sc"><span class="tag ${st.cls}">${esc(st.t)}</span>${x.atraso?'<div class="mini">'+x.atraso+' mes(es) de atraso</div>':''}${x.bk!=='pendente'?'<div class="mini"><b>'+esc(VITA_BK[x.bk]||x.bk)+'</b></div>':''}</td>
+   <td class="vt-pr small" style="line-height:1.9;min-width:150px">
+     <span class="vt-box"></span>Tomou <span class="vt-ln" style="min-width:78px"></span><br>
+     <span class="vt-box"></span>Nao localizado 1<span class="vt-box" style="margin:0 3px"></span>2<span class="vt-box" style="margin:0 3px"></span>3<span class="vt-box" style="margin:0 3px"></span><br>
+     <span class="vt-box"></span>Recusou&nbsp;&nbsp;<span class="vt-box"></span>Mudou-se</td>
+   <td class="vt-pr" style="min-width:95px"></td></tr>`};
+ const cab=`<tr><th class="num">#</th><th>Crianca</th><th>Nome da mae</th><th>Endereco</th><th>Telefone</th>
+   <th class="vt-sc">Equipe / MA</th><th>Ultima dose</th><th>Dose indicada</th><th class="vt-sc">Situacao</th>
+   <th class="vt-pr">Retorno do ACS</th><th class="vt-pr">Observacao</th></tr>`;
+ let n=0;
+ const blocos=grupos.map(([g,arr])=>{
+  const[gEq,gMa]=g.split(' § ');
+  const sub=(s.sit==='DEVE'?'Criancas que precisam de vitamina A em '+compLabel(ref):'Vitamina A — '+compLabel(ref))+
+   ' · '+fmt(arr.length)+' crianca(s)';
+  return `<div class="rep-page card" style="box-shadow:none;margin-top:14px">
+   <div class="printonly">${vitaCab('Busca ativa de Vitamina A — '+gEq+(gMa?' · '+gMa:''),sub)}</div>
+   <div class="split" style="flex-wrap:wrap;gap:8px"><h3 style="margin:0">${esc(gEq)}${gMa?' <small>'+esc(gMa)+'</small>':''}</h3>
+     <span class="mini">${fmt(arr.length)} crianca(s)</span></div>
+   <div class="mini printonly" style="margin:6px 0">Esquema do Ministerio da Saude: 6 a 11 meses = 100.000 UI (dose unica) · 12 a 59 meses = 200.000 UI a cada 6 meses.
+     Marque <b>Tomou</b> e anote a data quando a crianca ja recebeu a dose e ela nao esta lancada no sistema — a enfermeira lanca depois.
+     Marque <b>Nao localizado</b> apenas apos 3 tentativas de visita.</div>
+   <div class="tw"><table><thead>${cab}</thead><tbody>${arr.map(x=>linha(x,++n)).join('')}</tbody></table></div>
+   <div class="printonly">${prAss()}</div></div>`}).join('');
+ el.innerHTML=vitaKpiHTML(K,ref)+
+  `<div class="info noprint" style="margin-top:14px">Lista de <b>busca ativa</b> do mes de referencia: criancas de 6 a 59 meses com a dose <b>vencida neste mes</b> ou <b>atrasada</b> (mais de 6 meses sem administrar). Imprima por equipe e microarea e entregue ao ACS — a folha ja sai com campos para marcar quem tomou sem lancamento e quem nao foi localizado.</div>`+
+  (L.length?blocos:'<div class="empty" style="margin-top:14px">Nenhuma crianca com esses filtros.</div>');
+ $$('[data-crianca]',el).forEach(b=>b.onclick=()=>{UI.vita.crianca=b.dataset.crianca;UI.vita.rep='hist';render()})}
+
+/* exportacao da lista de busca ativa */
+function vitaXls(){
+ const s=UI.vita,L=vitaFiltrado();
+ const out=L.map(x=>({Equipe:x.info.eq,'Microarea':x.info.maCod,ACS:x.info.acs,Crianca:x.p.nome,
+  'Data de nascimento':brDate(x.p.nasc),Idade:x.idadeTxt,'Nome da mae':x.info.mae||(x.info.resp?'Resp.: '+x.info.resp:''),
+  'Endereco':x.info.end,Telefone:x.info.tel,CNS:x.p.cns||'','Ultima dose':x.ult?brDate(x.ult.data):'nunca',
+  'Doses acumuladas':x.nDoses,'Dose indicada':x.dose,'Vence em':x.venc?compLabel(x.venc):'',
+  'Atraso (meses)':x.atraso,'Situacao':VITA_ST[x.st].t,'Retorno da busca':VITA_BK[x.bk]||''}));
+ const ws=XLSX.utils.json_to_sheet(out);
+ ws['!cols']=[{wch:16},{wch:9},{wch:24},{wch:30},{wch:13},{wch:12},{wch:28},{wch:34},{wch:14},{wch:17},{wch:12},{wch:9},{wch:13},{wch:11},{wch:9},{wch:16},{wch:17}];
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Busca ativa vitamina A');
+ XLSX.writeFile(wb,`busca_ativa_vitamina_a_${s.ref}.xlsx`)}
+/* ===================== Aba: retorno do ACS ===================== */
+async function vitaMarcar(cod,st,extra){
+ const ref=UI.vita.ref,k=cod+'|'+ref;
+ if(!S.vitaMk)S.vitaMk={};
+ if(st==='limpar')delete S.vitaMk[k];
+ else S.vitaMk[k]={st,...(extra||{}),quando:new Date().toISOString(),por:CLOUD.email||''};
+ await save('vitaMk');_vitaUniv=null;
+ const p=DB.pes.get(cod);logAction('Vitamina A — retorno da busca ativa',(p?p.nome:cod)+': '+(VITA_BK[st]||st)+' ('+compLabel(ref)+')');
+ toast('Retorno registrado ✓');render()}
+async function vitaLancarDose(cod,data,obs){
+ if(!data){toast('⚠️ Informe a data em que a crianca tomou a dose.',6000);return}
+ if(data>vHoje()){toast('⚠️ A data nao pode ser futura.',6000);return}
+ const p=DB.pes.get(cod);if(!p){toast('⚠️ Crianca nao encontrada no cadastro.',6000);return}
+ const mm=vMesesEntre(p.nasc,data);
+ if(mm!=null&&(mm<VITA_IDADE_MIN||mm>VITA_IDADE_MAX)&&!confirm('Nessa data a crianca tinha '+vIdadeTxt(mm)+', fora da faixa de 6 a 59 meses do programa. Lancar mesmo assim?'))return;
+ if(!S.vitaDoses)S.vitaDoses=[];
+ const mes=data.slice(0,7);
+ const i=S.vitaDoses.findIndex(d=>d.cod===cod&&String(d.data).slice(0,7)===mes);
+ const reg={cod,data,ui:mm!=null?vDoseUI(mm):'',obs:obs||'',ref:UI.vita.ref,lancadoESUS:false,
+  por:CLOUD.email||'',quando:new Date().toISOString()};
+ if(i>=0)S.vitaDoses[i]={...S.vitaDoses[i],...reg};else S.vitaDoses.push(reg);
+ await save('vitaDoses');_vitaC=null;_vitaUniv=null;
+ await vitaMarcar(cod,'tomou',{dt:data});
+ logAction('Vitamina A — dose lancada no sistema',p.nome+': '+brDate(data)+' (pendente de lancamento no e-SUS)')}
+async function vitaDoseESUS(idx,v){
+ if(!S.vitaDoses[idx])return;
+ S.vitaDoses[idx].lancadoESUS=!!v;S.vitaDoses[idx].lancadoQuando=v?new Date().toISOString():'';
+ await save('vitaDoses');_vitaC=null;_vitaUniv=null;
+ const p=DB.pes.get(S.vitaDoses[idx].cod);
+ logAction('Vitamina A — dose '+(v?'marcada como lancada':'desmarcada')+' no e-SUS',(p?p.nome:'')+' '+brDate(S.vitaDoses[idx].data));
+ toast(v?'Marcada como lancada no e-SUS ✓':'Desmarcada.');render()}
+async function vitaRemoverDose(idx){
+ const d=S.vitaDoses[idx];if(!d)return;const p=DB.pes.get(d.cod);
+ if(!confirm('Excluir a dose de '+brDate(d.data)+(p?' de '+p.nome:'')+' lancada pelo sistema?'))return;
+ S.vitaDoses.splice(idx,1);await save('vitaDoses');_vitaC=null;_vitaUniv=null;
+ logAction('Vitamina A — dose excluida',(p?p.nome:'')+' '+brDate(d.data));toast('Dose excluida.');render()}
+
+function vtRetorno(el){
+ const s=UI.vita,ref=s.ref,L=vitaFiltrado();
+ const pend=(S.vitaDoses||[]).map((d,i)=>({d,i})).filter(x=>!x.d.lancadoESUS);
+ const rows=L.map(x=>{
+  const I=x.info,st=VITA_ST[x.st];
+  const dtSug=x.mk&&x.mk.dt?x.mk.dt:(vCompFim(ref)<vHoje()?vCompFim(ref):vHoje());
+  return `<tr>
+   <td><b>${esc(x.p.nome)}</b><div class="mini">${brDate(x.p.nasc)} · ${esc(x.idadeTxt)} · <b>${esc(x.dose)}</b></div></td>
+   <td class="small addr">${esc(I.end)}<div class="mini">${esc(I.eq)} · MA ${esc(I.maCod)}${I.acs?' · '+esc(I.acs):''}${I.tel?' · '+esc(I.tel):''}</div></td>
+   <td class="small" style="white-space:nowrap">${x.ult?brDate(x.ult.data):'<span class="tag red">nunca</span>'}<div class="mini"><span class="tag ${st.cls}">${esc(st.t)}</span></div></td>
+   <td class="small">${x.bk==='pendente'?'<span class="muted">sem retorno</span>':'<b>'+esc(VITA_BK[x.bk])+'</b>'}
+     ${x.mk&&x.mk.dt?'<div class="mini">dose em '+brDate(x.mk.dt)+'</div>':''}
+     ${x.mk&&x.mk.tent?'<div class="mini">'+x.mk.tent+' tentativa(s)</div>':''}</td>
+   <td><input type="date" class="vtDt" data-cod="${esc(x.p.cod)}" value="${esc(dtSug)}" max="${vHoje()}" style="width:140px"></td>
+   <td class="bar" style="gap:5px;flex-wrap:wrap">
+     <button class="btn pri" data-vt="tomou" data-cod="${esc(x.p.cod)}" title="A crianca tomou e falta lancar no e-SUS">✓ Tomou</button>
+     <button class="btn" data-vt="naoloc" data-cod="${esc(x.p.cod)}" title="Nao localizado apos 3 tentativas">Nao localizado</button>
+     <button class="btn" data-vt="recusa" data-cod="${esc(x.p.cod)}">Recusou</button>
+     <button class="btn" data-vt="mudou" data-cod="${esc(x.p.cod)}">Mudou-se</button>
+     ${x.bk!=='pendente'?'<button class="btn" data-vt="limpar" data-cod="'+esc(x.p.cod)+'">Limpar</button>':''}</td></tr>`}).join('');
+ el.innerHTML=`<div class="info">Aqui a <b>enfermeira ou a coordenacao</b> lanca o que voltou da folha do ACS. Marcar <b>Tomou</b> registra a dose no sistema (ela ja passa a contar na busca ativa e nos relatorios) e a deixa na fila de <b>pendentes de lancamento no e-SUS</b>, para alguem digitar no PEC depois.</div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Criancas da busca ativa <small>${compLabel(ref)} · ${fmt(L.length)}</small></h3>
+   <div class="tw" style="max-height:620px"><table><thead><tr><th>Crianca</th><th>Endereco / equipe</th><th>Ultima dose</th><th>Retorno</th><th>Data da dose</th><th>Registrar</th></tr></thead>
+   <tbody>${rows||'<tr><td colspan="6" class="muted">Nenhuma crianca com esses filtros.</td></tr>'}</tbody></table></div></div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Pendentes de lancar no e-SUS <small>${fmt(pend.length)}</small></h3>
+   <div class="mini" style="margin-bottom:8px">Doses confirmadas pelo ACS e registradas aqui que ainda precisam ser digitadas na Ficha de Procedimentos do e-SUS (codigo SIGTAP ${VITA_COD}). Depois de digitar, marque como lancada.</div>
+   <div class="tw" style="max-height:380px"><table><thead><tr><th>Crianca</th><th>Data da dose</th><th>Dose</th><th>Observacao</th><th>Registrado por</th><th>Acao</th></tr></thead><tbody>
+   ${pend.map(({d,i})=>{const p=DB.pes.get(d.cod);return `<tr><td>${esc(p?p.nome:d.cod)}<div class="mini">${p?brDate(p.nasc):''}${p&&p.cns?' · CNS '+esc(p.cns):''}</div></td>
+     <td class="small">${brDate(d.data)}</td><td class="small">${esc(d.ui||'')}</td><td class="small">${esc(d.obs||'')}</td>
+     <td class="small">${esc(d.por||'—')}<div class="mini">${d.quando?new Date(d.quando).toLocaleDateString('pt-BR'):''}</div></td>
+     <td class="bar" style="gap:5px"><button class="btn pri" data-vtok="${i}">Lancada no e-SUS</button><button class="btn danger" data-vtdel="${i}">Excluir</button></td></tr>`}).join('')||'<tr><td colspan="6" class="muted">Nada pendente ✓</td></tr>'}
+   </tbody></table></div></div>`;
+ const dt=cod=>{const e=el.querySelector('.vtDt[data-cod="'+cod+'"]');return e?e.value:''};
+ $$('[data-vt]',el).forEach(b=>b.onclick=()=>{const cod=b.dataset.cod,a=b.dataset.vt;
+  if(a==='tomou')vitaLancarDose(cod,dt(cod),'');
+  else if(a==='naoloc'){const t=prompt('Quantas tentativas de visita foram feitas? (o Ministerio orienta busca ativa; registre nao localizado apos 3 tentativas)','3');if(t===null)return;vitaMarcar(cod,'naoloc',{tent:Number(t)||0})}
+  else vitaMarcar(cod,a)});
+ $$('[data-vtok]',el).forEach(b=>b.onclick=()=>vitaDoseESUS(Number(b.dataset.vtok),true));
+ $$('[data-vtdel]',el).forEach(b=>b.onclick=()=>vitaRemoverDose(Number(b.dataset.vtdel)))}
+
+/* ===================== Aba: serie historica ===================== */
+function vtHist(el){
+ const s=UI.vita,B=vitaBase();
+ const p=s.crianca?DB.pes.get(s.crianca):null;
+ let det='';
+ if(p){
+  const sit=vitaSit(p,s.ref,B),I=sit.info;
+  const todas=(B.porPessoa.get('P:'+p.cod)||[]);
+  const dupsP=B.dups.filter(d=>d.cod===p.cod);
+  det=`<div class="card" style="box-shadow:none;margin-top:14px">
+   <div class="printonly">${vitaCab('Historico de Vitamina A — '+p.nome,'Esquema do Ministerio da Saude: 6–11 meses 100.000 UI (dose unica) · 12–59 meses 200.000 UI a cada 6 meses')}</div>
+   <div class="split" style="flex-wrap:wrap;gap:10px"><div><h3 style="margin:0">${esc(p.nome)}</h3>
+     <div class="mini">${brDate(p.nasc)} · ${esc(sit.idadeTxt)}${p.cns?' · CNS '+esc(p.cns):''} · ${esc(I.eq)} · MA ${esc(I.maCod)}${I.acs?' · ACS '+esc(I.acs):''}</div>
+     <div class="mini">${esc(I.end)}${I.mae?' · Mae: '+esc(I.mae):''}${I.tel?' · '+esc(I.tel):''}</div></div>
+     <button class="btn noprint" id="vtFechaC">Fechar</button></div>
+   <div class="grid g4" style="margin-top:12px">
+    <div class="card kpi" style="box-shadow:none"><span class="l">Doses registradas</span><span class="v">${fmt(todas.length)}</span><span class="s">sem contar duplicidades</span></div>
+    <div class="card kpi" style="box-shadow:none"><span class="l">Ultima dose</span><span class="v" style="font-size:20px">${todas.length?brDate(todas[todas.length-1].data):'—'}</span><span class="s">${todas.length?vIdadeTxt(vMesesEntre(p.nasc,todas[todas.length-1].data))+' de idade':'nunca recebeu'}</span></div>
+    <div class="card kpi" style="box-shadow:none"><span class="l">Proxima dose</span><span class="v" style="font-size:20px">${sit.st==='EGRESSO'?'—':compLabel(sit.venc)}</span><span class="s">${esc(sit.dose||'fora da faixa')}</span></div>
+    <div class="card kpi" style="box-shadow:none"><span class="l">Situacao</span><span class="v" style="font-size:20px"><span class="tag ${VITA_ST[sit.st].cls}">${VITA_ST[sit.st].t}</span></span><span class="s">${sit.atraso?sit.atraso+' mes(es) de atraso':'&nbsp;'}</span></div></div>
+   <h3 style="margin-top:16px">Serie historica das doses</h3>
+   <div class="tw"><table><thead><tr><th class="num">#</th><th>Data</th><th>Idade na dose</th><th>Dose</th><th>Intervalo</th><th>Origem</th><th>Profissional / unidade</th></tr></thead><tbody>
+   ${todas.map((d,i)=>{const mm=vMesesEntre(p.nasc,d.data),ant=i?vMesesEntre(todas[i-1].data,d.data):null;
+     const curto=ant!=null&&ant<4;
+     return `<tr${curto?' class="diff"':''}><td class="num small">${i+1}</td><td><b>${brDate(d.data)}</b></td>
+      <td class="small">${vIdadeTxt(mm)}${mm!=null&&(mm<6||mm>59)?' <span class="tag red">fora da faixa</span>':''}</td>
+      <td class="small">${mm!=null?esc(vDoseUI(mm)):'—'}</td>
+      <td class="small">${ant==null?'—':ant+' mes(es)'}${curto?' <span class="tag warn">intervalo curto</span>':''}</td>
+      <td class="small">${d.origem==='esus'?'e-SUS (ficha de procedimentos)':'lancada no sistema'+(d.pendESUS?' <span class="tag warn">pendente no e-SUS</span>':'')}</td>
+      <td class="small">${d.origem==='esus'?esc(profTxt(d.prof,d.cbo))+(d.cnes?'<div class="mini">CNES '+esc(d.cnes)+'</div>':''):esc(d.por||'')}</td></tr>`}).join('')||'<tr><td colspan="7" class="muted">Nenhuma dose registrada.</td></tr>'}
+   </tbody></table></div>
+   ${dupsP.length?`<div class="warn" style="margin-top:12px"><b>${dupsP.length} lancamento(s) duplicado(s)</b> no mesmo mes foram desconsiderados (vale o ultimo): ${dupsP.map(d=>brDate(d.descartada.data)).join(', ')}.</div>`:''}
+   <div class="printonly">${prAss()}</div></div>`;
+ }
+ /* serie geral por mes */
+ const porMes=new Map();for(const d of B.todas)porMes.set(d.data.slice(0,7),(porMes.get(d.data.slice(0,7))||0)+1);
+ const meses=[...porMes.keys()].sort();
+ const anos=[...new Set(meses.map(m=>m.slice(0,4)))].sort();
+ const anoSel=anos.includes(s.gano)?s.gano:(anos[anos.length-1]||'');
+ const mm12=anoSel?Array.from({length:12},(_,i)=>anoSel+'-'+String(i+1).padStart(2,'0')):[];
+ el.innerHTML=`<div class="info">Serie historica das doses de vitamina A. Clique no nome de uma crianca na <b>busca ativa</b> (ou busque abaixo) para ver a linha do tempo dela. Lancamentos repetidos no mesmo mes aparecem como duplicidade e contam uma vez so.</div>
+  <div class="card noprint" style="margin-top:14px"><div class="bar">
+    <input type="search" id="vtBuscaC" placeholder="Buscar crianca por nome ou CNS…" style="min-width:260px">
+    ${anos.length?`<select id="vtGano">${anos.map(a=>`<option value="${a}" ${anoSel===a?'selected':''}>${a}</option>`).join('')}</select>`:''}</div>
+   <div id="vtSug" class="mini" style="margin-top:8px"></div></div>
+  ${det}
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Doses por mes <small>${anoSel||'—'}</small></h3>
+   ${anoSel?vGrafBarras(mm12.map(m=>compLabel(m).slice(0,3)),[{nome:'Doses',cor:VITA_CORES.s1,vals:mm12.map(m=>porMes.get(m)||0)}],{alt:'doses de vitamina A por mes',eixoY:'doses'}):'<div class="empty">Importe as fichas de procedimentos para ver a serie.</div>'}
+   <div class="tw" style="margin-top:10px"><table><thead><tr><th>Mes</th><th class="num">Doses</th></tr></thead><tbody>
+    ${meses.slice().reverse().map(m=>`<tr><td>${compLabel(m)}</td><td class="num">${fmt(porMes.get(m))}</td></tr>`).join('')||'<tr><td colspan="2" class="muted">—</td></tr>'}</tbody></table></div></div>`;
+ const f=$('#vtFechaC',el);if(f)f.onclick=()=>{UI.vita.crianca='';render()};
+ const g=$('#vtGano',el);if(g)g.onchange=e=>{UI.vita.gano=e.target.value;render()};
+ const bq=$('#vtBuscaC',el);
+ if(bq)bq.oninput=()=>{const q=norm(bq.value),qd=onlyDig(bq.value);const box=$('#vtSug',el);
+  if(q.length<3&&qd.length<5){box.innerHTML='Digite ao menos 3 letras.';return}
+  const achados=[...DB.pes.values()].filter(x=>x.nasc&&(norm(x.nome).includes(q)||(qd.length>=5&&String(x.cns||'').includes(qd)))).slice(0,25);
+  box.innerHTML=achados.length?achados.map(x=>`<button class="btn" data-pc="${esc(x.cod)}" style="margin:3px 4px 0 0">${esc(x.nome)} <span class="muted">${brDate(x.nasc)}</span></button>`).join(''):'Nada encontrado.';
+  $$('[data-pc]',box).forEach(b=>b.onclick=()=>{UI.vita.crianca=b.dataset.pc;render()})}}
+/* ===================== Aba: relatorio e graficos ===================== */
+function vitaSeries(){
+ const B=vitaBase(),porSem=new Map(),porAno=new Map(),porMes=new Map();
+ for(const d of B.todas){const a=d.data.slice(0,4),sm=vSem(d.data),ms=d.data.slice(0,7);
+  porSem.set(sm,(porSem.get(sm)||0)+1);porAno.set(a,(porAno.get(a)||0)+1);porMes.set(ms,(porMes.get(ms)||0)+1)}
+ const anos=[...porAno.keys()].sort();
+ return{porSem,porAno,porMes,anos,B}}
+function vtRel(el){
+ const s=UI.vita,ref=s.ref,X=vitaSeries(),anos=X.anos;
+ const U=vitaUniverso(ref),K=vitaKpis(U);
+ const s1=anos.map(a=>X.porSem.get(a+'-S1')||0),s2=anos.map(a=>X.porSem.get(a+'-S2')||0);
+ const tot=anos.map(a=>X.porAno.get(a)||0);
+ /* variacao */
+ const semKeys=[];for(const a of anos){semKeys.push(a+'-S1');semKeys.push(a+'-S2')}
+ const semLinhas=semKeys.map((k,i)=>{const v=X.porSem.get(k)||0,ant=i?(X.porSem.get(semKeys[i-1])||0):null;
+  return{k,v,ant,var:ant?pct(v-ant,ant):null}}).filter(r=>r.v||r.ant);
+ const anoLinhas=anos.map((a,i)=>{const v=tot[i],ant=i?tot[i-1]:null;return{a,v,ant,var:ant?pct(v-ant,ant):null}});
+ /* cobertura por equipe no mes de referencia */
+ const eqMap=new Map();
+ for(const x of U){if(x.st==='FUTURA'||x.st==='EGRESSO')continue;
+  const k=x.info.eqId||'__';const g=eqMap.get(k)||{eleg:0,emDia:0,vence:0,atr:0,nunca:0};
+  g.eleg++;if(x.st==='EM_DIA')g.emDia++;if(x.st==='VENCE')g.vence++;if(x.st==='ATRASADA')g.atr++;if(x.nunca)g.nunca++;eqMap.set(k,g)}
+ const eqItens=[...eqMap.entries()].map(([k,g])=>({nome:k==='__'?'Sem equipe':eqName(k),v:pct(g.emDia,g.eleg),sub:g.emDia+' de '+g.eleg,...g}))
+  .sort((a,b)=>b.v-a.v);
+ /* faixa etaria */
+ const fx=[['6-11','6 a 11 meses'],['12-23','12 a 23 meses'],['24-59','24 a 59 meses']];
+ const fxDados=fx.map(([k])=>{const g=U.filter(x=>x.faixa===k&&x.st!=='FUTURA'&&x.st!=='EGRESSO');
+  return{n:g.length,emDia:g.filter(x=>x.st==='EM_DIA').length,deve:g.filter(x=>x.deve).length}});
+ const tb=(cab,linhas)=>`<div class="tw" style="margin-top:10px"><table><thead><tr>${cab}</tr></thead><tbody>${linhas||'<tr><td class="muted">—</td></tr>'}</tbody></table></div>`;
+ el.innerHTML=`<div class="printonly">${vitaCab('Vitamina A — relatorio de evolucao','Programa Nacional de Suplementacao de Vitamina A · mes de referencia '+compLabel(ref))}</div>
+  ${vitaKpiHTML(K,ref)}
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Doses administradas por semestre</h3>
+   <div class="mini" style="margin-bottom:6px">Comparativo do 1. com o 2. semestre de cada ano. Doses deduplicadas (um registro por crianca por mes).</div>
+   ${anos.length?vGrafBarras(anos,[{nome:'1. semestre',cor:VITA_CORES.s1,vals:s1},{nome:'2. semestre',cor:VITA_CORES.s2,vals:s2}],{alt:'doses por semestre',eixoY:'doses'}):'<div class="empty">Importe as fichas de procedimentos do e-SUS.</div>'}
+   ${tb('<th>Semestre</th><th class="num">Doses</th><th class="num">Semestre anterior</th><th class="num">Variacao</th>',
+     semLinhas.map(r=>`<tr><td>${vSemLabel(r.k)}</td><td class="num">${fmt(r.v)}</td><td class="num">${r.ant==null?'—':fmt(r.ant)}</td><td class="num">${r.var==null?'—':(r.var>=0?'+':'')+f1(r.var)+'%'}</td></tr>`).join(''))}</div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Doses administradas por ano</h3>
+   ${anos.length?vGrafBarras(anos,[{nome:'Doses no ano',cor:VITA_CORES.tot,vals:tot}],{alt:'doses por ano',eixoY:'doses',h:262}):'<div class="empty">Sem dados.</div>'}
+   ${tb('<th>Ano</th><th class="num">Doses</th><th class="num">Ano anterior</th><th class="num">Variacao</th>',
+     anoLinhas.map(r=>`<tr><td>${r.a}</td><td class="num">${fmt(r.v)}</td><td class="num">${r.ant==null?'—':fmt(r.ant)}</td><td class="num">${r.var==null?'—':(r.var>=0?'+':'')+f1(r.var)+'%'}</td></tr>`).join(''))}</div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Cobertura por equipe <small>${compLabel(ref)}</small></h3>
+   <div class="mini" style="margin-bottom:8px">Percentual de criancas de 6 a 59 meses com a dose em dia (menos de 6 meses desde a ultima administracao).</div>
+   ${vGrafHoriz(eqItens,{alt:'cobertura de vitamina A por equipe'})}
+   ${tb('<th>Equipe</th><th class="num">Elegiveis</th><th class="num">Em dia</th><th class="num">%</th><th class="num">Vence no mes</th><th class="num">Atrasadas</th><th class="num">Nunca</th>',
+     eqItens.map(e=>`<tr><td>${esc(e.nome)}</td><td class="num">${fmt(e.eleg)}</td><td class="num">${fmt(e.emDia)}</td><td class="num"><b>${f1(e.v)}%</b></td><td class="num">${fmt(e.vence)}</td><td class="num">${fmt(e.atr)}</td><td class="num">${fmt(e.nunca)}</td></tr>`).join(''))}</div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Por faixa etaria <small>${compLabel(ref)}</small></h3>
+   ${vGrafBarras(fx.map(f=>f[1]),[{nome:'Em dia',cor:VITA_CORES.s1,vals:fxDados.map(d=>d.emDia)},{nome:'Precisa tomar',cor:VITA_CORES.alt,vals:fxDados.map(d=>d.deve)}],{alt:'situacao por faixa etaria',h:256})}
+   ${tb('<th>Faixa</th><th class="num">Criancas</th><th class="num">Em dia</th><th class="num">Precisa tomar</th><th class="num">% em dia</th>',
+     fx.map(([k,t],i)=>`<tr><td>${t}</td><td class="num">${fmt(fxDados[i].n)}</td><td class="num">${fmt(fxDados[i].emDia)}</td><td class="num">${fmt(fxDados[i].deve)}</td><td class="num">${f1(pct(fxDados[i].emDia,fxDados[i].n))}%</td></tr>`).join(''))}
+   <div class="printonly">${prAss()}</div></div>`}
+
+/* ===================== Auditoria ===================== */
+const VITA_OC={
+ DUP:['Duplicidade no mesmo mes','red'],
+ IDADE_BAIXA:['Dose antes dos 6 meses','red'],
+ IDADE_ALTA:['Dose com 60 meses ou mais','warn'],
+ INTERVALO_CURTO:['Intervalo menor que 4 meses','warn'],
+ SEM_CADASTRO:['Dose de cidadao fora do cadastro','warn'],
+ SEM_NASC:['Sem data de nascimento para conferir','gray'],
+ SEM_ID:['Dose sem CNS do cidadao na ficha','warn'],
+ FDS:['Registro em sabado/domingo','gray'],
+ DIA_PICO:['Dia com volume muito acima do habitual','warn'],
+ NUNCA:['Crianca de 12 meses ou mais que nunca recebeu','red'],
+ ATRASO_LONGO:['Atraso de 12 meses ou mais','red']};
+function vitaAudCalc(){
+ const B=vitaBase(),ref=UI.vita.ref,U=vitaUniverso(ref),oc=[];
+ const nomeDe=d=>{const p=d.cod?DB.pes.get(d.cod):null;return p?p.nome:('CNS '+(d.cns||'?'))};
+ for(const d of B.dups)oc.push({tipo:'DUP',data:d.descartada.data,cod:d.cod,nome:nomeDe(d.mantida),
+  det:'2 ou mais lancamentos em '+compLabel(d.comp)+' — mantido '+brDate(d.mantida.data)+', desconsiderado '+brDate(d.descartada.data)});
+ for(const d of B.todas){
+  const p=d.cod?DB.pes.get(d.cod):null,nasc=(p&&p.nasc)||d.nasc||'';
+  const mm=nasc?vMesesEntre(nasc,d.data):null;
+  if(mm==null)oc.push({tipo:'SEM_NASC',data:d.data,cod:d.cod,nome:nomeDe(d),det:'sem data de nascimento no cadastro'});
+  else if(mm<VITA_IDADE_MIN)oc.push({tipo:'IDADE_BAIXA',data:d.data,cod:d.cod,nome:nomeDe(d),det:'a crianca tinha '+vIdadeTxt(mm)+' (programa comeca em 6 meses)'});
+  else if(mm>VITA_IDADE_MAX)oc.push({tipo:'IDADE_ALTA',data:d.data,cod:d.cod,nome:nomeDe(d),det:'a crianca tinha '+vIdadeTxt(mm)+' (programa vai ate 59 meses)'});
+  const dw=new Date(d.data+'T12:00:00').getDay();
+  if(dw===0||dw===6)oc.push({tipo:'FDS',data:d.data,cod:d.cod,nome:nomeDe(d),det:dw===0?'domingo':'sabado'});
+ }
+ for(const arr of B.porPessoa.values())for(let i=1;i<arr.length;i++){
+  const dif=vMesesEntre(arr[i-1].data,arr[i].data);
+  if(dif!=null&&dif<4)oc.push({tipo:'INTERVALO_CURTO',data:arr[i].data,cod:arr[i].cod,nome:nomeDe(arr[i]),
+   det:'apenas '+dif+' mes(es) depois de '+brDate(arr[i-1].data)+' (o esquema e a cada 6 meses)'});
+ }
+ for(const d of (B.semId||[]))oc.push({tipo:'SEM_ID',data:d.data,cod:'',nome:'(sem CNS na ficha)',
+  det:'ficha '+String(d.ficha||'').slice(0,18)+' sem CNS do cidadao — nao e possivel saber de qual crianca e a dose'});
+ for(const[cns,arr]of B.semCad)oc.push({tipo:'SEM_CADASTRO',data:arr[arr.length-1].data,cod:'',nome:'CNS '+cns,
+  det:fmt(arr.length)+' dose(s) com CNS que nao esta no cadastro municipal — conferir cadastro ou CNS digitado'});
+ for(const x of U){
+  if(x.nunca&&x.idadeM>=12&&x.st!=='FUTURA'&&x.st!=='EGRESSO')oc.push({tipo:'NUNCA',data:'',cod:x.p.cod,nome:x.p.nome,det:esc(x.idadeTxt)+' sem nenhuma dose registrada · '+x.info.eq+' MA '+x.info.maCod});
+  else if(x.atraso>=12)oc.push({tipo:'ATRASO_LONGO',data:x.ult?x.ult.data:'',cod:x.p.cod,nome:x.p.nome,det:x.atraso+' meses desde o vencimento · ultima dose '+(x.ult?brDate(x.ult.data):'—')});
+ }
+ /* por profissional */
+ const pm=new Map();
+ for(const d of B.todas){if(d.origem!=='esus'||!d.prof)continue;
+  const g=pm.get(d.prof)||{cns:d.prof,cbo:d.cbo,n:0,dias:new Map(),fds:0,cnes:new Set()};
+  g.n++;g.dias.set(d.data,(g.dias.get(d.data)||0)+1);g.cnes.add(d.cnes);
+  const dw=new Date(d.data+'T12:00:00').getDay();if(dw===0||dw===6)g.fds++;pm.set(d.prof,g)}
+ const profs=[...pm.values()].map(g=>{const vs=[...g.dias.values()].sort((a,b)=>a-b);
+  const med=vs.length?vs[Math.floor(vs.length/2)]:0,max=vs.length?vs[vs.length-1]:0;
+  let maxData='';for(const[k,v]of g.dias)if(v===max){maxData=k;break}
+  return{...g,nDias:g.dias.size,mediana:med,max,maxData,media:g.n/Math.max(1,g.dias.size),nCnes:g.cnes.size}})
+  .sort((a,b)=>b.n-a.n);
+ const todosDias=[...B.todas.reduce((m,d)=>(m.set(d.data,(m.get(d.data)||0)+1),m),new Map()).entries()];
+ const vals=todosDias.map(x=>x[1]).sort((a,b)=>a-b);
+ const medGeral=vals.length?vals[Math.floor(vals.length/2)]:0;
+ for(const[dia,v]of todosDias)if(medGeral&&v>=Math.max(10,medGeral*4))oc.push({tipo:'DIA_PICO',data:dia,cod:'',nome:'—',det:fmt(v)+' doses no mesmo dia (mediana diaria do municipio: '+fmt(medGeral)+') — pode ser mutirao/campanha ou digitacao em lote'});
+ oc.sort((a,b)=>{const o=Object.keys(VITA_OC);const d=o.indexOf(a.tipo)-o.indexOf(b.tipo);if(d)return d;return(b.data||'')<(a.data||'')?-1:1});
+ const cont={};for(const o of oc)cont[o.tipo]=(cont[o.tipo]||0)+1;
+ return{oc,cont,profs,medGeral,U,K:vitaKpis(U),B}}
+function vitaAudCtx(A){
+ const mapa={},p2=n=>String(n).padStart(2,'0');
+ const K=A.K,ref=UI.vita.ref;
+ const L=['AUDITORIA DA SUPLEMENTACAO DE VITAMINA A — Itacarambi (MG) · mes de referencia '+compLabel(ref),
+  'Programa Nacional de Suplementacao de Vitamina A (PNSVA): 6 a 11 meses = 100.000 UI em dose unica; 12 a 59 meses = 200.000 UI a cada 6 meses. Registro no e-SUS pela Ficha de Procedimentos, codigo SIGTAP '+VITA_COD+'.',
+  'Regra do sistema: dose repetida para a mesma crianca no mesmo mes conta uma vez (vale o ultimo lancamento).',
+  'Profissionais identificados por codigo (Pxx) — nenhum nome, CNS, endereco ou telefone de crianca e enviado.','',
+  'SITUACAO NO MES DE REFERENCIA:',
+  `- criancas de 6 a 59 meses (elegiveis): ${K.eleg}`,
+  `- com a dose em dia: ${K.emDia} (${f1n(K.cob)}%)`,
+  `- vencendo no mes: ${K.vence}`,
+  `- atrasadas: ${K.atr}`,
+  `- nunca receberam nenhuma dose: ${K.nunca}`,
+  `- ainda nao elegiveis (0 a 5 meses): ${K.fut}`,''];
+ const X=vitaSeries();
+ L.push('DOSES POR SEMESTRE: '+[...X.porSem.entries()].sort().map(([k,v])=>vSemLabel(k)+' = '+v).join('; '));
+ L.push('DOSES POR ANO: '+[...X.porAno.entries()].sort().map(([k,v])=>k+' = '+v).join('; '));
+ L.push('DOSES POR MES (ultimos 18): '+[...X.porMes.entries()].sort().slice(-18).map(([k,v])=>compLabel(k)+' = '+v).join('; '),'');
+ const eqM=new Map();
+ for(const x of A.U){if(x.st==='FUTURA'||x.st==='EGRESSO')continue;const k=x.info.eq||'Sem equipe';
+  const g=eqM.get(k)||{eleg:0,emDia:0,atr:0,nunca:0,semMae:0,semTel:0};g.eleg++;
+  if(x.st==='EM_DIA')g.emDia++;if(x.st==='ATRASADA')g.atr++;if(x.nunca)g.nunca++;
+  if(!x.info.mae)g.semMae++;if(!x.info.tel)g.semTel++;eqM.set(k,g)}
+ L.push('POR EQUIPE (elegiveis / em dia / % / atrasadas / nunca / sem nome da mae / sem telefone):');
+ for(const[k,g]of[...eqM.entries()].sort())L.push(`- ${k}: ${g.eleg} / ${g.emDia} / ${f1n(pct(g.emDia,g.eleg))}% / ${g.atr} / ${g.nunca} / ${g.semMae} / ${g.semTel}`);
+ L.push('','ACHADOS CALCULADOS PELO SISTEMA (quantidade por tipo):');
+ for(const[t,[nome]]of Object.entries(VITA_OC))if(A.cont[t])L.push(`- ${nome}: ${A.cont[t]}`);
+ L.push('','OCORRENCIAS DATADAS (ate 120, sem nomes):');
+ A.oc.slice(0,120).forEach(o=>L.push(`- ${VITA_OC[o.tipo][0]}${o.data?' · '+brDate(o.data):''}: ${String(o.det).replace(/<[^>]*>/g,'')}`));
+ L.push('','POR PROFISSIONAL QUE REGISTROU DOSES (mediana diaria do municipio: '+A.medGeral+'):');
+ A.profs.forEach((R,i)=>{const cod='P'+p2(i+1);mapa[cod]=profNome(R.cns)||('profissional CNS '+R.cns);
+  L.push(`- ${cod} (CBO ${R.cbo||'?'}): ${R.n} dose(s) em ${R.nDias} dia(s) · media ${f1n(R.media)}/dia · maximo ${R.max} em ${brDate(R.maxData)} · ${R.fds} em sabado/domingo · registrou em ${R.nCnes} unidade(s)`)});
+ return{ctx:L.join('\n'),mapa}}
+function vtAud(el){
+ const s=UI.vita,A=vitaAudCalc();
+ const cont=Object.entries(VITA_OC).filter(([t])=>A.cont[t]);
+ el.innerHTML=`<div class="info">A auditoria e <b>calculada aqui no navegador</b> a partir das fichas importadas. Os achados sao <b>indicios que pedem conferencia</b> (caderneta da crianca, prontuario, ficha em papel), nunca prova de irregularidade. Para a IA vao apenas numeros agregados e os profissionais por codigo — nenhum nome de crianca, CNS, endereco ou telefone sai deste aparelho.</div>
+  <div class="grid g4" style="margin-top:14px">
+   ${cont.slice(0,4).map(([t,[nome,cls]])=>`<div class="card kpi" style="box-shadow:none"><span class="l">${esc(nome)}</span><span class="v">${fmt(A.cont[t])}</span><span class="s">ocorrencia(s)</span></div>`).join('')||'<div class="card kpi" style="box-shadow:none"><span class="l">Achados</span><span class="v">0</span><span class="s">nada a conferir ✓</span></div>'}</div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Achados por tipo</h3>
+   <div class="tw"><table><thead><tr><th>Tipo</th><th class="num">Qtd</th><th>O que conferir</th></tr></thead><tbody>
+   ${cont.map(([t,[nome,cls]])=>`<tr><td><span class="tag ${cls}">${esc(nome)}</span></td><td class="num">${fmt(A.cont[t])}</td><td class="small">${esc({
+     DUP:'Se houve dois lancamentos da mesma dose (digitacao repetida) ou se a crianca realmente recebeu duas vezes.',
+     IDADE_BAIXA:'Data de nascimento no cadastro e a data do procedimento — o programa comeca aos 6 meses.',
+     IDADE_ALTA:'Se a dose foi de puerpera/outra pessoa lancada no CNS da crianca, ou erro de data.',
+     INTERVALO_CURTO:'Caderneta da crianca — o esquema e a cada 6 meses; intervalo curto pode ser lancamento retroativo duplicado.',
+     SEM_CADASTRO:'CNS digitado na ficha e o cadastro individual: a crianca pode estar sem cadastro ou com CNS trocado.',
+     SEM_NASC:'Completar a data de nascimento no cadastro para o sistema calcular a dose certa.',
+     SEM_ID:'A ficha foi lancada sem o CNS do cidadao: a dose conta no total, mas nao da para saber de qual crianca. Conferir a ficha de papel e corrigir no PEC.',
+     FDS:'Se houve mutirao/campanha no fim de semana ou se a data foi digitada errada.',
+     DIA_PICO:'Se foi mutirao/campanha (legitimo) ou digitacao em lote de fichas de papel com a mesma data.',
+     NUNCA:'Caderneta da crianca: pode ter recebido e nao foi lancado. Entrar na busca ativa.',
+     ATRASO_LONGO:'Se a crianca mudou-se, se a dose nao foi lancada ou se ha recusa da familia.'}[t]||'')}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Nenhum achado.</td></tr>'}
+   </tbody></table></div></div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Ocorrencias <small>${fmt(A.oc.length)}</small></h3>
+   <div class="tw" style="max-height:520px"><table><thead><tr><th>Tipo</th><th>Data</th><th>Crianca</th><th>Detalhe</th></tr></thead><tbody>
+   ${A.oc.slice(0,500).map(o=>`<tr><td class="small"><span class="tag ${VITA_OC[o.tipo][1]}">${esc(VITA_OC[o.tipo][0])}</span></td>
+     <td class="small" style="white-space:nowrap">${o.data?brDate(o.data):'—'}</td>
+     <td class="small">${o.cod?`<b class="click" data-crianca="${esc(o.cod)}">${esc(o.nome)}</b>`:esc(o.nome)}</td>
+     <td class="small">${esc(String(o.det).replace(/<[^>]*>/g,''))}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Nenhuma ocorrencia.</td></tr>'}
+   </tbody></table>${A.oc.length>500?'<div class="mini">Mostrando as 500 primeiras.</div>':''}</div></div>
+  <div class="card" style="box-shadow:none;margin-top:14px"><h3>Doses por profissional</h3>
+   <div class="tw" style="max-height:360px"><table><thead><tr><th>Profissional</th><th class="num">Doses</th><th class="num">Dias</th><th class="num">Media/dia</th><th class="num">Maximo no dia</th><th class="num">Fim de semana</th></tr></thead><tbody>
+   ${A.profs.map(R=>`<tr><td class="small">${esc(profTxt(R.cns,R.cbo))}</td><td class="num">${fmt(R.n)}</td><td class="num">${fmt(R.nDias)}</td><td class="num">${f1(R.media)}</td><td class="num">${fmt(R.max)}<div class="mini">${brDate(R.maxData)}</div></td><td class="num">${fmt(R.fds)}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">—</td></tr>'}
+   </tbody></table></div></div>
+  <div class="card noprint" style="box-shadow:none;margin-top:14px"><div class="bar" style="margin-bottom:10px">
+    <input type="search" id="vtFoco" placeholder="Foco pedido pela coordenacao (opcional)…" value="${esc(s.foco||'')}" style="flex:1;min-width:220px"></div></div>
+  <div class="card" style="box-shadow:none;margin-top:14px" id="vtIA"></div>`;
+ $$('[data-crianca]',el).forEach(b=>b.onclick=()=>{UI.vita.crianca=b.dataset.crianca;UI.vita.rep='hist';render()});
+ const fo=$('#vtFoco',el);if(fo)fo.onchange=e=>{UI.vita.foco=e.target.value};
+ iaSaida($('#vtIA',el),'vita|'+s.ref+'|'+(s.foco||''),{
+  titulo:'Auditoria da suplementacao de Vitamina A — '+compLabel(s.ref),
+  rotulo:'Auditar com IA',
+  sub:'A IA analisa os numeros acima, destaca o que esta fora do esperado e sugere o que conferir.',
+  gerar:async()=>{const{ctx,mapa}=vitaAudCtx(A);
+   const perg=(s.foco?'Foco pedido pela coordenacao: '+s.foco+'\n':'')+'Faca a auditoria da suplementacao de vitamina A.'+
+    '\n\nCOMO ESCREVER: use a secao OCORRENCIAS DATADAS. Cite a data (dd/mm) e o codigo do profissional quando houver, diga o que precisa ser conferido e aponte explicacoes legitimas antes de supor erro. Nao invente datas, nomes ou numeros que nao estejam no contexto.';
+   let t;
+   try{t=await iaPedir('auditoria_vita',ctx,perg)}
+   catch(e){if(!/desconhecida/i.test(e.message||''))throw e;
+    t=await iaPedir('auditoria',ctx,perg+'\nATENCAO: esta auditoria e da SUPLEMENTACAO DE VITAMINA A (nao de atendimentos). Estruture em: ## Visao geral · ## Cobertura e evolucao · ## Achados que pedem conferencia · ## Qualidade do registro e do cadastro · ## Recomendacoes para a busca ativa.')}
+   return audNomes(t,mapa)}})}
+
+/* ===================== Aba: qualidade do cadastro ===================== */
+function vtQual(el){
+ const s=UI.vita,B=vitaBase(),U=vitaUniverso(s.ref);
+ const eleg=U.filter(x=>x.st!=='FUTURA'&&x.st!=='EGRESSO');
+ const semMae=eleg.filter(x=>!x.info.mae),semTel=eleg.filter(x=>!x.info.tel),semEnd=eleg.filter(x=>!x.info.end),semCns=eleg.filter(x=>!x.p.cns);
+ const card=(t,arr,extra)=>`<div class="card" style="box-shadow:none;margin-top:14px"><h3>${t} <small>${fmt(arr.length)}</small></h3>
+  ${extra||''}<div class="tw" style="max-height:320px"><table><thead><tr><th>Crianca</th><th>Nascimento</th><th>Equipe / MA / ACS</th><th>Endereco</th><th>Mae</th><th>Telefone</th></tr></thead><tbody>
+  ${arr.slice(0,300).map(x=>`<tr><td class="small"><b class="click" data-crianca="${esc(x.p.cod)}">${esc(x.p.nome)}</b></td><td class="small">${brDate(x.p.nasc)}</td>
+    <td class="small">${esc(x.info.eq)} · ${esc(x.info.maCod)}${x.info.acs?' · '+esc(x.info.acs):''}</td>
+    <td class="small addr">${esc(x.info.end)||'<span class="tag warn">sem endereco</span>'}</td>
+    <td class="small">${esc(x.info.mae)||'<span class="muted">—</span>'}</td><td class="small">${esc(x.info.tel)||'<span class="muted">—</span>'}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Nada a corrigir ✓</td></tr>'}
+  </tbody></table></div></div>`;
+ el.innerHTML=`<div class="info">A lista de busca ativa so sai completa se o cadastro estiver completo. Estes sao os campos que faltam para as criancas de 6 a 59 meses — <b>nome da mae</b>, <b>endereco</b> e <b>telefone</b> vem do Cadastro Individual do e-SUS; corrija no PEC e importe o cadastro de novo, ou edite em <b>Familias e pessoas</b>.</div>
+  <div class="grid g4" style="margin-top:14px">
+   <div class="card kpi" style="box-shadow:none"><span class="l">Sem nome da mae</span><span class="v">${fmt(semMae.length)}</span><span class="s">${f1(pct(semMae.length,eleg.length))}% dos elegiveis</span></div>
+   <div class="card kpi" style="box-shadow:none"><span class="l">Sem telefone</span><span class="v">${fmt(semTel.length)}</span><span class="s">${f1(pct(semTel.length,eleg.length))}%</span></div>
+   <div class="card kpi" style="box-shadow:none"><span class="l">Sem endereco</span><span class="v">${fmt(semEnd.length)}</span><span class="s">${f1(pct(semEnd.length,eleg.length))}%</span></div>
+   <div class="card kpi" style="box-shadow:none"><span class="l">Doses sem cadastro</span><span class="v">${fmt(B.semCad.size)}</span><span class="s">CNS fora do cadastro</span></div></div>
+  ${(B.semId||[]).length?`<div class="warn" style="margin-top:14px"><b>${fmt(B.semId.length)} dose(s) lancada(s) sem o CNS do cidadao</b> na Ficha de Procedimentos (${B.semId.map(d=>brDate(d.data)).slice(0,20).join(', ')}${B.semId.length>20?'…':''}). Elas entram no total de doses, mas nao da para saber de qual crianca sao nem descontar duplicidade. Conferir a ficha de papel e corrigir no PEC.</div>`:''}
+  ${B.semCad.size?`<div class="card" style="box-shadow:none;margin-top:14px"><h3>Doses de cidadaos fora do cadastro <small>${fmt(B.semCad.size)}</small></h3>
+   <div class="mini" style="margin-bottom:8px">A dose foi registrada no e-SUS, mas o CNS nao existe no cadastro municipal importado. Pode ser crianca de outro municipio, cadastro nao importado ou CNS digitado errado.</div>
+   <div class="tw" style="max-height:300px"><table><thead><tr><th>CNS</th><th class="num">Doses</th><th>Datas</th><th>Nascimento na ficha</th></tr></thead><tbody>
+   ${[...B.semCad.entries()].map(([cns,arr])=>`<tr><td class="small">${esc(cns)}</td><td class="num">${arr.length}</td><td class="small">${arr.map(d=>brDate(d.data)).join(', ')}</td><td class="small">${brDate(arr[0].nasc||'')||'—'}</td></tr>`).join('')}
+   </tbody></table></div></div>`:''}
+  ${card('Criancas sem nome da mae no cadastro',semMae)}
+  ${card('Criancas sem telefone no cadastro',semTel)}
+  ${semEnd.length?card('Criancas sem endereco',semEnd):''}
+  ${semCns.length?card('Criancas sem CNS (a dose do e-SUS nao cruza com o cadastro)',semCns):''}`;
+ $$('[data-crianca]',el).forEach(b=>b.onclick=()=>{UI.vita.crianca=b.dataset.crianca;UI.vita.rep='hist';render()})}
+/* ===================== Aba principal ===================== */
+const VITA_TABS=[['busca','Busca ativa'],['retorno','Retorno do ACS'],['hist','Serie historica'],
+ ['rel','Relatorio e graficos'],['aud','Auditoria IA'],['qual','Qualidade do cadastro']];
+function vitaMesesRef(){
+ const B=vitaBase(),atual=vCompAtual();
+ let ini=vCompAdd(atual,-23);
+ const datas=B.todas.map(d=>d.data.slice(0,7)).sort();
+ if(datas.length&&datas[0]<ini)ini=datas[0];
+ const out=[];for(let c=ini;vCompDiff(c,vCompAdd(atual,1))>=0;c=vCompAdd(c,1))out.push(c);
+ return out.reverse()}
+function vVita(m){
+ const s=UI.vita;
+ if(!s.ref)s.ref=vCompAtual();
+ const abas=VITA_TABS.filter(([k])=>!(isEquipe()&&k==='retorno'));
+ if(!abas.some(([k])=>k===s.rep))s.rep='busca';
+ const temDados=(S.procedimentos||[]).length>0||(S.vitaDoses||[]).length>0;
+ const mases=[];for(const e of DB.eq)for(const[c,ac,an]of e.mas)mases.push([e.id+'-'+c,e.nome+' · MA '+c+(an?' — '+an:'')]);
+ m.innerHTML=head('Vitamina A','Programa Nacional de Suplementacao de Vitamina A — busca ativa, serie historica, evolucao e auditoria. 6 a 11 meses: 100.000 UI em dose unica. 12 a 59 meses: 200.000 UI a cada 6 meses.',
+   `<button class="btn" id="vtXp">Exportar Excel</button><button class="btn pri" id="vtPr">🖨 Imprimir / PDF</button>`)+
+  `<div class="card noprint"><div class="tabs">${abas.map(([k,t])=>`<button class="tab ${s.rep===k?'on':''}" data-vtab="${k}">${t}</button>`).join('')}</div></div>`+
+  (temDados?`<div class="card noprint" style="margin-top:14px"><div class="bar">
+    <span class="mini">Mes de referencia <select id="vtRef">${vitaMesesRef().map(c=>`<option value="${c}" ${s.ref===c?'selected':''}>${compLabel(c)}</option>`).join('')}</select></span>
+    <select id="vtEq"><option value="ALL">Todas as equipes</option>${DB.eq.map(e=>`<option value="${e.id}" ${s.eq===e.id?'selected':''}>${esc(e.nome)}</option>`).join('')}</select>
+    <select id="vtMa"><option value="ALL">Todas as microareas</option>${mases.map(([v,t])=>`<option value="${v}" ${s.ma===v?'selected':''}>${esc(t)}</option>`).join('')}</select>
+    <select id="vtFx"><option value="ALL">Todas as faixas</option>${[['6-11','6 a 11 meses'],['12-23','12 a 23 meses'],['24-59','24 a 59 meses'],['0-5','0 a 5 meses (ainda nao elegiveis)']].map(([v,t])=>`<option value="${v}" ${s.faixa===v?'selected':''}>${t}</option>`).join('')}</select>
+    <select id="vtSit">${[['DEVE','Precisa tomar (vencidas + atrasadas)'],['ATRASADA','So atrasadas'],['VENCE','So vencendo neste mes'],['NUNCA','Nunca receberam nenhuma dose'],['EM_DIA','Em dia'],['FUTURA','Ainda nao elegiveis'],['ALL','Todas de 0 a 59 meses']].map(([v,t])=>`<option value="${v}" ${s.sit===v?'selected':''}>${t}</option>`).join('')}</select>
+    <span class="mini">Atraso minimo <input type="number" id="vtAt" min="0" max="48" value="${esc(s.atraso||'')}" placeholder="meses" style="width:92px"></span>
+    <select id="vtTel"><option value="ALL">Com e sem telefone</option><option value="COM" ${s.tel==='COM'?'selected':''}>So com telefone</option><option value="SEM" ${s.tel==='SEM'?'selected':''}>So sem telefone</option></select>
+    <select id="vtBk"><option value="ALL">Todos os retornos</option>${Object.entries(VITA_BK).map(([v,t])=>`<option value="${v}" ${s.bk===v?'selected':''}>${t}</option>`).join('')}</select>
+    <select id="vtGr">${[['acs','Agrupar por equipe e ACS'],['eq','Agrupar por equipe'],['nenhum','Lista unica']].map(([v,t])=>`<option value="${v}" ${s.gr===v?'selected':''}>${t}</option>`).join('')}</select>
+    <input type="search" id="vtQ" placeholder="Crianca, mae, endereco ou ACS…" value="${esc(s.q||'')}" style="min-width:190px">
+   </div></div>`:'')+
+  `<div id="vtOut" style="margin-top:14px"></div>`;
+ $$('[data-vtab]',m).forEach(b=>b.onclick=()=>{UI.vita.rep=b.dataset.vtab;render()});
+ const lig=(id,campo,zera)=>{const e=$('#'+id,m);if(!e)return;
+  const ev=(e.type==='search'||e.type==='number')?'change':'change';
+  e.addEventListener(ev,()=>{UI.vita[campo]=e.value;if(zera)UI.vita.page=0;render()})};
+ lig('vtRef','ref');lig('vtEq','eq');lig('vtMa','ma');lig('vtFx','faixa');lig('vtSit','sit');
+ lig('vtAt','atraso');lig('vtTel','tel');lig('vtBk','bk');lig('vtGr','gr');lig('vtQ','q');
+ const xp=$('#vtXp',m);if(xp)xp.onclick=()=>{if(UI.vita.rep==='busca'||UI.vita.rep==='retorno')vitaXls();else{UI.vita.rep='busca';render();setTimeout(vitaXls,0)}};
+ const pr=$('#vtPr',m);if(pr)pr.onclick=()=>{PRINT_LANDSCAPE=(UI.vita.rep==='busca');imprimir()};
+ const out=$('#vtOut',m);
+ if(!temDados){out.innerHTML=`<div class="empty">Nenhuma dose de vitamina A importada ainda.<div class="mini" style="margin-top:8px">Va em <b>Importar dados → Atendimentos e-SUS</b> e arraste o lote de <b>Ficha de Procedimentos</b> (.zip). O sistema reconhece as doses pelo codigo SIGTAP ${VITA_COD}.</div></div>`;return}
+ ({busca:vtBusca,retorno:vtRetorno,hist:vtHist,rel:vtRel,aud:vtAud,qual:vtQual})[s.rep](out)}
+
 iniciar();
 </script>
 </body></html>

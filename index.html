@@ -1788,12 +1788,17 @@ async function importarESUS(files){const errs=[];ESUS_PENDING={ind:[],dom:[]};
  }catch(e){errs.push('<b>'+esc(f.name)+'</b>: '+esc(e.message))}}
  if(errs.length)toast(errs.join('<br>'),9000);renderESUS()}
 function renderESUS(){const box=$('#esPrev');if(!box)return;const{ind,dom}=ESUS_PENDING;
- const tInd=ind.length?`<div class="tw" style="max-height:300px"><table><thead><tr><th>Pessoa (e-SUS)</th><th>Nasc.</th><th>Sexo</th><th>CPF/CNS</th><th>Tel</th><th>Condições</th><th>No cadastro</th><th>Saída</th></tr></thead><tbody>${ind.map(i=>{const p=matchPessoaInd(i);const cond=[i.cond.hiper?'Hipertenso':'',i.cond.dia?'Diabético':'',i.cond.fumante?'Fumante':'',i.cond.acamado?'Acamado':'',i.cond.domic?'Domiciliado':''].filter(Boolean).join(', ');return `<tr><td><b>${esc(i.nome)}</b></td><td class="small">${brDate(i.nasc)}</td><td class="small">${SEXO_E[i.sexo]||''}</td><td class="small">${i.cpf?fmtCPF(i.cpf):(i.cns||'—')}</td><td class="small">${i.tel||''}</td><td class="small">${cond||'—'}</td><td class="small">${p?esc(p.nome)+' · '+eqChip(famOf(p).eq):'<span class="tag green">novo (será criado)</span>'}</td><td class="small">${i.saida?'<span class="tag">saída ('+esc(i.saida)+')</span>':'—'}</td></tr>`}).join('')}</tbody></table></div>`:'';
+ const tInd=ind.length?`<div class="tw" style="max-height:300px"><table><thead><tr><th>Pessoa (e-SUS)</th><th>Nasc.</th><th>Sexo</th><th>CPF/CNS</th><th>Tel</th><th>Condições</th><th>No cadastro</th><th>Equipe na ficha</th><th>Saída</th></tr></thead><tbody>${ind.map(i=>{const p=matchPessoaInd(i);const cond=[i.cond.hiper?'Hipertenso':'',i.cond.dia?'Diabético':'',i.cond.fumante?'Fumante':'',i.cond.acamado?'Acamado':'',i.cond.domic?'Domiciliado':''].filter(Boolean).join(', ');return `<tr><td><b>${esc(i.nome)}</b></td><td class="small">${brDate(i.nasc)}</td><td class="small">${SEXO_E[i.sexo]||''}</td><td class="small">${i.cpf?fmtCPF(i.cpf):(i.cns||'—')}</td><td class="small">${i.tel||''}</td><td class="small">${cond||'—'}</td><td class="small">${p?esc(p.nome)+' · '+eqChip(famOf(p).eq):'<span class="tag green">novo (será criado)</span>'}</td>
+     <td class="small">${(()=>{const e=i.ine?eqByINE(i.ine):null;if(!e)return i.ine?'<span class="muted">INE '+esc(i.ine)+'</span>':'—';
+       const at=p?famOf(p).eq:'';
+       return at&&at!==e.id?'<span class="tag warn">'+esc(e.nome)+'</span><div class="mini">difere do cadastro</div>':esc(e.nome)})()}
+     ${i.ma?'<div class="mini">MA '+esc(i.ma)+'</div>':(p?'<div class="mini">ficha sem microárea</div>':'')}</td>
+     <td class="small">${i.saida?'<span class="tag">saída ('+esc(i.saida)+')</span>':'—'}</td></tr>`}).join('')}</tbody></table></div>`:'';
  const tDom=dom.length?`<div class="tw" style="max-height:300px"><table><thead><tr><th>Endereço (e-SUS)</th><th>Bairro</th><th>Tel</th><th>MA</th><th>Resp. (CNS)</th><th>Família no cadastro</th></tr></thead><tbody>${dom.map(d=>{const resp=DB.byCNS.get(d.respCns),f=resp&&resp.fam?DB.fam.get(resp.fam):null;return `<tr><td><b>${esc(d.logr)}${d.n?', '+esc(d.n):''}</b>${d.compl?' – '+esc(d.compl):''}</td><td class="small">${esc(d.bairro||'')}</td><td class="small">${d.tel||''}</td><td class="small">MA ${esc(d.ma||'—')}</td><td class="small">${d.respCns||'—'}</td><td class="small">${f?esc(f.logr)+' '+(f.n||'')+' · '+eqChip(f.eq):'<span class="tag green">novo (será criado)</span>'}</td></tr>`}).join('')}</tbody></table></div>`:'';
  box.innerHTML=`<div class="mini" style="margin-bottom:8px"><b>${ind.length}</b> cadastro(s) individual(is) · <b>${dom.length}</b> domiciliar(es)</div>${ind.length?`<h3 style="font-size:13px;margin:8px 0 6px">Individuais</h3>`+tInd:''}${dom.length?`<h3 style="font-size:13px;margin:12px 0 6px">Domiciliares</h3>`+tDom:''}${!ind.length&&!dom.length?'<div class="muted small">Importe os .zip acima para conferir.</div>':''}`}
 /* Motivo de saida do cadastro (LEDI · MotivoSaida): 135 = obito. */
 const MOTIVO_OBITO='135';
-const CAD_LABEL={nome:'Nome',nasc:'Data de nascimento',sexo:'Sexo',cpf:'CPF',cns:'CNS',tel:'Telefone',
+const CAD_LABEL={eqDiv:'Equipe divergente (nao aplicado)',nome:'Nome',nasc:'Data de nascimento',sexo:'Sexo',cpf:'CPF',cns:'CNS',tel:'Telefone',
  mae:'Nome da mae',raca:'Raca/cor',situacao:'Situacao',obito:'Data do obito',fam:'Familia / microarea',
  hiper:'Hipertensao',dia:'Diabetes',fumante:'Fumante',acamado:'Acamado',domic:'Domiciliado',
  logr:'Logradouro',n:'Numero',cep:'CEP',compl:'Complemento',bairro:'Bairro',ma:'Microarea',eq:'Equipe',moradia:'Moradia'};
@@ -1813,7 +1818,7 @@ const cadTxt=(c,v)=>v===''||v===undefined||v===null?'—':
 async function aplicarESUS(){const{ind,dom}=ESUS_PENDING;if(!ind.length&&!dom.length){toast('Importe os arquivos primeiro');return}
  if(!confirm(`Aplicar as atualizacoes do e-SUS no cadastro?\n\n• ${ind.length} pessoas\n• ${dom.length} domicilios\n\nA ficha manda: campo preenchido na ficha substitui o que esta aqui. Campo vazio na ficha nao apaga nada.\nFicha mais antiga que a ultima ja aplicada aquela pessoa e ignorada.\nMicroarea, equipe e familia sao atualizados junto.\nTudo que mudar fica no historico de alteracoes.`))return;
  let np=0,npNovo=0,nf=0,nfNovo=0,ign=0,nVelha=0,nMudou=0,nObito=0,nVoltou=0,nTerr=0;
- const avisos={obito:[],cond:[],semFam:[]};
+ const avisos={obito:[],cond:[],semFam:[],eqDiv:[]};
  const gravar=(p,ch,i)=>{if(!Object.keys(ch).length)return false;
   for(const c of Object.keys(ch))cadHist('pessoa',p.cod,p.nome,c,p[c],ch[c],i);
   if(p.orig)S.pEdit[p.cod]={...(S.pEdit[p.cod]||{}),...ch};
@@ -1844,7 +1849,15 @@ async function aplicarESUS(){const{ind,dom}=ESUS_PENDING;if(!ind.length&&!dom.le
   }else if(p.situacao==='Mudou-se'){ch.situacao='Ativo';nVoltou++}
   else if(p.situacao==='Óbito'){avisos.obito.push({nome:p.nome,cod:p.cod})}
   if(i.data&&i.data!==p.fiData)ch.fiData=i.data;
-  if(gravar(p,ch,i))np++}
+  if(gravar(p,ch,i))np++;
+  /* A ficha individual de quem nao e responsavel familiar nao traz microarea nem
+     domicilio: o unico sinal de territorio e o INE da equipe que cadastrou. Nao da
+     para remanejar por ele (nao se sabe a microarea nem a familia), entao a
+     divergencia fica registrada para a coordenacao resolver. */
+  const eqF=i.ine?eqByINE(i.ine):null,eqA=famOf(p).eq;
+  if(eqF&&eqA&&eqF.id!==eqA&&!i.ma&&!i.resp){
+   avisos.eqDiv.push({nome:p.nome,cod:p.cod,de:eqName(eqA),para:eqF.nome});
+   cadHist('pessoa',p.cod,p.nome,'eqDiv',eqName(eqA),eqF.nome+' (ficha) — conferir',i)}}
  buildDB();
  /* Territorio pela ficha individual: segue o responsavel familiar informado na ficha */
  for(const i of ind){const p=matchPessoaInd(i);if(!p||!i.resp)continue;
@@ -1884,6 +1897,7 @@ async function aplicarESUS(){const{ind,dom}=ESUS_PENDING;if(!ind.length&&!dom.le
  if(avisos.obito.length)av.push(`<b>${avisos.obito.length} pessoa(s) marcadas como obito</b> vieram numa ficha sem saida. O sistema NAO reativou automaticamente — confira uma a uma: ${avisos.obito.slice(0,6).map(x=>esc(x.nome)).join(', ')}${avisos.obito.length>6?'…':''}`);
  if(avisos.cond.length)av.push(`${avisos.cond.length} pessoa(s) com condicao marcada aqui vieram sem a marcacao na ficha (hipertensao/diabetes etc.). Nao foram desmarcadas, para nao quebrar os indicadores C4/C5.`);
  if(avisos.semFam.length)av.push(`${avisos.semFam.length} pessoa(s) com microarea na ficha mas sem responsavel familiar localizado — o vinculo nao pode ser movido.`);
+ if(avisos.eqDiv.length)av.push(`<b>${avisos.eqDiv.length} pessoa(s) cadastradas por uma equipe diferente da que esta aqui</b>, mas a ficha individual nao trouxe microarea nem responsavel familiar — o ACS nao pode ser trocado so com isso. Importe tambem o <b>lote de Cadastro Domiciliar</b> dessas familias. Veja em "Alteracoes feitas pelas importacoes" (campo Equipe divergente).`);
  ESUS_PENDING={ind:[],dom:[]};render();
  toast(`${np} pessoa(s) e ${nf} familia(s) atualizadas ✓ · ${npNovo} pessoa(s) e ${nfNovo} familia(s) NOVAS · ${nTerr} mudanca(s) de territorio`+(av.length?'<br><br>'+av.join('<br>'):''),av.length?14000:6000)}
 function cadHistUI(el){if(!el)return;

@@ -423,7 +423,7 @@ async function carregarPainelEquipe(){
 }
 function prepararModoEquipe(){
  document.body.classList.add('modo-equipe');
- NAV.length=0;NAV.push({t:'Equipe '+(DB.eq[0]?DB.eq[0].nome.replace('Equipe ',''):PERFIL.equipe),items:[['home','O que fazer agora','home'],['ind','Indicadores','chart'],['rel','Relatórios','chart'],['acs','Visitas dos ACS','team'],['atend','Atendimentos e-SUS','chart']]});
+ NAV.length=0;NAV.push({t:'Equipe '+(DB.eq[0]?DB.eq[0].nome.replace('Equipe ',''):PERFIL.equipe),items:[['home','O que fazer agora','home'],['ind','Indicadores','chart'],['rel','Relatórios','chart'],['acs','Visitas dos ACS','team'],['atend','Atendimentos e-SUS / Procedimentos','chart']]});
  UI.rel.eq=PERFIL.equipe;
  const f=document.querySelector('aside .foot');if(f)f.innerHTML=`Painel da <b>${esc(DB.eq[0]?DB.eq[0].nome:PERFIL.equipe)}</b> · somente consulta<br>Dados atualizados em ${PERFIL.geradoEm?new Date(PERFIL.geradoEm).toLocaleString('pt-BR'):'—'}<br>Coordenação da Atenção Primária`;
 }
@@ -816,7 +816,7 @@ function allComps(){return[...new Set(S.imports.map(i=>i.comp))].sort()}
 /* ===================== Navegação ===================== */
 const NAV=[
  {t:'Acompanhar',items:[['home','O que fazer agora','todo'],['ind','Indicadores','target'],['rel','Relatórios','doc'],['ia','Assistente IA','spark']]},
- {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS','steth'],['vita','Vitamina A','vita'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
+ {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS / Procedimentos','steth'],['vita','Vitamina A','vita'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
  {t:'Sistema',items:[['acessos','Acessos das equipes','key'],['config','Dados e backup','db']]}
 ];
 const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas'},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'},vita:{rep:'busca',ref:'',eq:'ALL',ma:'ALL',faixa:'ALL',sit:'DEVE',atraso:'',q:'',tel:'ALL',bk:'ALL',page:0,crianca:'',gr:'acs',rano:'',foco:'',gano:''}};
@@ -1501,7 +1501,7 @@ function vRel(m){const s=UI.rel;const comps=allComps();s.comp=compAtual();
 }
 
 /* ===================== IMPORTAÇÃO ===================== */
-const IMP_TABS=[['siaps','Listas SIAPS',null,'Listas Nominais dos indicadores C1–C7 (.xlsx)'],['acs','Visitas dos ACS',()=>importarVisitas,'Fichas de Visita Domiciliar e Territorial'],['atend','Atendimentos e-SUS',()=>importarAtend,'Fichas de Atendimento Individual e Procedimentos'],['coletiva','Atividade coletiva',()=>importarColetivas,'Fichas de Atividade Coletiva'],['consumo','Consumo alimentar',()=>importarConsumo,'Fichas de Marcadores de Consumo Alimentar'],['esus','Cadastros e-SUS',()=>importarESUS,'Cadastro Individual e Cadastro Domiciliar']];
+const IMP_TABS=[['siaps','Listas SIAPS',null,'Listas Nominais dos indicadores C1–C7 (.xlsx)'],['acs','Visitas dos ACS',()=>importarVisitas,'Fichas de Visita Domiciliar e Territorial'],['atend','Atendimentos e-SUS / Procedimentos',()=>importarAtend,'Fichas de Atendimento Individual, Odontologico e de Procedimentos'],['coletiva','Atividade coletiva',()=>importarColetivas,'Fichas de Atividade Coletiva'],['consumo','Consumo alimentar',()=>importarConsumo,'Fichas de Marcadores de Consumo Alimentar'],['esus','Cadastros e-SUS',()=>importarESUS,'Cadastro Individual e Cadastro Domiciliar']];
 function vImp(m){const t=UI.imp,cur=IMP_TABS.find(x=>x[0]===t.tab)||IMP_TABS[0];
   m.innerHTML=head('Importar dados','Escolha o tipo de arquivo. Listas do SIAPS em .xlsx; fichas do e-SUS em .zip ou .xml.')+
   `<div class="card"><div class="tabs">${IMP_TABS.map(([k,n])=>`<button class="tab ${cur[0]===k?'on':''}" data-it="${k}">${n}</button>`).join('')}</div><div id="impBody"></div></div>`;
@@ -2079,8 +2079,8 @@ function exportAtend(){const out=atendFiltered().map(x=>{const p=personOfAtend(x
  const ws=XLSX.utils.json_to_sheet(out);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Atendimentos');XLSX.writeFile(wb,`atendimentos_esus_${new Date().toISOString().slice(0,10)}.xlsx`)}
 function vATEND(m){const a=UI.atend,all=todosAtends();
  const ines=[...new Set(all.map(x=>x.ine))].filter(Boolean).sort(),profs=[...new Set(all.map(x=>x.prof))].filter(Boolean).sort();const profCbo={};for(const x of all)if(x.prof&&!profCbo[x.prof])profCbo[x.prof]=x.cbo;
- m.innerHTML=head('Atendimentos e-SUS','Fichas de Atendimento Individual (FAI) e Odontológico (FAO) do e-SUS — importação acumulativa. Use para conferir os indicadores pela produção.',`<button class="btn" id="atProf">Identificar profissionais</button><button class="btn" id="atPr">🖨 Imprimir / PDF</button>`)+
-  `<div class="card noprint"><div class="drop" id="atDrop"><div style="font-size:28px">📥</div><b>Arraste aqui os lotes do e-SUS (Atendimento Individual e/ou Odontológico)</b><div class="muted">.zip ou .xml · acumulativo · o tipo é reconhecido automaticamente</div><input type="file" id="atFi" accept=".zip,.xml" multiple hidden></div></div>`+
+ m.innerHTML=head('Atendimentos e-SUS / Procedimentos','Fichas de Atendimento Individual (FAI), Odontológico (FAO) e de Procedimentos do e-SUS — importação acumulativa. Use para conferir os indicadores pela produção. As doses de vitamina A vêm na Ficha de Procedimentos e aparecem na aba Vitamina A.',`<button class="btn" id="atProf">Identificar profissionais</button><button class="btn" id="atPr">🖨 Imprimir / PDF</button>`)+
+  `<div class="card noprint"><div class="drop" id="atDrop"><div style="font-size:28px">📥</div><b>Arraste aqui os lotes do e-SUS (Atendimento Individual, Odontológico ou Procedimentos)</b><div class="muted">.zip ou .xml · acumulativo · o tipo da ficha é reconhecido automaticamente</div><input type="file" id="atFi" accept=".zip,.xml" multiple hidden></div></div>`+
   (all.length?`<div class="card noprint" style="margin-top:14px"><div class="bar">
    <span class="mini">De <input type="date" id="aDe" value="${a.de||''}"></span><span class="mini">Até <input type="date" id="aAte" value="${a.ate||''}"></span>
    <select id="aMes"><option value="ALL">Todos os meses</option>${mesesAtend().map(mm=>`<option value="${mm}" ${a.mes===mm?'selected':''}>${compLabel(mm)}</option>`).join('')}</select>
@@ -2112,7 +2112,7 @@ function vATEND(m){const a=UI.atend,all=todosAtends();
   $('#aXp').onclick=()=>exportAtend();renderAtend();
  }}
 function renderAtend(){const o=$('#aOut');if(!o)return;const a=UI.atend;
- o.innerHTML=`<div class="printonly">${prCab('Atendimentos e-SUS',({resumo:'Resumo',prof:'Por profissional',medicoes:'Medições',odonto:'Odontológico',raca:'Por raça/cor',conferencia:'Conferência de indicadores',lista:'Lista detalhada'}[a.rep]||''))}</div>`+
+ o.innerHTML=`<div class="printonly">${prCab('Atendimentos e-SUS / Procedimentos',({resumo:'Resumo',prof:'Por profissional',medicoes:'Medições',odonto:'Odontológico',raca:'Por raça/cor',conferencia:'Conferência de indicadores',lista:'Lista detalhada'}[a.rep]||''))}</div>`+
   ({resumo:atResumo,prof:atPorProf,medicoes:atMedicoes,odonto:atOdonto,raca:atRaca,conferencia:atConferencia,nominal:atLista,naoloc:atNaoLoc,conf2:atConferenciaSiaps,flag:atFlagList})[a.rep]()+prAss()}
 
 /* ===================== ATIVIDADE COLETIVA (e-SUS APS) ===================== */
@@ -2696,7 +2696,7 @@ function audAtendTabela(C){if(!C.profs.length)return '<div class="empty">Nenhum 
  const al=(v,n,lim)=>{const p=pct(v,n);return `<td class="num"${v&&p>=lim?' style="color:#b2352c;font-weight:600"':''}>${v?f1(p)+'%':'—'}</td>`};
  return `<div class="tw" style="max-height:420px;margin-bottom:12px"><table><thead><tr><th>Profissional</th><th>Cat.</th><th class="num">Atend.</th><th class="num">Dias</th><th class="num">Média/dia</th><th class="num">Máx/dia</th><th class="num">Fim de sem.</th><th class="num">Em sequência</th><th class="num">Sem CIAP/CID</th><th class="num">Com PA (FAI)</th><th class="num">Sem proced. (FAO)</th><th class="num">Não localiz.</th></tr></thead><tbody>${C.profs.map(R=>`<tr><td>${esc(profNome(R.cns)||'CNS '+R.cns)}<div class="mini">${esc(R.eq)}</div></td><td class="small">${esc(AUD_CAT_NOME[R.cat])}</td><td class="num">${fmt(R.n)}</td><td class="num">${R.dias}</td><td class="num">${f1(R.mediaDia)}</td><td class="num">${R.maxDia}</td><td class="num">${R.fds||'—'}</td>${al(R.seq,R.n,20)}${R.nFai?al(R.semDiag,R.nFai,10):'<td class="num">—</td>'}<td class="num">${R.nFai?f1(pct(R.pa,R.nFai))+'%':'—'}</td>${R.nFao?al(R.semProc,R.nFao,10):'<td class="num">—</td>'}${al(R.naoLoc+R.semCns,R.n,15)}</tr>`).join('')}</tbody></table></div>`}
 function iaTabAuditAt(el){
- const A=todosAtends();if(!A.length){el.innerHTML='<div class="empty">Importe os lotes de Atendimento Individual e/ou Odontológico do e-SUS (menu Atendimentos e-SUS) para auditar.</div>';return}
+ const A=todosAtends();if(!A.length){el.innerHTML='<div class="empty">Importe os lotes do e-SUS (menu Atendimentos e-SUS / Procedimentos) para auditar.</div>';return}
  UI.ia.aud=UI.ia.aud||{...audDatasPadrao(A.map(x=>x.data)),ine:'ALL',cat:'ALL',prof:'ALL',foco:''};const s=UI.ia.aud;
  const C=audAtendCalc(s);if(s.prof!=='ALL'&&!C.profsOpc.some(p=>p[0]===s.prof)){s.prof='ALL';return render()}
  const chave='audat|'+[s.de,s.ate,s.ine,s.cat,s.prof].join('|');
@@ -3634,7 +3634,7 @@ function vVita(m){
  const xp=$('#vtXp',m);if(xp)xp.onclick=()=>{if(UI.vita.rep==='busca'||UI.vita.rep==='retorno')vitaXls();else{UI.vita.rep='busca';render();setTimeout(vitaXls,0)}};
  const pr=$('#vtPr',m);if(pr)pr.onclick=()=>{PRINT_LANDSCAPE=(UI.vita.rep==='busca');imprimir()};
  const out=$('#vtOut',m);
- if(!temDados){out.innerHTML=`<div class="empty">Nenhuma dose de vitamina A importada ainda.<div class="mini" style="margin-top:8px">Va em <b>Importar dados → Atendimentos e-SUS</b> e arraste o lote de <b>Ficha de Procedimentos</b> (.zip). O sistema reconhece as doses pelo codigo SIGTAP ${VITA_COD}.</div></div>`;return}
+ if(!temDados){out.innerHTML=`<div class="empty">Nenhuma dose de vitamina A importada ainda.<div class="mini" style="margin-top:8px">Va em <b>Importar dados → Atendimentos e-SUS / Procedimentos</b> e arraste o lote de <b>Ficha de Procedimentos</b> (.zip). O sistema reconhece as doses pelo codigo SIGTAP ${VITA_COD}.</div></div>`;return}
  ({busca:vtBusca,retorno:vtRetorno,hist:vtHist,rel:vtRel,aud:vtAud,qual:vtQual})[s.rep](out)}
 
 iniciar();

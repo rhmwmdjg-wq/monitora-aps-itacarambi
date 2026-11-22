@@ -697,7 +697,9 @@ function reindex(){
   }
   for(const f of DB.fam.values()){const m=DB.members.get(f.cod)||[];f.qtd=m.filter(p=>p.situacao==='Ativo').length}
 }
-const famOf=p=>DB.fam.get(p.fam)||{};
+const famOf=p=>{const f=DB.fam.get(p&&p.fam)||{};
+ if(p&&(p.eqRef||p.maRef))return{...f,eq:p.eqRef||f.eq,ma:p.maRef||f.ma,refPessoa:true};
+ return f};
 const eqOf=p=>famOf(p).eq;
 const endereco=f=>f&&f.logr?`${f.logr}${f.n?', '+f.n:''}${f.compl?' – '+f.compl:''}`:'';
 const acsOf=f=>{const m=DB.ma[f.eq+'-'+f.ma];return m?m.acs:''};
@@ -1158,7 +1160,7 @@ function modalPessoa(cod){const p=DB.pes.get(cod);const f=famOf(p);const e=DB.eq
     <div><div class="mini">Telefone</div><b>${esc(p.tel)||'—'}</b></div>
     <div><div class="mini">Situação</div><b>${esc(p.situacao)}</b></div>
     <div style="grid-column:span 2"><div class="mini">Endereço</div><b>${esc(endereco(f))}</b> <span class="muted">CEP ${esc(f.cep)}</span></div>
-    <div><div class="mini">Equipe · Microárea · ACS</div>${eqChip(f.eq)} · MA ${f.ma}<br><span class="small">${acsLinha(f)}</span></div>
+    <div><div class="mini">Equipe · Microárea · ACS</div>${eqChip(f.eq)} · MA ${f.ma}<br><span class="small">${acsLinha(f)}</span>${f.refPessoa?'<div class="mini"><span class="tag blue">equipe de referência da pessoa</span><br>veio da ficha de cadastro individual; o endereço continua o do domicílio</div>':''}</div>
    </div>${p.obs?`<div class="info" style="margin-top:12px">${esc(p.obs)}</div>`:''}
    ${uniq.length?`<div class="warn" style="margin-top:14px"><b>Dados diferentes no SIAPS:</b><table style="margin-top:6px"><tr><th>Campo</th><th>No cadastro</th><th>No SIAPS</th></tr>${uniq.map(d=>`<tr><td>${d[0]}</td><td>${esc(d[1])}</td><td><b>${esc(d[2])}</b></td></tr>`).join('')}</table><button class="btn sm pri" id="aplSiaps" style="margin-top:8px">Atualizar o cadastro com os dados do SIAPS</button></div>`:''}
    <div class="sep"></div><h3 style="font-size:14px;margin:0 0 8px">Indicadores de qualidade <small class="muted">última competência importada</small></h3>
@@ -1186,7 +1188,7 @@ function refreshSoft(){if(UI.view==='cadastro'&&$('#cadRes'))cadList();else if(U
 function famOptions(sel){const fs=[...DB.fam.values()].sort((a,b)=>(a.eq+a.ma+a.num).localeCompare(b.eq+b.ma+b.num));
   return fs.map(f=>`<option value="${f.cod}" ${f.cod===sel?'selected':''}>${f.eq} · MA ${f.ma} · Fam. ${f.num} · ${esc(f.logr)} ${esc(f.n)}</option>`).join('')}
 function modalPessoaEdit(cod,pre={}){const p=cod?DB.pes.get(cod):{cod:'N'+String(S.seq).padStart(5,'0'),nome:'',nasc:'',cpf:'',cns:'',sexo:'',tel:'',situacao:'Ativo',obs:'',chefe:false,fam:'',...pre};
-  const cf=p.fam?DB.fam.get(p.fam):null;let fma=cf?cf.ma:(pre.ma||'');const feq=cf?cf.eq:(pre.eq||'');
+  const cf=p.fam?famOf(p):null;let fma=cf&&cf.ma?cf.ma:(pre.ma||'');const feq=cf&&cf.eq?cf.eq:(pre.eq||'');
   openModal(cod?'Atualizar dados do paciente':'Cadastrar pessoa',`<div class="form">
    <label class="c4">Nome completo<input type="text" id="eN" value="${esc(p.nome)}"></label>
    <label class="c2">Data de nascimento<input type="date" id="eD" value="${esc(p.nasc)}"></label>
@@ -1203,7 +1205,7 @@ function modalPessoaEdit(cod,pre={}){const p=cod?DB.pes.get(cod):{cod:'N'+String
    <div class="c6" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="btn sm" id="eNewF">+ Nova família neste ACS</button><div class="mini" id="eEnd" style="flex:1;min-width:200px">O endereço aparece aqui ao escolher a família.</div></div>
    <label class="c6">Observações<textarea id="eO" rows="2">${esc(p.obs)}</textarea></label></div>
    <div id="eMsg" class="mini"></div>`,
-   async()=>{const ch={nome:$('#eN').value.trim(),nasc:$('#eD').value,cpf:onlyDig($('#eC').value),cns:onlyDig($('#eS').value),sexo:$('#eX').value,tel:$('#eT').value.trim(),situacao:$('#eSi').value,chefe:$('#eCh').value==='1',fam:$('#eF').value,obs:$('#eO').value.trim()};
+   async()=>{const ch={nome:$('#eN').value.trim(),nasc:$('#eD').value,cpf:onlyDig($('#eC').value),cns:onlyDig($('#eS').value),sexo:$('#eX').value,tel:$('#eT').value.trim(),situacao:$('#eSi').value,chefe:$('#eCh').value==='1',fam:$('#eF').value,obs:$('#eO').value.trim(),eqRef:'',maRef:''};
      if(!ch.nome){toast('Informe o nome');return false}
      if(!ch.fam&&!(ch.situacao==='Mudou-se'||ch.situacao==='Mudou de equipe')){toast('Selecione a equipe, o ACS e a família');return false}
      if(ch.cpf&&!cpfOk(ch.cpf)&&!confirm('O CPF informado não é válido. Salvar mesmo assim?'))return false;
@@ -1799,7 +1801,7 @@ function renderESUS(){const box=$('#esPrev');if(!box)return;const{ind,dom}=ESUS_
  box.innerHTML=`<div class="mini" style="margin-bottom:8px"><b>${ind.length}</b> cadastro(s) individual(is) · <b>${dom.length}</b> domiciliar(es)</div>${ind.length?`<h3 style="font-size:13px;margin:8px 0 6px">Individuais</h3>`+tInd:''}${dom.length?`<h3 style="font-size:13px;margin:12px 0 6px">Domiciliares</h3>`+tDom:''}${!ind.length&&!dom.length?'<div class="muted small">Importe os .zip acima para conferir.</div>':''}`}
 /* Motivo de saida do cadastro (LEDI · MotivoSaida): 135 = obito. */
 const MOTIVO_OBITO='135';
-const CAD_LABEL={eqDiv:'Equipe divergente (nao aplicado)',foraArea:'Cadastrada fora de area (nao aplicado)',nome:'Nome',nasc:'Data de nascimento',sexo:'Sexo',cpf:'CPF',cns:'CNS',tel:'Telefone',
+const CAD_LABEL={terrRef:'Equipe/microarea de referencia',eqDiv:'Equipe divergente (nao aplicado)',foraArea:'Cadastrada fora de area (nao aplicado)',nome:'Nome',nasc:'Data de nascimento',sexo:'Sexo',cpf:'CPF',cns:'CNS',tel:'Telefone',
  mae:'Nome da mae',raca:'Raca/cor',situacao:'Situacao',obito:'Data do obito',fam:'Familia / microarea',
  hiper:'Hipertensao',dia:'Diabetes',fumante:'Fumante',acamado:'Acamado',domic:'Domiciliado',
  logr:'Logradouro',n:'Numero',cep:'CEP',compl:'Complemento',bairro:'Bairro',ma:'Microarea',eq:'Equipe',moradia:'Moradia'};
@@ -1819,7 +1821,7 @@ const cadTxt=(c,v)=>v===''||v===undefined||v===null?'—':
 async function aplicarESUS(){const{ind,dom}=ESUS_PENDING;if(!ind.length&&!dom.length){toast('Importe os arquivos primeiro');return}
  if(!confirm(`Aplicar as atualizacoes do e-SUS no cadastro?\n\n• ${ind.length} pessoas\n• ${dom.length} domicilios\n\nA ficha manda: campo preenchido na ficha substitui o que esta aqui. Campo vazio na ficha nao apaga nada.\nFicha mais antiga que a ultima ja aplicada aquela pessoa e ignorada.\nMicroarea, equipe e familia sao atualizados junto.\nTudo que mudar fica no historico de alteracoes.`))return;
  let np=0,npNovo=0,nf=0,nfNovo=0,ign=0,nVelha=0,nMudou=0,nObito=0,nVoltou=0,nTerr=0;
- const avisos={obito:[],cond:[],semFam:[],eqDiv:[],fora:[]};
+ const avisos={obito:[],cond:[],semFam:[],eqDiv:[],fora:[],ref:[]};
  const gravar=(p,ch,i)=>{if(!Object.keys(ch).length)return false;
   for(const c of Object.keys(ch))cadHist('pessoa',p.cod,p.nome,c,p[c],ch[c],i);
   if(p.orig)S.pEdit[p.cod]={...(S.pEdit[p.cod]||{}),...ch};
@@ -1855,7 +1857,25 @@ async function aplicarESUS(){const{ind,dom}=ESUS_PENDING;if(!ind.length&&!dom.le
      domicilio: o unico sinal de territorio e o INE da equipe que cadastrou. Nao da
      para remanejar por ele (nao se sabe a microarea nem a familia), entao a
      divergencia fica registrada para a coordenacao resolver. */
-  const eqF=i.ine?eqByINE(i.ine):null,eqA=famOf(p).eq;
+  const eqF=i.ine?eqByINE(i.ine):null,fAt=famOf(p),eqA=fAt.eq;
+  /* Equipe de referencia do cidadao: o e-SUS passou a tratar o vinculo pela
+     atualizacao cadastral mais recente, nao so pelo domicilio. Quando a ficha
+     traz a equipe (INE) e/ou a microarea, e nao esta marcada como fora de area,
+     elas passam a valer para a pessoa, mesmo sem saber em que casa ela mora. */
+  if(!i.fora&&!i.resp&&(eqF||i.ma)){
+   const novoEq=eqF?eqF.id:eqA,novoMa=i.ma||fAt.ma;
+   if((novoEq&&novoEq!==eqA)||(novoMa&&String(novoMa)!==String(fAt.ma||''))){
+    const r={};
+    if(eqF&&eqF.id!==eqA)r.eqRef=eqF.id;
+    if(i.ma&&String(i.ma)!==String(fAt.ma||''))r.maRef=String(i.ma);
+    if(Object.keys(r).length){
+     const mAnt=DB.ma[(eqA||'')+'-'+(fAt.ma||'')],mNov=DB.ma[(novoEq||'')+'-'+(novoMa||'')];
+     cadHist('pessoa',p.cod,p.nome,'terrRef',
+      (eqA?eqName(eqA):'—')+' MA '+(fAt.ma||'—')+(mAnt&&mAnt.acs?' · '+mAnt.acs:''),
+      (novoEq?eqName(novoEq):'—')+' MA '+(novoMa||'—')+(mNov&&mNov.acs?' · '+mNov.acs:''),i);
+     if(p.orig)S.pEdit[p.cod]={...(S.pEdit[p.cod]||{}),...r};
+     else{const n=S.pNew.find(z=>z.cod===p.cod);if(n)Object.assign(n,r)}
+     nTerr++;avisos.ref.push({nome:p.nome,cod:p.cod})}}}
   if(i.fora&&eqF){
    /* "Fora de área" e o proprio e-SUS dizendo que a pessoa NAO reside na area da
       equipe que cadastrou — por isso a ficha vem sem microarea. Nao e caso de
@@ -1873,8 +1893,10 @@ async function aplicarESUS(){const{ind,dom}=ESUS_PENDING;if(!ind.length&&!dom.le
   if(!r||!r.fam){if(i.ma)avisos.semFam.push({nome:p.nome,cod:p.cod,ma:i.ma});continue}
   if(r.fam===p.fam)continue;
   cadHist('pessoa',p.cod,p.nome,'fam',famLabel(p.fam),famLabel(r.fam),i);
-  if(p.orig)S.pEdit[p.cod]={...(S.pEdit[p.cod]||{}),fam:r.fam};
-  else{const n=S.pNew.find(z=>z.cod===p.cod);if(n)n.fam=r.fam}
+  /* o vinculo com o domicilio e mais forte que a equipe de referencia: limpa a referencia */
+  if(p.eqRef||p.maRef)cadHist('pessoa',p.cod,p.nome,'terrRef',(p.eqRef?eqName(p.eqRef):'')+' MA '+(p.maRef||''),'segue o domicilio',i);
+  if(p.orig)S.pEdit[p.cod]={...(S.pEdit[p.cod]||{}),fam:r.fam,eqRef:'',maRef:''};
+  else{const n=S.pNew.find(z=>z.cod===p.cod);if(n)Object.assign(n,{fam:r.fam,eqRef:'',maRef:''})}
   nTerr++}
  buildDB();
  for(const d of dom){const resp=DB.byCNS.get(d.respCns);
@@ -1904,6 +1926,7 @@ async function aplicarESUS(){const{ind,dom}=ESUS_PENDING;if(!ind.length&&!dom.le
  if(avisos.obito.length)av.push(`<b>${avisos.obito.length} pessoa(s) marcadas como obito</b> vieram numa ficha sem saida. O sistema NAO reativou automaticamente — confira uma a uma: ${avisos.obito.slice(0,6).map(x=>esc(x.nome)).join(', ')}${avisos.obito.length>6?'…':''}`);
  if(avisos.cond.length)av.push(`${avisos.cond.length} pessoa(s) com condicao marcada aqui vieram sem a marcacao na ficha (hipertensao/diabetes etc.). Nao foram desmarcadas, para nao quebrar os indicadores C4/C5.`);
  if(avisos.semFam.length)av.push(`${avisos.semFam.length} pessoa(s) com microarea na ficha mas sem responsavel familiar localizado — o vinculo nao pode ser movido.`);
+ if(avisos.ref.length)av.push(`${avisos.ref.length} pessoa(s) passaram a ter a equipe/microarea da ficha como <b>referencia</b> — o ACS muda a partir de agora. O endereco continua o do domicilio cadastrado ate vir uma ficha domiciliar.`);
  if(avisos.fora.length)av.push(`${avisos.fora.length} ficha(s) vieram marcadas como <b>"fora de area"</b>: a propria ficha diz que a pessoa nao reside na area da equipe que cadastrou, e por isso vem sem microarea. Os dados pessoais foram atualizados, mas o ACS nao foi trocado — seria move-la para um territorio que a ficha nega. Para a equipe assumir a pessoa, o ACS precisa fazer o cadastro domiciliar dela.`);
  if(avisos.eqDiv.length)av.push(`<b>${avisos.eqDiv.length} pessoa(s) cadastradas por uma equipe diferente da que esta aqui</b>, mas a ficha individual nao trouxe microarea nem responsavel familiar — o ACS nao pode ser trocado so com isso. Importe tambem o <b>lote de Cadastro Domiciliar</b> dessas familias. Veja em "Alteracoes feitas pelas importacoes" (campo Equipe divergente).`);
  ESUS_PENDING={ind:[],dom:[]};render();
@@ -3164,13 +3187,13 @@ function vitaBase(){
 
 /* ---- dados do cadastro que a busca ativa precisa ---- */
 function vitaInfo(p){
- const f=p.fam?DB.fam.get(p.fam):null;
+ const f=famOf(p);
  const end=f&&f.logr?(f.logr+(f.n?', '+f.n:'')+(f.comp||f.compl?' – '+(f.comp||f.compl):'')):'';
  const ma=f?DB.ma[f.eq+'-'+f.ma]:null;
  let resp='';
  if(!p.mae&&f){const ms=DB.members.get(f.cod)||[];const c=ms.find(x=>x.chefe);if(c&&c.cod!==p.cod)resp=c.nome}
  return{end,eqId:f?f.eq:'',eq:f?eqName(f.eq):'',maCod:f?f.ma:'',acs:ma?ma.acs:'',acsCod:ma?ma.acsCod:'',
-  mae:p.mae||'',resp,tel:p.tel||'',bairro:f?(f.exp||''):''}}
+  mae:p.mae||'',resp,tel:p.tel||'',bairro:f?(f.exp||''):'',ref:!!(f&&f.refPessoa)}}
 
 /* ---- visitas do ACS no mes de referencia (Ficha de Visita Domiciliar) ----
    Serve para conferir a folha do ACS: quem ele diz que nao localizou tem visita
@@ -3346,7 +3369,7 @@ function vtBusca(el){
    <td class="small">${I.mae?esc(I.mae):(I.resp?'<span class="muted">Resp.: </span>'+esc(I.resp):'<span class="tag warn">sem nome da mae</span>')}</td>
    <td class="small addr">${esc(I.end)||'<span class="muted">—</span>'}${I.bairro?'<div class="mini">'+esc(I.bairro)+'</div>':''}</td>
    <td class="small" style="white-space:nowrap">${I.tel?esc(I.tel):'<span class="muted">—</span>'}</td>
-   <td class="small vt-sc">${esc(I.eq)}<div class="mini">MA ${esc(I.maCod)}${I.acs?' · '+esc(I.acs):''}</div></td>
+   <td class="small vt-sc">${esc(I.eq)}<div class="mini">MA ${esc(I.maCod)}${I.acs?' · '+esc(I.acs):''}${I.ref?' · <span class="tag blue">referência</span>':''}</div></td>
    <td class="small vt-sc">${x.vis.length?esc(vitaVisTxt(x.vis)):'<span class="muted">sem visita no mes</span>'}</td>
    <td class="small" style="white-space:nowrap">${x.ult?brDate(x.ult.data):'<span class="tag red">nunca</span>'}
      <div class="mini">${x.nDoses?fmt(x.nDoses)+' dose(s)':'—'}</div></td>

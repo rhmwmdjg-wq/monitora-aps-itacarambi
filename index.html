@@ -720,7 +720,7 @@ const IND={
  C1:{cod:'C1',nome:'Mais Acesso à APS',curto:'Mais Acesso',rx:/mais acesso/i,tipo:'acesso',
    desc:'% de atendimentos por demanda programada em relação ao total de atendimentos (programada + espontânea).',
    bp:{NM:[0,'Teve atendimento por demanda programada (consulta agendada, cuidado continuado)']},
-   nota:'O SIAPS conta atendimentos; a lista nominal mostra pessoas. O valor aqui é uma estimativa por pessoa (pessoas com demanda programada ÷ pessoas atendidas).'},
+   nota:'O SIAPS conta atendimentos; a lista nominal mostra pessoas. O valor ao lado é uma estimativa por pessoa (pessoas com demanda programada ÷ pessoas atendidas); o cálculo por atendimento, igual ao da nota metodológica, aparece no painel \u201cC1 por atendimento\u201d.'},
  C2:{cod:'C2',nome:'Cuidado no desenvolvimento infantil',curto:'Desenv. Infantil',rx:/desenvolvimento infantil/i,tipo:'bp',
    bp:{A:[20,'1ª consulta presencial (médico/enfermeiro) até o 30º dia de vida'],B:[20,'≥ 9 consultas (médico/enfermeiro) até 2 anos'],C:[20,'≥ 9 registros simultâneos de peso e altura até 2 anos'],D:[20,'2 visitas do ACS: 1ª até 30 dias e 2ª até 6 meses de vida'],E:[20,'Vacinas (penta, pólio, tríplice viral, pneumo) com todas as doses']},
    extra:['COM 2 ANOS','ATE 2 ANOS']},
@@ -808,6 +808,33 @@ function rowEval(cod,r){
   return{dn:!!r.mk.DN,score:sc,max:100,pend,ok,elig:Object.keys(d.bp)};
 }
 function doneInfo(cod,r,k){const d=IND[cod];const sk=(d.tipo==='c7'&&k!=='NM')?'NM.'+k:k;const rk=rowKey(r);const o=S.mkEdit&&S.mkEdit[rk+'|'+cod+'|'+sk];const imp=!!r.mk[sk];return{done:o===undefined?imp:!!o,imp,ovr:o!==undefined&&!!o&&!imp}}
+/* C1 pela nota metodologica: atendimentos de demanda programada / total de atendimentos.
+   O calculo por pessoa (lista nominal do SIAPS) segue sendo exibido ao lado. */
+const TP_ATEND_C1=['1','2','4','5','6'];
+function quadriRange(comp){let y,m;
+ if(/^\d{4}-\d{2}$/.test(comp||'')){const t=String(comp).split('-');y=+t[0];m=+t[1]}
+ else{y=TODAY.getFullYear();m=TODAY.getMonth()+1}
+ const iso=d=>d.toISOString().slice(0,10);
+ return{ini:iso(new Date(Date.UTC(y,m-4,1))),fim:iso(new Date(Date.UTC(y,m,0)))}}
+function c1PorAtendimento(comp,eqId){const r=quadriRange(comp);let ine=null;
+ if(eqId&&eqId!=='ALL'){const e=DB.eqById[eqId];
+  if(e&&e.ine)ine=onlyDig(e.ine);
+  else if(String(eqId).indexOf('__INE_')===0)ine=onlyDig(String(eqId).slice(6))}
+ let num=0,den=0;
+ for(const a of (S.atends||[])){
+  if(a.tipo!=='fai'||!a.data||a.data<r.ini||a.data>r.fim)continue;
+  if(ine&&onlyDig(a.ine)!==ine)continue;
+  const t=String(a.tipoAtend||'');if(!TP_ATEND_C1.includes(t))continue;
+  den++;if(TP_ATEND_PROG.includes(t))num++}
+ return{num,den,valor:den?100*num/den:null,ini:r.ini,fim:r.fim}}
+function c1AtendHTML(comp,eqId){const r=c1PorAtendimento(comp,eqId);
+ const br=d=>d.split('-').reverse().join('/');
+ return `<div class="card" style="box-shadow:none;margin-top:12px"><h3>C1 por atendimento &middot; produ&ccedil;&atilde;o e-SUS</h3>
+  <div class="grid g3">
+   <div class="card kpi" style="box-shadow:none"><span class="l">Resultado por atendimento</span><span class="v">${r.valor==null?'—':f1(r.valor)+'%'}</span><span>${clsHTML(r.valor,'C1')}</span></div>
+   <div class="card kpi" style="box-shadow:none"><span class="l">Demanda programada</span><span class="v">${fmt(r.num)}</span><span class="s">agendada programada / cuidado continuado / agendada</span></div>
+   <div class="card kpi" style="box-shadow:none"><span class="l">Total de atendimentos</span><span class="v">${fmt(r.den)}</span><span class="s">programada + espont&acirc;nea</span></div></div>
+  <div class="mini" style="margin-top:8px">C&aacute;lculo da nota metodol&oacute;gica C1: atendimentos de demanda programada &divide; total de atendimentos, nas fichas de atendimento individual importadas. Quadrimestre ${br(r.ini)} a ${br(r.fim)}.${r.den?'':' Importe os lotes de atendimento individual do per&iacute;odo para ver este c&aacute;lculo.'}</div></div>`}
 function computeInd(cod,rows){
   const d=IND[cod];const ev=rows.map(r=>({r,e:rowEval(cod,r)}));const dn=ev.filter(x=>x.e.dn);
   const cov={};let valor=null;
@@ -1285,13 +1312,14 @@ function sobreHTML(cod){const d=IND[cod];const f=cod==='C1'?FAIXAS.C1:FAIXAS.def
 function tResumo(b,rows){const s=UI.ind,d=IND[s.cod];const R=computeInd(s.cod,rows);const E=enrich(rows);const loc=E.filter(x=>x.p).length;
   const bpk=Object.keys(d.bp);
   const byMa={};for(const x of E){if(!x.e.dn)continue;const k=x.p?(x.eq+'-'+x.ma):'__';(byMa[k]=byMa[k]||[]).push(x)}
-  const maRows=Object.entries(byMa).sort().map(([k,xs])=>{const v=d.tipo==='c7'?computeInd(s.cod,xs.map(x=>x.r)).valor:(d.tipo==='acesso'?pct(xs.filter(x=>x.r.mk.NM).length,xs.length):xs.reduce((a,x)=>a+x.e.score,0)/xs.length);const pend=xs.filter(x=>x.e.pend.length).length;const info=DB.ma[k];return{k,info,n:xs.length,v,pend}});
+  const maRows=Object.entries(byMa).sort().map(([k,xs])=>{const v=d.tipo==='c7'?computeInd(s.cod,xs.map(x=>x.r)).valor:(d.tipo==='acesso'?pct(xs.filter(x=>x.e.ok.includes('NM')).length,xs.length):xs.reduce((a,x)=>a+x.e.score,0)/xs.length);const pend=xs.filter(x=>x.e.pend.length).length;const info=DB.ma[k];return{k,info,n:xs.length,v,pend}});
   const hist=[0,0,0,0,0];for(const x of E)if(x.e.dn&&d.tipo!=='acesso'){const sc=x.e.max?x.e.score/x.e.max*100:0;hist[sc===100?4:sc>75?3:sc>50?2:sc>25?1:0]++}
   b.innerHTML=`<div class="grid g4">
     <div class="card kpi" style="box-shadow:none"><span class="l">Resultado do indicador</span><span class="v">${R.valor==null?'—':f1(R.valor)}${d.tipo==='acesso'?'%':''}</span><span>${clsHTML(R.valor,s.cod)}</span></div>
     <div class="card kpi" style="box-shadow:none"><span class="l">Pessoas no denominador</span><span class="v">${fmt(R.den)}</span><span class="s">${fmt(R.total)} linhas na lista nominal</span></div>
     <div class="card kpi" style="box-shadow:none"><span class="l">Localizadas no cadastro</span><span class="v">${f1(pct(loc,R.total))}%</span><span class="s">${fmt(loc)} de ${fmt(R.total)} · ${fmt(R.total-loc)} não localizadas</span></div>
     <div class="card kpi" style="box-shadow:none"><span class="l">Com alguma pendência</span><span class="v">${fmt(E.filter(x=>x.e.dn&&x.e.pend.length).length)}</span><span class="s">para busca ativa</span></div></div>
+   ${s.cod==='C1'?c1AtendHTML(s.comp,s.eq):''}
    <div class="mini" style="margin:8px 0 0">Parâmetros: ${s.cod==='C1'?FAIXAS.C1:FAIXAS.def}. ${d.nota?esc(d.nota):''} ${d.tipo==='c7'?'Cálculo C7: soma de (pontos da boa prática × numerador ÷ denominador de cada faixa etária).':d.tipo==='bp'?'Cálculo: soma dos pontos de cada pessoa do denominador ÷ nº de pessoas no denominador.':''}</div>
    <div class="grid g2" style="margin-top:14px;align-items:start">
     <div class="card" style="box-shadow:none"><h3>${d.tipo==='acesso'?'Demanda programada':'Cobertura de cada boa prática'}</h3>

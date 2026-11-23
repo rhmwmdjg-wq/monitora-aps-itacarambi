@@ -2054,6 +2054,13 @@ function testesNoTrimestre(p,tri){if(!p||!p.dum)return{sifilis:false,hiv:false,h
  for(const pr of (procedimentosPorPessoa().get(p.cod)||[])){if(!pr.data||!noTri(pr.data))continue;for(const c of (pr.procs||[]))mark(c)}
  return res}
 function testesConfirmam(p){if(!p||!p.dum)return{G:false,H:false};const t1=testesNoTrimestre(p,'1'),t3=testesNoTrimestre(p,'3');return{G:t1.sifilis&&t1.hiv&&t1.hepB&&t1.hepC,H:t3.sifilis&&t3.hiv}}
+const EX_PE_DIAB=['0301040095'];
+const TP_ATEND_PROG=['1','2'];
+function visitas2com30d(p,meses){const V=(visitasListaPorPessoa().get(p.cod)||[])
+  .filter(v=>v.desfecho==='1'&&v.data&&diasAtras(v.data)<=Math.round(meses*30.4))
+  .map(v=>v.data).sort();
+ if(V.length<2)return false;
+ return (new Date(V[V.length-1]+'T00:00:00')-new Date(V[0]+'T00:00:00'))/MS_DAY>=30}
 const CBO_SSR=['2231','2251','2252','2253','2235'];
 const SSR_CIAP=['B25','W02','W10','W11','W12','W13','W14','W15','W79','W82','X01','X02','X03','X04','X05','X06','X07','X08','X09','X10','X11','X12','X13','X23','X24','X82','X89','Y14'];
 const SSR_CID=['N80','N800','N801','N802','N803','N804','N805','N806','N808','N809','N91','N910','N911','N912','N913','N914','N915','N92','N920','N921','N922','N923','N924','N925','N926','N93','N930','N938','N939','N94','N940','N941','N942','N943','N944','N945','N946','N948','N949','N95','N950','N951','N952','N953','N958','N959','N96','N97','N970','N971','N972','N973','N974','N978','N979','O03','O04','R102','T742','Y050','Y051','Y052','Y053','Y054','Y055','Y056','Y057','Y058','Y059','Z123','Z124','Z205','Z206','Z30','Z300','Z301','Z302','Z303','Z304','Z305','Z308','Z309','Z31','Z310','Z311','Z312','Z313','Z314','Z315','Z316','Z318','Z319','Z320','Z600','Z630','Z640','Z70','Z700','Z701','Z702','Z703','Z708','Z709','Z717','Z725'];
@@ -2075,8 +2082,9 @@ function eventosCuidado(p){const evs=[];
  for(const pr of (procedimentosPorPessoa().get(p.cod)||[])){if(!pr.data)continue;const cs=pr.procs||[];evs.push({data:pr.data,consulta:cs.some(c=>PROC_CONSULTA.includes(c)),pa:(!!(pr.pas&&pr.pad))||cs.some(c=>PROC_PA.includes(c)),pesoAlt:(!!(pr.peso&&pr.altura))||cs.some(c=>PROC_PESO.includes(c)||PROC_ALTURA.includes(c))})}
  return evs}
 function esusConfirma(cod,k,p){if(!p)return false;const A=atendsPorPessoa().get(p.cod)||[];const w=(a,meses)=>diasAtras(a.data)<=Math.round(meses*30.4);
- if(cod==='C4'||cod==='C5'){if(k==='A')return A.some(a=>a.tipo==='fai'&&w(a,6));if(k==='B')return A.some(a=>a.tipo==='fai'&&a.pas&&a.pad&&w(a,6));if(k==='C')return A.some(a=>a.tipo==='fai'&&a.peso&&a.altura&&w(a,12));if(cod==='C4'&&k==='E')return exameFeito(p,EX_GLICADA,12)}
- if(cod==='C6'){if(k==='A')return A.some(a=>a.tipo==='fai'&&w(a,12));if(k==='B')return A.some(a=>a.tipo==='fai'&&a.peso&&a.altura&&w(a,12));if(k==='C'){const V=(visitasListaPorPessoa().get(p.cod)||[]).filter(v=>v.desfecho==='1'&&diasAtras(v.data)<=365);return V.length>=2}}
+ if(cod==='C1'&&k==='NM')return A.some(a=>a.tipo==='fai'&&TP_ATEND_PROG.includes(String(a.tipoAtend))&&w(a,4));
+ if(cod==='C4'||cod==='C5'){if(k==='A')return A.some(a=>a.tipo==='fai'&&w(a,6));if(k==='B')return A.some(a=>a.tipo==='fai'&&a.pas&&a.pad&&w(a,6));if(k==='C')return A.some(a=>a.tipo==='fai'&&a.peso&&a.altura&&w(a,12));if(k==='D')return visitas2com30d(p,12);if(cod==='C4'&&k==='E')return exameFeito(p,EX_GLICADA,12);if(cod==='C4'&&k==='F')return exameFeito(p,EX_PE_DIAB,12)}
+ if(cod==='C6'){if(k==='A')return A.some(a=>a.tipo==='fai'&&w(a,12));if(k==='B')return A.some(a=>a.tipo==='fai'&&a.peso&&a.altura&&w(a,12));if(k==='C')return visitas2com30d(p,12)}
  if(cod==='C3'){
   if(k==='K')return A.some(a=>a.tipo==='fao'&&a.gestante);
   if(k==='I'||k==='J')return puerperioConfirma(p)[k];

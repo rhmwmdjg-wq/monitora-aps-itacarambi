@@ -2057,7 +2057,7 @@ function testesConfirmam(p){if(!p||!p.dum)return{G:false,H:false};const t1=teste
 const EX_GLICADA=['0202010503','ABEX008'],EX_CITO=['0203010086','0203010019','0201020033','0201020076','0201020084','ABPG010','ABP022'],EX_MAMO=['0204030188','0204030030','ABP023'];
 function igDias(aData,dum){if(!aData||!dum)return null;return Math.floor((new Date(aData+'T00:00:00')-new Date(dum+'T00:00:00'))/MS_DAY)}
 function idadeDiasAt(aData,nasc){if(!aData||!nasc)return null;return Math.floor((new Date(aData+'T00:00:00')-new Date(nasc+'T00:00:00'))/MS_DAY)}
-function exameFeito(p,codigos,meses){const A=atendsPorPessoa().get(p.cod)||[];for(const a of A){if(a.tipo!=='fai'||!a.exames||!a.exames.length)continue;if(!a.data||diasAtras(a.data)>Math.round(meses*30.4))continue;for(const e of a.exames){if(!(e.av||e.sol))continue;const c=String(e.cod||'').toUpperCase().replace(/[.\-]/g,'');if(codigos.includes(c))return true}}
+function exameFeito(p,codigos,meses){const A=atendsPorPessoa().get(p.cod)||[];for(const a of A){if(a.tipo!=='fai'||!a.exames||!a.exames.length)continue;if(!a.data||diasAtras(a.data)>Math.round(meses*30.4))continue;for(const e of a.exames){if(!e||!e.cod)continue;const c=String(e.cod||'').toUpperCase().replace(/[.\-]/g,'');if(codigos.includes(c))return true}}
  for(const pr of (procedimentosPorPessoa().get(p.cod)||[])){if(!pr.data||diasAtras(pr.data)>Math.round(meses*30.4))continue;for(const c of (pr.procs||[])){if(codigos.includes(c))return true}}
  return false}
 function eventosCuidado(p){const evs=[];
@@ -2095,7 +2095,7 @@ async function importarAtend(files){let nf=0,no=0,nproc=0,jaT=0,nvit=0;const err
  const byId=new Map(todosAtends().map(a=>[a.id,a]));
  const byProc=new Map((S.procedimentos||[]).map(a=>[a.id,a]));
  const trata=(x,nome)=>{
-  if(x.indexOf('fichaAtendimentoIndividualMasterTransport')>=0){for(const a of parseFAIXML(x,nome)){const ex=byId.get(a.id);if(ex){jaT++;if(!ex.cid10&&a.cid10){ex.cid10=a.cid10;ex.ciap=a.ciap||ex.ciap}if(!ex.exames&&a.exames&&a.exames.length)ex.exames=a.exames;continue}byId.set(a.id,a);S.atends.push(a);nf++}}
+  if(x.indexOf('fichaAtendimentoIndividualMasterTransport')>=0){for(const a of parseFAIXML(x,nome)){const ex=byId.get(a.id);if(ex){jaT++;if(!ex.cid10&&a.cid10){ex.cid10=a.cid10;ex.ciap=a.ciap||ex.ciap}if(a.exames&&a.exames.length)ex.exames=a.exames;continue}byId.set(a.id,a);S.atends.push(a);nf++}}
   else if(x.indexOf('fichaAtendimentoOdontologicoMasterTransport')>=0){for(const a of parseFAOXML(x,nome)){if(byId.has(a.id)){jaT++;continue}byId.set(a.id,a);S.atendsOdonto.push(a);no++}}
   else if(x.indexOf('fichaProcedimento')>=0){for(const a of parseProcedFast(x,nome)){if(byProc.has(a.id)){jaT++;continue}byProc.set(a.id,a);S.procedimentos.push(a);nproc++;if(a.procs&&a.procs.indexOf(VITA_COD)>=0)nvit++}}
   else throw new Error('Tipo de ficha nao reconhecido')};

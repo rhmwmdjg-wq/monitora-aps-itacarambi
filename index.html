@@ -566,6 +566,13 @@ function telaPacoteInicial(){return new Promise(ok=>{
   BASE=j.base;await KV.set('__base',BASE);if(j.dados)Object.assign(S,j.dados);for(const k of SKEYS)await KV.set(k,S[k]);
   await CLOUD.pushAll((i,n)=>gateProgress('Enviando dados para a nuvem…',i,n));ok()}catch(x){$('#pkm',g).innerHTML='<b style="color:var(--re)">'+esc(x.message||'Arquivo inválido')+'</b>'}};
 })}
+async function sairTodos(){
+ if(CLOUD.dirty.size&&!confirm('Ainda há alterações não enviadas para a nuvem. Sair de todos os aparelhos mesmo assim? (elas continuam salvas neste aparelho)'))return;
+ if(!confirm('Encerrar a sessão do e-mail '+CLOUD.email+' em TODOS os aparelhos (computadores e celulares), inclusive este?\n\nQuem estiver com o sistema aberto em outra máquina será desconectado e terá de entrar novamente com e-mail e senha.'))return;
+ try{const{error}=await CLOUD.sb.auth.signOut({scope:'global'});if(error)throw error}
+ catch(e){alert('Não foi possível encerrar as sessões agora: '+(e.message||e)+'\nVerifique a internet e tente de novo.');return}
+ await KV.clear();location.reload()
+}
 async function sair(){if(CLOUD.dirty.size&&!confirm('Ainda há alterações não enviadas para a nuvem. Sair mesmo assim? (elas continuam salvas neste aparelho)'))return;await CLOUD.sb.auth.signOut();if(!CLOUD.dirty.size)await KV.clear();location.reload()}
 
 async function iniciar(){
@@ -605,8 +612,9 @@ function wireCloud(){
  const pill=$('#cloudPill');
  pill.onclick=()=>{const md=openModal('Nuvem e acesso',`<div class="small">Conectado como <b>${esc(CLOUD.email)}</b><br>Situação: <b>${esc(pill.textContent)}</b><br>Alterações pendentes: <b>${CLOUD.dirty.size}</b></div>
   <p class="mini">Tudo o que você altera é salvo neste aparelho na hora e enviado automaticamente para a nuvem em seguida. Ao abrir o sistema em outro computador ou celular, os dados mais recentes são baixados.</p>
-  <div class="bar" style="margin-top:12px"><button class="btn pri" id="cSync">⟳ Sincronizar agora</button><button class="btn danger" id="cOut">Sair</button></div>`);
- $('#cSync',md.bg).onclick=async()=>{md.close();await CLOUD.push();await CLOUD.check();toast('Sincronizado ✓')};$('#cOut',md.bg).onclick=sair};
+  <p class="mini">Se o sistema ficou aberto em um computador ou celular que não é seu, use <b>Sair de todos os aparelhos</b>: a sessão do seu e-mail é encerrada em todas as máquinas e só volta a abrir com e-mail e senha.</p>
+  <div class="bar" style="margin-top:12px"><button class="btn pri" id="cSync">⟳ Sincronizar agora</button><button class="btn danger" id="cOut">Sair deste aparelho</button><button class="btn danger" id="cOutAll">🚪 Sair de todos os aparelhos</button></div>`);
+ $('#cSync',md.bg).onclick=async()=>{md.close();await CLOUD.push();await CLOUD.check();toast('Sincronizado ✓')};$('#cOut',md.bg).onclick=sair;$('#cOutAll',md.bg).onclick=()=>{md.close();sairTodos()}};
  setInterval(()=>CLOUD.check(),120000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)CLOUD.check()});
  window.addEventListener('online',()=>{CLOUD.push();CLOUD.check()});
@@ -3103,7 +3111,14 @@ function iaChat(el,tipo){const H=IA.hist[tipo];
   const c=$('.iachat',el);if(c)c.scrollTop=c.scrollHeight}
 
 function wireChrome(){
-  $('#outBtn').onclick=()=>{if(confirm('Deseja sair do sistema?'))sair()};
+  $('#outBtn').onclick=()=>{
+    if(isEquipe()){if(confirm('Deseja sair do sistema?'))sair();return}
+    const md=openModal('Sair do sistema',`<div class="small">Conectado como <b>${esc(CLOUD.email)}</b></div>
+     <p class="mini">Use <b>Sair de todos os aparelhos</b> quando o sistema tiver ficado aberto em um computador ou celular que não é seu: a sessão do seu e-mail é encerrada em todas as máquinas e só volta a abrir com e-mail e senha.</p>
+     <div class="bar" style="margin-top:12px"><button class="btn danger" id="oOne">⏏ Sair deste aparelho</button><button class="btn danger" id="oAll">🚪 Sair de todos os aparelhos</button></div>`);
+    $('#oOne',md.bg).onclick=()=>{md.close();sair()};
+    $('#oAll',md.bg).onclick=()=>{md.close();sairTodos()}
+  };
   $('#impBtn').onclick=()=>{UI.view='imp';render();closeSide()};
   $('#orientBtn').onclick=toggleOrient;
   $('#searchBox').onclick=openPalette;

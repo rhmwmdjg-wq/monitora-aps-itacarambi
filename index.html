@@ -218,6 +218,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:#f3f8f5}
 .cloudpill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
 .cloudpill.ok{color:var(--brand-deep);background:#e9f6ef;border-color:#cfe9da}.cloudpill.pend{color:#8a6a00;background:#fff8e1;border-color:#f1e0a6}.cloudpill.err{color:#a3332b;background:#fdecea;border-color:#f3c9c4}
 @media (max-width:700px){.cloudpill{font-size:0;padding:7px 10px}.cloudpill::first-letter{font-size:14px}}
+@media (max-width:700px){#outBtn .lbl-out{display:none}}
 @media print{#cloudPill,#gate{display:none!important}}
 /* ====== Usabilidade (nov/2026) ====== */
 [hidden]{display:none!important}
@@ -293,6 +294,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:#f3f8f5}
   <button class="cloudpill ok" id="cloudPill" title="Situação da sincronização com a nuvem">☁ Conectando…</button>
   <button class="btn" id="orientBtn" title="Alterna entre impressão retrato e paisagem">🖨 Retrato</button>
   <button class="btn pri" id="impBtn">⬆ Importar</button>
+  <button class="btn danger" id="outBtn" title="Sair do sistema">⏏ <span class="lbl-out">Sair</span></button>
  </header>
  <main></main>
 </div>
@@ -3101,6 +3103,7 @@ function iaChat(el,tipo){const H=IA.hist[tipo];
   const c=$('.iachat',el);if(c)c.scrollTop=c.scrollHeight}
 
 function wireChrome(){
+  $('#outBtn').onclick=()=>{if(confirm('Deseja sair do sistema?'))sair()};
   $('#impBtn').onclick=()=>{UI.view='imp';render();closeSide()};
   $('#orientBtn').onclick=toggleOrient;
   $('#searchBox').onclick=openPalette;

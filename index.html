@@ -811,9 +811,9 @@ function doneInfo(cod,r,k){const d=IND[cod];const sk=(d.tipo==='c7'&&k!=='NM')?'
 function computeInd(cod,rows){
   const d=IND[cod];const ev=rows.map(r=>({r,e:rowEval(cod,r)}));const dn=ev.filter(x=>x.e.dn);
   const cov={};let valor=null;
-  if(d.tipo==='c7'){valor=0;for(const[k,[pt]]of Object.entries(d.bp)){const den=rows.filter(r=>r.mk['DN.'+k]).length,num=rows.filter(r=>r.mk['DN.'+k]&&r.mk['NM.'+k]).length;cov[k]={num,den,p:pct(num,den)};valor+=den?pt*num/den:0}}
-  else if(d.tipo==='acesso'){const num=dn.filter(x=>x.r.mk.NM).length;cov.NM={num,den:dn.length,p:pct(num,dn.length)};valor=dn.length?pct(num,dn.length):null}
-  else{for(const k of Object.keys(d.bp)){const num=dn.filter(x=>x.r.mk[k]).length;cov[k]={num,den:dn.length,p:pct(num,dn.length)}}valor=dn.length?dn.reduce((s,x)=>s+x.e.score,0)/dn.length:null}
+  if(d.tipo==='c7'){valor=0;for(const[k,[pt]]of Object.entries(d.bp)){const el=ev.filter(x=>x.r.mk['DN.'+k]);const den=el.length,num=el.filter(x=>x.e.ok.includes(k)).length;cov[k]={num,den,p:pct(num,den)};valor+=den?pt*num/den:0}}
+  else if(d.tipo==='acesso'){const num=dn.filter(x=>x.e.ok.includes('NM')).length;cov.NM={num,den:dn.length,p:pct(num,dn.length)};valor=dn.length?pct(num,dn.length):null}
+  else{for(const k of Object.keys(d.bp)){const num=dn.filter(x=>x.e.ok.includes(k)).length;cov[k]={num,den:dn.length,p:pct(num,dn.length)}}valor=dn.length?dn.reduce((s,x)=>s+x.e.score,0)/dn.length:null}
   return{valor,den:dn.length,total:rows.length,cov,ev};
 }
 /* Linhas de uma equipe numa competência (todas as importações daquele indicador/competência) */
@@ -2071,7 +2071,7 @@ function ssrAtend(a){if(!a||a.tipo!=='fai')return false;
  const cs=String(a.ciap||'').split(',').map(normCod),ds=String(a.cid10||'').split(',').map(normCod);
  if(cs.some(c=>c&&SSR_CIAP.includes(c))||ds.some(c=>c&&SSR_CID.includes(c)))return true;
  return (a.exames||[]).some(e=>SSR_AB.includes(normCod(e&&e.cod)))}
-const EX_GLICADA=['0202010503','ABEX008'],EX_CITO=['0203010086','0203010019','0201020033','0201020076','0201020084','ABPG010','ABP022'],EX_MAMO=['0204030188','0204030030','ABP023'];
+const EX_GLICADA=['0202010503','ABEX008'],EX_CITO=['0203010086','0203010019','0201020033','ABPG010','ABP022'],EX_CITO_HPV=['0201020076','0201020084'],EX_MAMO=['0204030188','0204030030','ABP023'];
 function igDias(aData,dum){if(!aData||!dum)return null;return Math.floor((new Date(aData+'T00:00:00')-new Date(dum+'T00:00:00'))/MS_DAY)}
 function idadeDiasAt(aData,nasc){if(!aData||!nasc)return null;return Math.floor((new Date(aData+'T00:00:00')-new Date(nasc+'T00:00:00'))/MS_DAY)}
 function exameFeito(p,codigos,meses){const A=atendsPorPessoa().get(p.cod)||[];for(const a of A){if(a.tipo!=='fai'||!a.exames||!a.exames.length)continue;if(!a.data||diasAtras(a.data)>Math.round(meses*30.4))continue;for(const e of a.exames){if(!e||!e.cod)continue;const c=String(e.cod||'').toUpperCase().replace(/[.\-]/g,'');if(codigos.includes(c))return true}}
@@ -2106,7 +2106,7 @@ function esusConfirma(cod,k,p){if(!p)return false;const A=atendsPorPessoa().get(
   }
   if(k==='D'){const V=(visitasListaPorPessoa().get(p.cod)||[]).filter(v=>v.desfecho==='1'&&v.data&&idadeDiasAt(v.data,p.nasc)!==null);const v180=V.filter(v=>idadeDiasAt(v.data,p.nasc)<=180).length;const v30=V.some(v=>idadeDiasAt(v.data,p.nasc)<=30);return v180>=2&&v30}
  }
- if(cod==='C7'){if(k==='A')return exameFeito(p,EX_CITO,36);if(k==='D')return exameFeito(p,EX_MAMO,24);
+ if(cod==='C7'){if(k==='A')return exameFeito(p,EX_CITO,36)||exameFeito(p,EX_CITO_HPV,60);if(k==='D')return exameFeito(p,EX_MAMO,24);
   if(k==='C'){if(A.some(a=>ssrAtend(a)&&w(a,12)))return true;
    return (procedimentosPorPessoa().get(p.cod)||[]).some(pr=>pr.data&&diasAtras(pr.data)<=Math.round(12*30.4)&&(pr.procs||[]).some(c=>SSR_AB.includes(normCod(c))))}}
  return false}

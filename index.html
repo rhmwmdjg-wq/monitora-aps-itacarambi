@@ -2054,6 +2054,16 @@ function testesNoTrimestre(p,tri){if(!p||!p.dum)return{sifilis:false,hiv:false,h
  for(const pr of (procedimentosPorPessoa().get(p.cod)||[])){if(!pr.data||!noTri(pr.data))continue;for(const c of (pr.procs||[]))mark(c)}
  return res}
 function testesConfirmam(p){if(!p||!p.dum)return{G:false,H:false};const t1=testesNoTrimestre(p,'1'),t3=testesNoTrimestre(p,'3');return{G:t1.sifilis&&t1.hiv&&t1.hepB&&t1.hepC,H:t3.sifilis&&t3.hiv}}
+const CBO_SSR=['2231','2251','2252','2253','2235'];
+const SSR_CIAP=['B25','W02','W10','W11','W12','W13','W14','W15','W79','W82','X01','X02','X03','X04','X05','X06','X07','X08','X09','X10','X11','X12','X13','X23','X24','X82','X89','Y14'];
+const SSR_CID=['N80','N800','N801','N802','N803','N804','N805','N806','N808','N809','N91','N910','N911','N912','N913','N914','N915','N92','N920','N921','N922','N923','N924','N925','N926','N93','N930','N938','N939','N94','N940','N941','N942','N943','N944','N945','N946','N948','N949','N95','N950','N951','N952','N953','N958','N959','N96','N97','N970','N971','N972','N973','N974','N978','N979','O03','O04','R102','T742','Y050','Y051','Y052','Y053','Y054','Y055','Y056','Y057','Y058','Y059','Z123','Z124','Z205','Z206','Z30','Z300','Z301','Z302','Z303','Z304','Z305','Z308','Z309','Z31','Z310','Z311','Z312','Z313','Z314','Z315','Z316','Z318','Z319','Z320','Z600','Z630','Z640','Z70','Z700','Z701','Z702','Z703','Z708','Z709','Z717','Z725'];
+const SSR_AB=['ABP003','ABP022','ABP023'];
+const normCod=x=>String(x||'').toUpperCase().replace(/[.\-\s]/g,'');
+function ssrAtend(a){if(!a||a.tipo!=='fai')return false;
+ if(!CBO_SSR.includes(String(a.cbo||'').slice(0,4)))return false;
+ const cs=String(a.ciap||'').split(',').map(normCod),ds=String(a.cid10||'').split(',').map(normCod);
+ if(cs.some(c=>c&&SSR_CIAP.includes(c))||ds.some(c=>c&&SSR_CID.includes(c)))return true;
+ return (a.exames||[]).some(e=>SSR_AB.includes(normCod(e&&e.cod)))}
 const EX_GLICADA=['0202010503','ABEX008'],EX_CITO=['0203010086','0203010019','0201020033','0201020076','0201020084','ABPG010','ABP022'],EX_MAMO=['0204030188','0204030030','ABP023'];
 function igDias(aData,dum){if(!aData||!dum)return null;return Math.floor((new Date(aData+'T00:00:00')-new Date(dum+'T00:00:00'))/MS_DAY)}
 function idadeDiasAt(aData,nasc){if(!aData||!nasc)return null;return Math.floor((new Date(aData+'T00:00:00')-new Date(nasc+'T00:00:00'))/MS_DAY)}
@@ -2088,7 +2098,9 @@ function esusConfirma(cod,k,p){if(!p)return false;const A=atendsPorPessoa().get(
   }
   if(k==='D'){const V=(visitasListaPorPessoa().get(p.cod)||[]).filter(v=>v.desfecho==='1'&&v.data&&idadeDiasAt(v.data,p.nasc)!==null);const v180=V.filter(v=>idadeDiasAt(v.data,p.nasc)<=180).length;const v30=V.some(v=>idadeDiasAt(v.data,p.nasc)<=30);return v180>=2&&v30}
  }
- if(cod==='C7'){if(k==='A')return exameFeito(p,EX_CITO,36);if(k==='D')return exameFeito(p,EX_MAMO,24)}
+ if(cod==='C7'){if(k==='A')return exameFeito(p,EX_CITO,36);if(k==='D')return exameFeito(p,EX_MAMO,24);
+  if(k==='C'){if(A.some(a=>ssrAtend(a)&&w(a,12)))return true;
+   return (procedimentosPorPessoa().get(p.cod)||[]).some(pr=>pr.data&&diasAtras(pr.data)<=Math.round(12*30.4)&&(pr.procs||[]).some(c=>SSR_AB.includes(normCod(c))))}}
  return false}
 async function importarAtend(files){let nf=0,no=0,nproc=0,jaT=0,nvit=0;const errs=[];
  if(!S.atends)S.atends=[];if(!S.atendsOdonto)S.atendsOdonto=[];if(!S.procedimentos)S.procedimentos=[];

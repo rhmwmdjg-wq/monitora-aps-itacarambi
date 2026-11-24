@@ -375,7 +375,7 @@ const KV={db:null,
  set(k,v){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok();t.onerror=()=>ok()}catch(e){ok()}})},
  clear(){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').clear();t.oncomplete=()=>ok()}catch(e){ok()}})}};
 /* Estado persistido */
-const S={dumCfg:{soMedicoEquipe:true,ignorarProf:['705102306009540'],ignorarNomes:['arquimedes'],ignorarGeral:true,v2:true},pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[],cadLog:[]};
+const S={dumCfg:{soMedicoEquipe:true,ignorarProf:['705102306009540','702608274362042','700202485963722'],ignorarNomes:['arquimedes'],ignorarGeral:true,v3:true},pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[],cadLog:[]};
 const SKEYS=Object.keys(S);
 /* ===================== Acesso por equipe (painel somente consulta) ===================== */
 const PERFIL={papel:'admin',equipe:''};
@@ -587,9 +587,9 @@ async function iniciar(){
  gateProgress('Carregando…',0,0);
  await loadState();BASE=(await KV.get('__base'))||null;
  /* migracao: passa a ignorar as fichas do medico externo em todos os calculos */
- if(!S.dumCfg)S.dumCfg={soMedicoEquipe:true,ignorarProf:[],ignorarNomes:['arquimedes'],ignorarGeral:true,v2:true};
- if(!S.dumCfg.v2){S.dumCfg.v2=true;S.dumCfg.ignorarGeral=true;
-  S.dumCfg.ignorarProf=[...new Set([...(S.dumCfg.ignorarProf||[]),'705102306009540'])];
+ if(!S.dumCfg)S.dumCfg={soMedicoEquipe:true,ignorarProf:[],ignorarNomes:['arquimedes'],ignorarGeral:true,v3:true};
+ if(!S.dumCfg.v3){S.dumCfg.v3=true;S.dumCfg.ignorarGeral=true;
+  S.dumCfg.ignorarProf=[...new Set([...(S.dumCfg.ignorarProf||[]),'705102306009540','702608274362042','700202485963722'])];
   S.dumCfg.ignorarNomes=[...new Set([...(S.dumCfg.ignorarNomes||[]),'arquimedes'])];
   try{await save('dumCfg')}catch(e){}}
  let offline=false;

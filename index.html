@@ -375,7 +375,7 @@ const KV={db:null,
  set(k,v){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok();t.onerror=()=>ok()}catch(e){ok()}})},
  clear(){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').clear();t.oncomplete=()=>ok()}catch(e){ok()}})}};
 /* Estado persistido */
-const S={dumCfg:{soMedicoEquipe:true,ignorarProf:[],ignorarNomes:['arquimedes'],ignorarGeral:false},pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[],cadLog:[]};
+const S={dumCfg:{soMedicoEquipe:true,ignorarProf:['705102306009540'],ignorarNomes:['arquimedes'],ignorarGeral:true,v2:true},pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[],cadLog:[]};
 const SKEYS=Object.keys(S);
 /* ===================== Acesso por equipe (painel somente consulta) ===================== */
 const PERFIL={papel:'admin',equipe:''};
@@ -586,6 +586,12 @@ async function iniciar(){
  CLOUD.email=CLOUD.session?.user?.email||'';
  gateProgress('Carregando…',0,0);
  await loadState();BASE=(await KV.get('__base'))||null;
+ /* migracao: passa a ignorar as fichas do medico externo em todos os calculos */
+ if(!S.dumCfg)S.dumCfg={soMedicoEquipe:true,ignorarProf:[],ignorarNomes:['arquimedes'],ignorarGeral:true,v2:true};
+ if(!S.dumCfg.v2){S.dumCfg.v2=true;S.dumCfg.ignorarGeral=true;
+  S.dumCfg.ignorarProf=[...new Set([...(S.dumCfg.ignorarProf||[]),'705102306009540'])];
+  S.dumCfg.ignorarNomes=[...new Set([...(S.dumCfg.ignorarNomes||[]),'arquimedes'])];
+  try{await save('dumCfg')}catch(e){}}
  let offline=false;
  try{
   let{data:aut,error:ea}=await CLOUD.sb.from('usuarios_autorizados').select('email,papel,equipe').ilike('email',CLOUD.email).limit(1);
@@ -822,7 +828,7 @@ function c1PorAtendimento(comp,eqId){const r=quadriRange(comp);let ine=null;
   if(e&&e.ine)ine=onlyDig(e.ine);
   else if(String(eqId).indexOf('__INE_')===0)ine=onlyDig(String(eqId).slice(6))}
  let num=0,den=0;
- for(const a of (S.atends||[])){
+ for(const a of semIgnorados(S.atends||[])){
   if(a.tipo!=='fai'||!a.data||a.data<r.ini||a.data>r.fim)continue;
   if(ine&&onlyDig(a.ine)!==ine)continue;
   const t=String(a.tipoAtend||'');if(!TP_ATEND_C1.includes(t))continue;
@@ -2058,6 +2064,13 @@ function parseProcedFast(text,fileName){
    peso:Number(_pOne(mm,'peso'))||0,altura:Number(_pOne(mm,'altura'))||0,arquivo:fileName});i++}
  return out}
 const atends=()=>S.atends||[];const odontos=()=>S.atendsOdonto||[];
+/* fichas de profissionais ignorados ficam fora de todos os calculos */
+const semIgnorados=arr=>{const cfg=S.dumCfg||{};return cfg.ignorarGeral?(arr||[]).filter(a=>!profIgnorado(a.prof)):(arr||[])};
+function profsIgnoradosAtivos(){const cfg=S.dumCfg||{};if(!cfg.ignorarGeral)return[];const set=new Set();
+ for(const a of (S.atends||[]).concat(S.atendsOdonto||[],S.procedimentos||[]))if(a.prof&&profIgnorado(a.prof))set.add(a.prof);
+ return[...set]}
+function avisoIgnorados(){const l=profsIgnoradosAtivos();if(!l.length)return '';
+ return `<div class="card noprint" style="margin-top:14px;border-left:5px solid #d98a2b"><b>⚠ Fichas fora dos indicadores</b><div class="mini" style="margin-top:4px">Todas as fichas de <b>${l.map(c=>esc(profNome(c)||('CNS '+c))).join(', ')}</b> (Atendimento Individual, Odontológico e Procedimentos) estão <b>excluídas</b> de todos os cálculos, listas e relatórios — inclusive dos contadores desta tela. Para mudar, use <b>🩺 Regra da DUM</b> na lista de gestantes do C3.</div></div>`}
 let _taC=null,_taK='';
 const todosAtends=()=>{const cfg=S.dumCfg||{};const k=atends().length+'|'+odontos().length+'|'+(cfg.ignorarGeral?(cfg.ignorarProf||[]).join(',')+'/'+(cfg.ignorarNomes||[]).join(','):'');
  if(_taC&&_taK===k)return _taC;_taK=k;const all=atends().concat(odontos());_taC=cfg.ignorarGeral?all.filter(a=>!profIgnorado(a.prof)):all;return _taC};
@@ -2067,7 +2080,7 @@ function atendsPorPessoa(){if(_apc&&_apk===todosAtends().length)return _apc;_apk
 let _vpl=null,_vplk=-1;
 function visitasListaPorPessoa(){if(_vpl&&_vplk===(S.visits||[]).length)return _vpl;_vplk=(S.visits||[]).length;const m=new Map();for(const v of (S.visits||[])){const p=personOfVisit(v);if(!p)continue;if(!m.has(p.cod))m.set(p.cod,[]);m.get(p.cod).push(v)}_vpl=m;return m}
 let _ppl=null,_pplk=-1;
-function procedimentosPorPessoa(){if(_ppl&&_pplk===(S.procedimentos||[]).length)return _ppl;_pplk=(S.procedimentos||[]).length;const m=new Map();for(const pr of (S.procedimentos||[])){const p=(pr.cns&&DB.byCNS.get(pr.cns))||(pr.cpf&&DB.byCPF.get(pr.cpf))||null;if(!p)continue;if(!m.has(p.cod))m.set(p.cod,[]);m.get(p.cod).push(pr)}_ppl=m;return m}
+function procedimentosPorPessoa(){if(_ppl&&_pplk===(S.procedimentos||[]).length)return _ppl;_pplk=(S.procedimentos||[]).length;const m=new Map();for(const pr of semIgnorados(S.procedimentos||[])){const p=(pr.cns&&DB.byCNS.get(pr.cns))||(pr.cpf&&DB.byCPF.get(pr.cpf))||null;if(!p)continue;if(!m.has(p.cod))m.set(p.cod,[]);m.get(p.cod).push(pr)}_ppl=m;return m}
 const diasAtras=iso=>iso?Math.floor((TODAY-new Date(iso+'T00:00:00'))/MS_DAY):Infinity;
 const PUERP_DAYS=42;
 function puerperioConfirma(p){if(!p||!p.parto)return{I:false,J:false};
@@ -2110,21 +2123,21 @@ function aplicarDumAuto(){if(!(S.atends&&S.atends.length))return;
 function dumFonteTxt(p){if(!p||!p.dumAuto)return '';const i=p.dumAuto;
  return (profNome(i.prof)||('CNS '+i.prof))+(profCat(i.prof,i.cbo)?' · '+profCat(i.prof,i.cbo):'')+' · atendimento de '+brDate(i.data)}
 function dumRegraModal(){const cfg=S.dumCfg=S.dumCfg||{soMedicoEquipe:true,ignorarProf:[],ignorarNomes:['arquimedes'],ignorarGeral:false};
- const st={};for(const a of (S.atends||[])){if(a.tipo!=='fai'||!a.dum||!a.prof)continue;const o=st[a.prof]=st[a.prof]||{n:0,cbo:a.cbo||''};o.n++;if(!o.cbo)o.cbo=a.cbo}
+ const st={};for(const a of (S.atends||[]).concat(S.atendsOdonto||[],S.procedimentos||[])){if(!a.prof)continue;const o=st[a.prof]=st[a.prof]||{n:0,nd:0,cbo:a.cbo||''};o.n++;if(a.dum)o.nd++;if(!o.cbo)o.cbo=a.cbo}
  const list=Object.entries(st).sort((x,y)=>y[1].n-x[1].n);
- const rows=list.length?list.map(([cns,o])=>`<label class="split small" style="padding:6px 0;border-bottom:1px solid #f0f3f1;gap:8px"><span style="flex:1">${esc(profNome(cns)||'(sem nome identificado)')}<div class="mini">${esc(profCat(cns,o.cbo))} · CNS ${esc(cns)} · ${o.n} ficha(s) com DUM${isMedicoCbo(o.cbo)?'':' · <b>não é médico(a)</b>'}</div></span><span class="mini">ignorar <input type="checkbox" class="dIg" data-cns="${esc(cns)}" ${(cfg.ignorarProf||[]).includes(cns)?'checked':''}></span></label>`).join(''):'<div class="empty">Nenhuma ficha de Atendimento Individual com DUM importada ainda.<div class="mini" style="margin-top:8px">A leitura da DUM é nova: reimporte os XML/ZIP da <b>Ficha de Atendimento Individual</b> em <b>Importar dados → Atendimentos e-SUS</b> para o sistema ler o campo DUM.</div></div>';
+ const rows=list.length?list.map(([cns,o])=>`<label class="split small" style="padding:6px 0;border-bottom:1px solid #f0f3f1;gap:8px"><span style="flex:1">${esc(profNome(cns)||'(sem nome identificado)')}<div class="mini">${esc(profCat(cns,o.cbo))} · CNS ${esc(cns)} · ${o.n} ficha(s)${o.nd?' · '+o.nd+' com DUM':''}${isMedicoCbo(o.cbo)?'':' · <b>não é médico(a)</b>'}</div></span><span class="mini">ignorar <input type="checkbox" class="dIg" data-cns="${esc(cns)}" ${(cfg.ignorarProf||[]).includes(cns)?'checked':''}></span></label>`).join(''):'<div class="empty">Nenhuma ficha importada ainda.<div class="mini" style="margin-top:8px">A leitura da DUM é nova: reimporte os XML/ZIP da <b>Ficha de Atendimento Individual</b> em <b>Importar dados → Atendimentos e-SUS</b> para o sistema ler o campo DUM.</div></div>';
  openModal('Regra da DUM (Data da Última Menstruação)',`
   <div class="info" style="margin-bottom:10px">A DUM é lida do campo <b>DUM</b> das medições da <b>Ficha de Atendimento Individual</b> do e-SUS. Quando a gestante não tem DUM digitada aqui, o sistema usa a DUM da ficha <b>mais recente</b> que passar nesta regra (DPP e IG são recalculados). A DUM digitada à mão sempre vence.</div>
   <label class="split small" style="padding:8px 0;border-bottom:1px solid #f0f3f1"><span>Aceitar <b>somente</b> a DUM informada por <b>médico(a) da equipe do paciente</b></span><input type="checkbox" id="dSo" ${cfg.soMedicoEquipe!==false?'checked':''}></label>
-  <label class="split small" style="padding:8px 0"><span>Ignorar <b>todas</b> as fichas de atendimento dos profissionais marcados abaixo, em <b>todo o sistema</b> (não só na DUM) — isto altera indicadores e relatórios</span><input type="checkbox" id="dGer" ${cfg.ignorarGeral?'checked':''}></label>
-  <div class="mini" style="margin:10px 0 2px"><b>Profissionais que informaram DUM</b> (${list.length})</div>
+  <label class="split small" style="padding:8px 0"><span>Ignorar <b>todas</b> as fichas dos profissionais marcados abaixo (FAI, FAO e Procedimentos) em <b>todos</b> os indicadores, listas e relatórios</span><input type="checkbox" id="dGer" ${cfg.ignorarGeral?'checked':''}></label>
+  <div class="mini" style="margin:10px 0 2px"><b>Profissionais com fichas importadas</b> (${list.length}) — marque quem deve ficar fora</div>
   <div class="tw" style="max-height:280px">${rows}</div>
   <div class="mini" style="margin:10px 0 4px"><b>Ignorar por nome</b> — um por linha; vale para qualquer CNS cujo nome contenha o texto</div>
   <textarea id="dNomes" rows="3" style="width:100%">${esc((cfg.ignorarNomes||[]).join('\n'))}</textarea>`,
  async()=>{cfg.soMedicoEquipe=$('#dSo').checked;cfg.ignorarGeral=$('#dGer').checked;
   cfg.ignorarProf=$$('.dIg').filter(c=>c.checked).map(c=>c.dataset.cns);
   cfg.ignorarNomes=$('#dNomes').value.split('\n').map(z=>z.trim()).filter(Boolean);
-  await save('dumCfg');_dumA=null;_dumAk='';_taC=null;_taK='';_apc=null;_apk=-1;buildDB();
+  await save('dumCfg');_dumA=null;_dumAk='';_taC=null;_taK='';_apc=null;_apk=-1;_ppl=null;_pplk=-1;_vitaC=null;buildDB();
   logAction('Regra da DUM alterada',`somente médico da equipe: ${cfg.soMedicoEquipe?'sim':'não'} · ignorar geral: ${cfg.ignorarGeral?'sim':'não'} · ${cfg.ignorarProf.length} CNS · nomes: ${cfg.ignorarNomes.join(', ')||'—'}`);
   toast('Regra da DUM salva ✓');render();return true},null,'Salvar regra')}
 function partoDeAtend(p){if(!p)return '';const A=atendsPorPessoa().get(p.cod)||[];let d='';for(const a of A){if(a.tipo!=='fai'||!a.cid10)continue;const isParto=String(a.cid10).split(',').some(c=>{const x=c.trim().toUpperCase();return /^O8[0-4]/.test(x)||/^Z37/.test(x)});if(isParto&&a.data&&(!d||a.data<d))d=a.data}return d}
@@ -2350,7 +2363,7 @@ function atLogLinhas(){
 function vATEND(m){const a=UI.atend,all=todosAtends();
  const ines=[...new Set(all.map(x=>x.ine))].filter(Boolean).sort(),profs=[...new Set(all.map(x=>x.prof))].filter(Boolean).sort();const profCbo={};for(const x of all)if(x.prof&&!profCbo[x.prof])profCbo[x.prof]=x.cbo;
  m.innerHTML=head('Atendimentos e-SUS / Procedimentos','Fichas de Atendimento Individual (FAI), Odontológico (FAO) e de Procedimentos do e-SUS — importação acumulativa. Use para conferir os indicadores pela produção. As doses de vitamina A vêm na Ficha de Procedimentos e aparecem na aba Vitamina A.',`<button class="btn" id="atProf">Identificar profissionais</button><button class="btn" id="atPr">🖨 Imprimir / PDF</button>`)+
-  `<div class="card noprint"><div class="drop" id="atDrop"><div style="font-size:28px">📥</div><b>Arraste aqui os lotes do e-SUS (Atendimento Individual, Odontológico ou Procedimentos)</b><div class="muted">.zip ou .xml · acumulativo · o tipo da ficha é reconhecido automaticamente</div><input type="file" id="atFi" accept=".zip,.xml" multiple hidden></div></div>`+
+  `<div class="card noprint"><div class="drop" id="atDrop"><div style="font-size:28px">📥</div><b>Arraste aqui os lotes do e-SUS (Atendimento Individual, Odontológico ou Procedimentos)</b><div class="muted">.zip ou .xml · acumulativo · o tipo da ficha é reconhecido automaticamente</div><input type="file" id="atFi" accept=".zip,.xml" multiple hidden></div></div>`+avisoIgnorados()+
   (all.length?`<div class="card noprint" style="margin-top:14px"><div class="bar">
    <span class="mini">De <input type="date" id="aDe" value="${a.de||''}"></span><span class="mini">Até <input type="date" id="aAte" value="${a.ate||''}"></span>
    <select id="aMes"><option value="ALL">Todos os meses</option>${mesesAtend().map(mm=>`<option value="${mm}" ${a.mes===mm?'selected':''}>${compLabel(mm)}</option>`).join('')}</select>

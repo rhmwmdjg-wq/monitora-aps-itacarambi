@@ -2512,11 +2512,14 @@ function notifSurtos(){const m={};
  for(const c of notifCasos()){const d=daysBetween(c.at.data);if(d===null||d<0||d>30)continue;
   const k=c.ag.id;(m[k]=m[k]||{ag:c.ag,pes:new Set(),casos:[]});if(c.p)m[k].pes.add(c.p.cod);m[k].casos.push(c)}
  return Object.values(m).filter(o=>o.casos.length>=3).sort((a,b)=>b.casos.length-a.casos.length)}
-function vNotif(m){const n=UI.notif,casos=notifCasos();
+function vNotif(m){const n=UI.notif;
+ if(!n.de&&!n.ate&&!n._ini){n._ini=1;n.de=new Date(Date.now()-30*MS_DAY).toISOString().slice(0,10)}
+ const casos=notifCasos();
  const profs=[...new Set(casos.map(c=>c.at.prof))].filter(Boolean);
  const profCbo={};for(const c of casos)if(!profCbo[c.at.prof])profCbo[c.at.prof]=c.at.cbo;
  const agUsados=[...new Set(casos.map(c=>c.ag.id))].map(id=>NOTIF_BY[id]).sort((a,b)=>a.nome.localeCompare(b.nome));
- const cnt=s=>casos.filter(c=>c.sit===s).length;
+ const noPeriodo=casos.filter(c=>(!n.de||c.at.data>=n.de)&&(!n.ate||c.at.data<=n.ate));
+ const cnt=s=>noPeriodo.filter(c=>c.sit===s).length;
  m.innerHTML=head('Notificação compulsória à Vigilância',
    'Lê o CID-10 e o CIAP-2 lançados nas Fichas de Atendimento Individual importadas e mostra quem precisa ser notificado, quem atendeu e se o prazo legal ainda está aberto. Base: Lista Nacional (Portaria de Consolidação GM/MS nº 4/2017, Anexo V, atualizada pela Portaria GM/MS nº 11.211/2026) e lista estadual de MG (Resoluções SES/MG nº 8.846/2023 e nº 8.948/2023).',
    '<button class="btn" id="ntAg">Agravos monitorados</button><button class="btn" id="ntPr">🖨 Imprimir / PDF</button>')
@@ -2551,7 +2554,7 @@ function notifAgravosModal(){
 function renderNotif(){const o=$('#ntOut');if(!o)return;const n=UI.notif,F=notifFiltrados();
  if(n.rep==='surto'){const S2=notifSurtos();
   o.innerHTML=`<h3>Possíveis surtos <small>agravos com 3 ou mais atendimentos nos últimos 30 dias</small></h3>
-  <div class="mini" style="margin-bottom:8px">Agrupamento por agravo. Surto é <b>notificação imediata (24h)</b> e vai no <b>módulo de surtos do Sinan</b>, não na ficha individual de cada paciente.</div>`+
+  <div class="mini" style="margin-bottom:8px">Agrupamento por agravo, contando <b>atendimentos</b>, não casos novos. Doenças de acompanhamento contínuo (hanseníase, tuberculose, HIV, sífilis) repetem naturalmente nas consultas de seguimento — olhe o número de <b>pessoas</b> ao lado do agravo antes de concluir. Surto é <b>notificação imediata (24h)</b> e vai no <b>módulo de surtos do Sinan</b>, não na ficha individual de cada paciente.</div>`+
   (S2.length?S2.map(g=>`<div style="margin-bottom:14px"><b>${esc(g.ag.nome)}</b> · ${g.casos.length} atendimento(s) · ${g.pes.size} pessoa(s)
    <div class="tw" style="margin-top:6px"><table><thead><tr><th>Data</th><th>Paciente</th><th>Idade</th><th>Equipe / MA</th><th>ACS</th><th>Quem atendeu</th></tr></thead><tbody>${g.casos.sort((a,b)=>b.ini-a.ini).map(c=>`<tr><td class="small" style="white-space:nowrap">${brDate(c.at.data)}</td><td>${c.p?esc(c.p.nome):'<span class="tag red">não localizado</span>'}</td><td class="small">${c.p?esc(idadeTxt(c.p.nasc)):''}</td><td class="small">${c.eq?eqChip(c.eq):'—'} MA ${esc(c.ma||'—')}</td><td class="small">${esc(c.f&&c.eq?acsOf(c.f):'')}</td><td class="small">${esc(profTxt(c.at.prof,c.at.cbo))}</td></tr>`).join('')}</tbody></table></div></div>`).join('')
    :'<div class="empty">Nenhum agrupamento de 3 ou mais casos do mesmo agravo nos últimos 30 dias.</div>');
@@ -2570,7 +2573,7 @@ function renderNotif(){const o=$('#ntOut');if(!o)return;const n=UI.notif,F=notif
    <td class="small">${esc(profTxt(c.at.prof,c.at.cbo))}</td>
    <td style="text-align:center"><input type="checkbox" class="ntChk" data-k="${esc(c.chave)}" ${c.feito?'checked':''} title="Marque quando a notificação for feita">${c.feito?`<div class="mini">${esc(brDate(String(c.feito.quando).slice(0,10)))}</div>`:''}</td></tr>`}).join('');
  o.innerHTML=`<h3>Lista nominal <small>${F.length} registro(s)</small></h3>
-  <div class="mini" style="margin-bottom:8px">Prazo contado da data e hora do atendimento. Marque <b>Notificado</b> ao lançar no Sinan ou no e-SUS Notifica — a marca fica registrada no sistema.</div>
+  <div class="mini" style="margin-bottom:8px">Prazo contado da data e hora do atendimento. Marque <b>Notificado</b> ao lançar no Sinan ou no e-SUS Notifica — a marca fica registrada no sistema.${UI.notif.de?` A tela abre nos <b>últimos 30 dias</b>; limpe o campo <b>De</b> para ver todo o histórico importado.`:''}</div>
   <div class="tw" style="max-height:640px"><table><thead><tr><th>Situação</th><th>Agravo / código</th><th>Paciente</th><th>Equipe / MA</th><th>Atendimento</th><th>Quem atendeu</th><th>Notificado</th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="muted">Nada pendente com esses filtros. 🎉</td></tr>'}</tbody></table></div>`;
  $$('.ntChk',o).forEach(ch=>ch.onchange=async()=>{const k=ch.dataset.k;S.notifFeito=S.notifFeito||{};
   if(ch.checked)S.notifFeito[k]={quando:new Date().toISOString(),por:(CLOUD&&CLOUD.email)||''};else delete S.notifFeito[k];

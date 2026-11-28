@@ -375,7 +375,7 @@ const KV={db:null,
  set(k,v){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok();t.onerror=()=>ok()}catch(e){ok()}})},
  clear(){return new Promise(ok=>{try{const t=this.db.transaction('kv','readwrite');t.objectStore('kv').clear();t.oncomplete=()=>ok()}catch(e){ok()}})}};
 /* Estado persistido */
-const S={dumCfg:{soMedicoEquipe:true,ignorarProf:['705102306009540','702608274362042','700202485963722'],ignorarNomes:['arquimedes'],ignorarGeral:true,v3:true},pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[],cadLog:[]};
+const S={dumCfg:{soMedicoEquipe:true,ignorarProf:['705102306009540','702608274362042','700202485963722'],ignorarNomes:['arquimedes'],ignorarGeral:true,v3:true},pEdit:{},pNew:[],fEdit:{},fNew:[],eqCfg:{},links:{},imports:[],log:[],seq:1,lastBackup:'',visits:[],visitsLog:[],eSusLog:[],mkEdit:{},atends:[],atendsOdonto:[],atendsLog:[],profNomes:{},coletivas:[],coletivasLog:[],consumo:[],consumoLog:[],procedimentos:[],procedimentosLog:[],vitaMk:{},vitaDoses:[],vitaLog:[],cadLog:[],notifFeito:{}};
 const SKEYS=Object.keys(S);
 /* ===================== Acesso por equipe (painel somente consulta) ===================== */
 const PERFIL={papel:'admin',equipe:''};
@@ -425,7 +425,7 @@ async function carregarPainelEquipe(){
 }
 function prepararModoEquipe(){
  document.body.classList.add('modo-equipe');
- NAV.length=0;NAV.push({t:'Equipe '+(DB.eq[0]?DB.eq[0].nome.replace('Equipe ',''):PERFIL.equipe),items:[['home','O que fazer agora','home'],['ind','Indicadores','chart'],['rel','Relatórios','chart'],['acs','Visitas dos ACS','team'],['atend','Atendimentos e-SUS / Procedimentos','chart']]});
+ NAV.length=0;NAV.push({t:'Equipe '+(DB.eq[0]?DB.eq[0].nome.replace('Equipe ',''):PERFIL.equipe),items:[['home','O que fazer agora','home'],['ind','Indicadores','chart'],['rel','Relatórios','chart'],['notif','Notificação compulsória','alert'],['acs','Visitas dos ACS','team'],['atend','Atendimentos e-SUS / Procedimentos','chart']]});
  UI.rel.eq=PERFIL.equipe;
  const f=document.querySelector('aside .foot');if(f)f.innerHTML=`Painel da <b>${esc(DB.eq[0]?DB.eq[0].nome:PERFIL.equipe)}</b> · somente consulta<br>Dados atualizados em ${PERFIL.geradoEm?new Date(PERFIL.geradoEm).toLocaleString('pt-BR'):'—'}<br>Coordenação da Atenção Primária`;
 }
@@ -861,15 +861,15 @@ function allComps(){return[...new Set(S.imports.map(i=>i.comp))].sort()}
 
 /* ===================== Navegação ===================== */
 const NAV=[
- {t:'Acompanhar',items:[['home','O que fazer agora','todo'],['ind','Indicadores','target'],['rel','Relatórios','doc'],['ia','Assistente IA','spark']]},
+ {t:'Acompanhar',items:[['home','O que fazer agora','todo'],['ind','Indicadores','target'],['rel','Relatórios','doc'],['notif','Notificação compulsória','alert'],['ia','Assistente IA','spark']]},
  {t:'Dados',items:[['imp','Importar dados','upload'],['acs','Visitas dos ACS','house'],['atend','Atendimentos e-SUS / Procedimentos','steth'],['vita','Vitamina A','vita'],['coletiva','Atividade Coletiva','group'],['consumo','Consumo Alimentar','apple'],['esus','Cadastros e-SUS','clip'],['cadastro','Famílias e pessoas','family'],['equipes','Equipes e profissionais','team']]},
  {t:'Sistema',items:[['acessos','Acessos das equipes','key'],['config','Dados e backup','db']]}
 ];
-const UI={view:'home',comp:'',imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas',hq:''},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'},vita:{rep:'busca',ref:'',eq:'ALL',ma:'ALL',faixa:'ALL',sit:'DEVE',atraso:'',q:'',tel:'ALL',bk:'ALL',vis:'ALL',page:0,crianca:'',gr:'acs',rano:'',foco:'',gano:'',projIni:'',margem:'10',aeq:'',ama:''}};
+const UI={view:'home',comp:'',notif:{de:'',ate:'',sit:'PEND',prazo:'ALL',ag:'ALL',eq:'ALL',prof:'ALL',q:'',rep:'lista'},imp:{tab:'siaps'},cad:{eq:'',ma:'',q:'',faixa:'',flag:'',page:0,modo:'pessoas',hq:''},ind:{cod:'C5',comp:'',eq:'',tab:'resumo',ma:'',pend:'',q:'',page:0,quadri:'',sv:''},rel:{tipo:'gestao',cod:'C5',comp:'',eq:'ALL',pq:'',quadri:'',vdias:''},acs:{de:'',ate:'',ine:'ALL',prof:'ALL',ma:'ALL',desfecho:'ALL',q:'',rep:'resumo',mes:'ALL',cat:'ALL'},atend:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',q:'',rep:'resumo',pont:'ALL',cod:'',raca:'ALL'},coletiva:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',tipo:'ALL',tema:'ALL',q:'',rep:'resumo'},consumo:{de:'',ate:'',mes:'ALL',ine:'ALL',prof:'ALL',q:'',rep:'resumo'},vita:{rep:'busca',ref:'',eq:'ALL',ma:'ALL',faixa:'ALL',sit:'DEVE',atraso:'',q:'',tel:'ALL',bk:'ALL',vis:'ALL',page:0,crianca:'',gr:'acs',rano:'',foco:'',gano:'',projIni:'',margem:'10',aeq:'',ama:''}};
 function nav(){$('#nav').innerHTML=NAV.map(g=>`<div class="navgroup">${g.t}</div>`+g.items.map(([k,t,i])=>`<button class="nav ${UI.view===k?'on':''}" data-v="${k}">${ico(i)}<span>${t}</span></button>`).join('')).join('');
   $$('#nav .nav').forEach(b=>b.onclick=()=>{UI.view=b.dataset.v;render();closeSide()})}
 function closeSide(){$('#side').classList.remove('open');$('#ovl').classList.remove('on')}
-function render(){if(isEquipe()&&!['home','ind','rel','acs','atend','vita'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ia:vIA,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,vita:vVita,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0);compBar();stkQueue()}
+function render(){if(isEquipe()&&!['home','ind','rel','acs','atend','vita','notif'].includes(UI.view))UI.view='home';nav();const m=$('main');m.innerHTML='';({home:vHome,ia:vIA,notif:vNotif,ind:vInd,rel:vRel,imp:vImp,acs:vACS,atend:vATEND,vita:vVita,coletiva:vColetiva,consumo:vConsumo,esus:vESUS,cadastro:vCadastro,equipes:vEquipes,config:vConfig,acessos:vAcessos})[UI.view](m);window.scrollTo(0,0);compBar();stkQueue()}
 function head(t,sub,actions=''){return `<div class="top"><div><h1>${t}</h1><p>${sub}</p></div><div class="bar noprint">${actions}</div></div>`}
 function ativos(){return[...DB.pes.values()].filter(p=>p.situacao==='Ativo')}
 const eqName=id=>DB.eqById[id]?DB.eqById[id].nome:('INE '+id);
@@ -2400,6 +2400,197 @@ function atLogLinhas(){
    <td class="num">${nvit==null?'<span class="muted">?</span>':(nvit?'<b>'+fmt(nvit)+'</b>':'0')}</td>
    <td class="num">${fmt(l.total||0)}${tproc!==undefined?'<div class="mini">'+fmt(tproc)+' proc.</div>':''}</td></tr>`});
  return linhas.join('')||'<tr><td colspan="7" class="muted">Nenhuma ainda.</td></tr>'}
+/* ===================== NOTIFICACAO COMPULSORIA =====================
+   Le o CID-10 e o CIAP-2 lancados pelos profissionais nas Fichas de
+   Atendimento Individual importadas e lista quem precisa ser notificado
+   a Vigilancia Epidemiologica, com quem atendeu, o prazo legal (24h ou
+   7 dias) contado da data/hora do atendimento e a situacao do prazo.
+   Base: Lista Nacional de Notificacao Compulsoria (Portaria de
+   Consolidacao GM/MS no 4/2017, Anexo V, atualizada pela Portaria
+   GM/MS no 11.211/2026) e lista estadual de Minas Gerais (Resolucoes
+   SES/MG no 8.846/2023 e no 8.948/2023).
+   O CID/CIAP da ficha e so um rastreador: quem decide se notifica e a
+   equipe, conforme a definicao de caso de cada agravo. */
+const _rg=(L,a,b)=>{const o=[];for(let i=a;i<=b;i++)o.push(L+String(i).padStart(2,'0'));return o};
+const NOTIF_AG=[
+ /* ---- imediata: ate 24 horas ---- */
+ {id:'sarampo',nome:'Sarampo',h:24,cid:['B05'],ciap:['A71']},
+ {id:'rubeola',nome:'Rubéola',h:24,cid:['B06'],ciap:['A74']},
+ {id:'rubcong',nome:'Síndrome da rubéola congênita',h:24,cid:['P350'],ciap:[]},
+ {id:'coqueluche',nome:'Coqueluche',h:24,cid:['A37'],ciap:['R71']},
+ {id:'difteria',nome:'Difteria',h:24,cid:['A36'],ciap:[]},
+ {id:'caxumba',nome:'Caxumba (parotidite)',h:24,cid:['B26'],ciap:['D71'],obs:'Incluída na lista nacional pela Portaria GM/MS nº 11.211/2026.'},
+ {id:'meningite',nome:'Meningite',h:24,cid:['A39','G00','G01','G02','G03','A87'],ciap:['N71']},
+ {id:'pfa',nome:'Poliomielite / paralisia flácida aguda',h:24,cid:['A80','G610'],ciap:[]},
+ {id:'tetano',nome:'Tétano',h:24,cid:['A33','A34','A35'],ciap:[]},
+ {id:'raiva',nome:'Raiva humana',h:24,cid:['A82'],ciap:[]},
+ {id:'famarela',nome:'Febre amarela',h:24,cid:['A95'],ciap:[]},
+ {id:'maculosa',nome:'Febre maculosa / riquetsiose',h:24,cid:['A77'],ciap:[]},
+ {id:'malaria',nome:'Malária',h:24,cid:['B50','B51','B52','B53','B54'],ciap:['A73']},
+ {id:'chagasag',nome:'Doença de Chagas aguda',h:24,cid:['B570','B571'],ciap:[]},
+ {id:'colera',nome:'Cólera',h:24,cid:['A00'],ciap:[]},
+ {id:'botulismo',nome:'Botulismo',h:24,cid:['A051'],ciap:[]},
+ {id:'peste',nome:'Peste',h:24,cid:['A20'],ciap:[]},
+ {id:'antraz',nome:'Antraz (carbúnculo)',h:24,cid:['A22'],ciap:[]},
+ {id:'hanta',nome:'Hantavirose',h:24,cid:['B334'],ciap:[]},
+ {id:'mpox',nome:'Mpox / varíola',h:24,cid:['B03','B04'],ciap:[]},
+ {id:'dengueal',nome:'Dengue com sinais de alarme / grave',h:24,cid:['A91'],ciap:[]},
+ {id:'violsex',nome:'Violência sexual',h:24,cid:['T742','Y05','Z044'],ciap:[]},
+ {id:'autoprov',nome:'Lesão autoprovocada / tentativa de suicídio',h:24,cid:_rg('X',60,84),ciap:['P77']},
+ {id:'varicela',nome:'Varicela (catapora)',h:24,cid:['B01'],ciap:['A72'],obs:'Hoje é notificação individual só para caso grave internado e óbito; o caso leve isolado não entra no Sinan. Surto é notificação imediata, no módulo de surtos. A partir de 01/01/2027 (Portaria GM/MS nº 12.508/2026) todo caso passa a ser notificação individual em até 24h.'},
+ /* ---- semanal: ate 7 dias ---- */
+ {id:'dengue',nome:'Dengue',h:168,cid:['A90'],ciap:[]},
+ {id:'chik',nome:'Chikungunya',h:168,cid:['A920'],ciap:[]},
+ {id:'zika',nome:'Zika',h:168,cid:['A928','U06'],ciap:[]},
+ {id:'oropouche',nome:'Febre do Oropouche',h:168,cid:['A930'],ciap:[],obs:'Incluída na lista nacional pela Portaria GM/MS nº 11.211/2026.'},
+ {id:'tb',nome:'Tuberculose',h:168,cid:_rg('A',15,19),ciap:['A70']},
+ {id:'hanseniase',nome:'Hanseníase',h:168,cid:['A30'],ciap:[]},
+ {id:'sifcong',nome:'Sífilis congênita',h:168,cid:['A50'],ciap:[]},
+ {id:'sifgest',nome:'Sífilis em gestante',h:168,cid:['O981'],ciap:[]},
+ {id:'sifadq',nome:'Sífilis adquirida',h:168,cid:['A51','A52','A53'],ciap:['Y70','X70']},
+ {id:'hiv',nome:'HIV / aids',h:168,cid:_rg('B',20,24).concat(['Z21']),ciap:['B90']},
+ {id:'hepatites',nome:'Hepatites virais',h:168,cid:_rg('B',15,19),ciap:['D72']},
+ {id:'lvisceral',nome:'Leishmaniose visceral (calazar)',h:168,cid:['B550'],ciap:[]},
+ {id:'ltegumentar',nome:'Leishmaniose tegumentar',h:168,cid:['B551','B552'],ciap:[]},
+ {id:'esquisto',nome:'Esquistossomose',h:168,cid:['B65'],ciap:[]},
+ {id:'lepto',nome:'Leptospirose',h:168,cid:['A27'],ciap:[]},
+ {id:'peconhento',nome:'Acidente por animal peçonhento',h:168,cid:['T63'].concat(_rg('X',20,29)),ciap:[]},
+ {id:'antirrabico',nome:'Acidente por animal transmissor da raiva',h:168,cid:['W54','W55','W64','Z203'],ciap:[]},
+ {id:'intox',nome:'Intoxicação exógena',h:168,cid:_rg('T',36,62).concat(['T64','T65']),ciap:['A86']},
+ {id:'violencia',nome:'Violência interpessoal / autoprovocada',h:168,cid:['T74','Y04','Y06','Y07','Y08','Y09'],ciap:['Z25']},
+ {id:'matbio',nome:'Acidente com material biológico',h:168,cid:['W46','Z206','Z209'],ciap:[]},
+ {id:'toxo',nome:'Toxoplasmose gestacional e congênita',h:168,cid:['B58','P371'],ciap:[]},
+ {id:'brucelose',nome:'Brucelose humana',h:168,cid:['A23'],ciap:[],obs:'Incluída pela Portaria GM/MS nº 12.508/2026, com vigência a partir de 01/01/2027.'}
+];
+const NOTIF_BY=(()=>{const m={};for(const a of NOTIF_AG)m[a.id]=a;return m})();
+const notifNz=x=>String(x||'').trim().toUpperCase().replace(/[.\-\s]/g,'');
+/* Casa o codigo com o agravo de prefixo mais longo; empate: o primeiro da lista. */
+function notifAgravoDe(cod,campo){const c=notifNz(cod);if(!c)return null;
+ let best=null,len=-1;
+ for(const a of NOTIF_AG){for(const p of (campo==='ciap'?a.ciap:a.cid)){if(c.indexOf(p)===0&&p.length>len){best=a;len=p.length}}}
+ return best?{ag:best,cod:c,campo}:null}
+let _ntC=null,_ntK='';
+function notifCasos(){const k=todosAtends().length+'|'+Object.keys(S.notifFeito||{}).length;if(_ntC&&_ntK===k)return _ntC;
+ const out=[];
+ for(const a of todosAtends()){
+  if(a.tipo!=='fai'||!a.data)continue;
+  const achados={};
+  for(const c of String(a.cid10||'').split(','))  {const h=notifAgravoDe(c,'cid'); if(h)(achados[h.ag.id]=achados[h.ag.id]||{ag:h.ag,cods:[]}).cods.push('CID '+h.cod)}
+  for(const c of String(a.ciap||'').split(','))   {const h=notifAgravoDe(c,'ciap');if(h)(achados[h.ag.id]=achados[h.ag.id]||{ag:h.ag,cods:[]}).cods.push('CIAP '+h.cod)}
+  const ids=Object.keys(achados);if(!ids.length)continue;
+  const p=personOfAtend(a);const f=p?(famOf(p)||{}):{};
+  for(const id of ids){const o=achados[id];
+   const ini=new Date(a.data+'T'+((a.hora&&/^\d\d:\d\d/.test(a.hora))?a.hora.slice(0,5):'00:00')+':00').getTime();
+   const limite=ini+o.ag.h*3600000;const resta=limite-Date.now();
+   const chave=a.id+'|'+id;const feito=(S.notifFeito||{})[chave]||null;
+   out.push({chave,at:a,ag:o.ag,cods:o.cods.join(' · '),p,f,eq:f.eq||'',ma:f.ma||'',
+    ini,limite,resta,feito,
+    sit:feito?'feito':(resta<0?'vencido':(resta<=24*3600000?'urgente':'noprazo'))});
+  }
+ }
+ out.sort((x,y)=>{const o={vencido:0,urgente:1,noprazo:2,feito:3};return (o[x.sit]-o[y.sit])||(y.ini-x.ini)});
+ _ntK=k;_ntC=out;return out}
+const notifPrazoTxt=c=>c.ag.h===24?'24 horas (imediata)':'7 dias (semanal)';
+function notifRestaTxt(c){if(c.sit==='feito')return 'notificado';
+ const ms=Math.abs(c.resta),hh=Math.floor(ms/3600000),dd=Math.floor(hh/24);
+ const t=dd>=1?(dd+(dd===1?' dia':' dias')):(hh+(hh===1?' hora':' horas'));
+ return c.resta<0?('vencido há '+t):('faltam '+t)}
+const NOTIF_SIT={vencido:['Fora do prazo','#fde8e8','#a12020'],urgente:['Vence em menos de 24h','#fff3d6','#8a6200'],noprazo:['No prazo','#e6f6ec','#19693a'],feito:['Notificado','#eef1f4','#5a6673']};
+function notifFiltrados(){const n=UI.notif,q=norm(n.q);
+ return notifCasos().filter(c=>{
+  if(n.sit==='PEND'&&c.sit==='feito')return false;
+  if(n.sit!=='ALL'&&n.sit!=='PEND'&&c.sit!==n.sit)return false;
+  if(n.ag!=='ALL'&&c.ag.id!==n.ag)return false;
+  if(n.prazo!=='ALL'&&String(c.ag.h)!==n.prazo)return false;
+  if(n.eq!=='ALL'&&c.eq!==n.eq)return false;
+  if(n.prof!=='ALL'&&c.at.prof!==n.prof)return false;
+  if(n.de&&c.at.data<n.de)return false;
+  if(n.ate&&c.at.data>n.ate)return false;
+  if(q&&!(norm(c.p?.nome||'').includes(q)||norm(profNome(c.at.prof)||'').includes(q)||norm(c.ag.nome).includes(q)))return false;
+  return true})}
+function notifSurtos(){const m={};
+ for(const c of notifCasos()){const d=daysBetween(c.at.data);if(d===null||d<0||d>30)continue;
+  const k=c.ag.id;(m[k]=m[k]||{ag:c.ag,pes:new Set(),casos:[]});if(c.p)m[k].pes.add(c.p.cod);m[k].casos.push(c)}
+ return Object.values(m).filter(o=>o.casos.length>=3).sort((a,b)=>b.casos.length-a.casos.length)}
+function vNotif(m){const n=UI.notif,casos=notifCasos();
+ const profs=[...new Set(casos.map(c=>c.at.prof))].filter(Boolean);
+ const profCbo={};for(const c of casos)if(!profCbo[c.at.prof])profCbo[c.at.prof]=c.at.cbo;
+ const agUsados=[...new Set(casos.map(c=>c.ag.id))].map(id=>NOTIF_BY[id]).sort((a,b)=>a.nome.localeCompare(b.nome));
+ const cnt=s=>casos.filter(c=>c.sit===s).length;
+ m.innerHTML=head('Notificação compulsória à Vigilância',
+   'Lê o CID-10 e o CIAP-2 lançados nas Fichas de Atendimento Individual importadas e mostra quem precisa ser notificado, quem atendeu e se o prazo legal ainda está aberto. Base: Lista Nacional (Portaria de Consolidação GM/MS nº 4/2017, Anexo V, atualizada pela Portaria GM/MS nº 11.211/2026) e lista estadual de MG (Resoluções SES/MG nº 8.846/2023 e nº 8.948/2023).',
+   '<button class="btn" id="ntAg">Agravos monitorados</button><button class="btn" id="ntPr">🖨 Imprimir / PDF</button>')
+ +(casos.length?`<div class="grid g4" style="margin-top:4px">
+   ${[['vencido',cnt('vencido')],['urgente',cnt('urgente')],['noprazo',cnt('noprazo')],['feito',cnt('feito')]].map(([s,v])=>{const[t,bg,fg]=NOTIF_SIT[s];return `<div class="card"><div class="mini">${t}</div><div style="font-size:30px;font-weight:700;color:${fg}">${fmt(v)}</div></div>`}).join('')}
+  </div>
+  <div class="card noprint" style="margin-top:14px"><div class="bar">
+   <span class="mini">De <input type="date" id="ntDe" value="${n.de||''}"></span><span class="mini">Até <input type="date" id="ntAte" value="${n.ate||''}"></span>
+   <select id="ntSit"><option value="PEND" ${n.sit==='PEND'?'selected':''}>Só o que falta notificar</option><option value="ALL" ${n.sit==='ALL'?'selected':''}>Todos</option><option value="vencido" ${n.sit==='vencido'?'selected':''}>Fora do prazo</option><option value="urgente" ${n.sit==='urgente'?'selected':''}>Vence em menos de 24h</option><option value="noprazo" ${n.sit==='noprazo'?'selected':''}>No prazo</option><option value="feito" ${n.sit==='feito'?'selected':''}>Já notificado</option></select>
+   <select id="ntPrazo"><option value="ALL">Todos os prazos</option><option value="24" ${n.prazo==='24'?'selected':''}>Imediata (24h)</option><option value="168" ${n.prazo==='168'?'selected':''}>Semanal (7 dias)</option></select>
+   <select id="ntAgF"><option value="ALL">Todos os agravos</option>${agUsados.map(a=>`<option value="${a.id}" ${n.ag===a.id?'selected':''}>${esc(a.nome)}</option>`).join('')}</select>
+   <select id="ntEq"><option value="ALL">Todas as equipes</option>${DB.eq.map(e=>`<option value="${e.id}" ${n.eq===e.id?'selected':''}>${esc(e.nome)}</option>`).join('')}</select>
+   <select id="ntProf"><option value="ALL">Todos os profissionais</option>${profs.map(p=>`<option value="${p}" ${n.prof===p?'selected':''}>${esc(profTxt(p,profCbo[p]||''))}</option>`).join('')}</select>
+   <input type="search" id="ntQ" placeholder="Paciente, profissional ou agravo…" value="${esc(n.q||'')}" style="min-width:190px">
+   <select id="ntRep">${[['lista','Lista nominal'],['agravo','Por agravo'],['prof','Por profissional'],['surto','Possíveis surtos (30 dias)']].map(([v,t])=>`<option value="${v}" ${n.rep===v?'selected':''}>${t}</option>`).join('')}</select>
+   <button class="btn" id="ntXp">Exportar Excel</button></div></div>
+   <div class="card" style="margin-top:14px" id="ntOut"></div>`
+  :`<div class="card" style="margin-top:14px"><div class="empty">Nenhuma ficha com CID ou CIAP de agravo de notificação compulsória.<div class="mini" style="margin-top:8px">Importe as Fichas de Atendimento Individual em <b>Atendimentos e-SUS / Procedimentos</b>.</div></div></div>`);
+ if($('#ntAg'))$('#ntAg').onclick=notifAgravosModal;
+ if($('#ntPr'))$('#ntPr').onclick=()=>window.print();
+ const bind=(id,campo,ev='change')=>{const el=$('#'+id);if(el)el[ev==='change'?'onchange':'oninput']=()=>{n[campo]=el.value;renderNotif()}};
+ bind('ntDe','de');bind('ntAte','ate');bind('ntSit','sit');bind('ntPrazo','prazo');bind('ntAgF','ag');bind('ntEq','eq');bind('ntProf','prof');bind('ntRep','rep');
+ const q=$('#ntQ');if(q)q.oninput=()=>{n.q=q.value;renderNotif()};
+ if($('#ntXp'))$('#ntXp').onclick=notifExport;
+ renderNotif()}
+function notifAgravosModal(){
+ const linha=a=>`<tr><td><b>${esc(a.nome)}</b>${a.obs?`<div class="mini">${esc(a.obs)}</div>`:''}</td><td class="small" style="white-space:nowrap">${a.h===24?'<b>24h</b>':'7 dias'}</td><td class="small">${esc(a.cid.length>10?a.cid[0]+'…'+a.cid[a.cid.length-1]+' ('+a.cid.length+' códigos)':a.cid.join(', ')||'—')}</td><td class="small">${esc(a.ciap.join(', ')||'—')}</td></tr>`;
+ openModal('Agravos monitorados pelo CID / CIAP',
+  `<div class="info" style="margin-bottom:10px">O sistema varre o <b>CID-10</b> e o <b>CIAP-2</b> das Fichas de Atendimento Individual importadas. Encontrar o código <b>não confirma o caso</b>: quem decide se notifica é a equipe, pela definição de caso de cada agravo. Confira sempre a lista vigente com a Vigilância Epidemiológica do município — listas nacional e estadual mudam por portaria.</div>
+  <div class="tw" style="max-height:420px"><table><thead><tr><th>Agravo</th><th>Prazo</th><th>CID-10</th><th>CIAP-2</th></tr></thead><tbody>${NOTIF_AG.map(linha).join('')}</tbody></table></div>`,
+  )}
+function renderNotif(){const o=$('#ntOut');if(!o)return;const n=UI.notif,F=notifFiltrados();
+ if(n.rep==='surto'){const S2=notifSurtos();
+  o.innerHTML=`<h3>Possíveis surtos <small>agravos com 3 ou mais atendimentos nos últimos 30 dias</small></h3>
+  <div class="mini" style="margin-bottom:8px">Agrupamento por agravo. Surto é <b>notificação imediata (24h)</b> e vai no <b>módulo de surtos do Sinan</b>, não na ficha individual de cada paciente.</div>`+
+  (S2.length?S2.map(g=>`<div style="margin-bottom:14px"><b>${esc(g.ag.nome)}</b> · ${g.casos.length} atendimento(s) · ${g.pes.size} pessoa(s)
+   <div class="tw" style="margin-top:6px"><table><thead><tr><th>Data</th><th>Paciente</th><th>Idade</th><th>Equipe / MA</th><th>ACS</th><th>Quem atendeu</th></tr></thead><tbody>${g.casos.sort((a,b)=>b.ini-a.ini).map(c=>`<tr><td class="small" style="white-space:nowrap">${brDate(c.at.data)}</td><td>${c.p?esc(c.p.nome):'<span class="tag red">não localizado</span>'}</td><td class="small">${c.p?esc(idadeTxt(c.p.nasc)):''}</td><td class="small">${c.eq?eqChip(c.eq):'—'} MA ${esc(c.ma||'—')}</td><td class="small">${esc(c.f&&c.eq?acsOf(c.f):'')}</td><td class="small">${esc(profTxt(c.at.prof,c.at.cbo))}</td></tr>`).join('')}</tbody></table></div></div>`).join('')
+   :'<div class="empty">Nenhum agrupamento de 3 ou mais casos do mesmo agravo nos últimos 30 dias.</div>');
+  return}
+ if(n.rep==='agravo'||n.rep==='prof'){const m={};
+  for(const c of F){const k=n.rep==='agravo'?c.ag.nome:profTxt(c.at.prof,c.at.cbo);(m[k]=m[k]||{t:0,v:0,u:0,f:0,h:c.ag.h});m[k].t++;if(c.sit==='vencido')m[k].v++;if(c.sit==='urgente')m[k].u++;if(c.sit==='feito')m[k].f++}
+  const rows=Object.entries(m).sort((a,b)=>b[1].v-a[1].v||b[1].t-a[1].t).map(([k,o2])=>`<tr><td><b>${esc(k)}</b>${n.rep==='agravo'?`<div class="mini">prazo ${o2.h===24?'24h':'7 dias'}</div>`:''}</td><td class="num">${o2.t}</td><td class="num" style="color:#a12020"><b>${o2.v||''}</b></td><td class="num" style="color:#8a6200">${o2.u||''}</td><td class="num">${o2.f||''}</td></tr>`).join('');
+  o.innerHTML=`<h3>${n.rep==='agravo'?'Por agravo':'Por profissional'} <small>${F.length} pendência(s) de notificação</small></h3><div class="tw"><table><thead><tr><th>${n.rep==='agravo'?'Agravo':'Profissional'}</th><th class="num">Total</th><th class="num">Fora do prazo</th><th class="num">Vence em 24h</th><th class="num">Notificados</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="muted">—</td></tr>'}</tbody></table></div>`;
+  return}
+ const rows=F.map(c=>{const[t,bg,fg]=NOTIF_SIT[c.sit];
+  return `<tr><td class="small" style="white-space:nowrap"><span class="tag" style="background:${bg};color:${fg}">${t}</span><div class="mini">${esc(notifRestaTxt(c))}</div></td>
+   <td><b>${esc(c.ag.nome)}</b><div class="mini">${esc(c.cods)} · prazo ${esc(notifPrazoTxt(c))}</div></td>
+   <td>${c.p?`<b>${esc(c.p.nome)}</b><div class="mini">${esc(idadeTxt(c.p.nasc))}${c.p.cpf?' · CPF '+fmtCPF(c.p.cpf):''}${c.p.tel?' · '+esc(c.p.tel):''}</div>`:`<span class="tag red">não localizado no cadastro</span><div class="mini">CNS ${esc(c.at.cns||'')}</div>`}</td>
+   <td class="small">${c.eq?eqChip(c.eq):'—'}<div class="mini">MA ${esc(c.ma||'—')}${c.f&&c.eq?' · '+esc(acsOf(c.f)):''}</div></td>
+   <td class="small" style="white-space:nowrap">${brDate(c.at.data)}<div class="mini">${esc(c.at.hora||'')}</div></td>
+   <td class="small">${esc(profTxt(c.at.prof,c.at.cbo))}</td>
+   <td style="text-align:center"><input type="checkbox" class="ntChk" data-k="${esc(c.chave)}" ${c.feito?'checked':''} title="Marque quando a notificação for feita">${c.feito?`<div class="mini">${esc(brDate(String(c.feito.quando).slice(0,10)))}</div>`:''}</td></tr>`}).join('');
+ o.innerHTML=`<h3>Lista nominal <small>${F.length} registro(s)</small></h3>
+  <div class="mini" style="margin-bottom:8px">Prazo contado da data e hora do atendimento. Marque <b>Notificado</b> ao lançar no Sinan ou no e-SUS Notifica — a marca fica registrada no sistema.</div>
+  <div class="tw" style="max-height:640px"><table><thead><tr><th>Situação</th><th>Agravo / código</th><th>Paciente</th><th>Equipe / MA</th><th>Atendimento</th><th>Quem atendeu</th><th>Notificado</th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="muted">Nada pendente com esses filtros. 🎉</td></tr>'}</tbody></table></div>`;
+ $$('.ntChk',o).forEach(ch=>ch.onchange=async()=>{const k=ch.dataset.k;S.notifFeito=S.notifFeito||{};
+  if(ch.checked)S.notifFeito[k]={quando:new Date().toISOString(),por:(CLOUD&&CLOUD.email)||''};else delete S.notifFeito[k];
+  await save('notifFeito');_ntC=null;_ntK='';
+  logAction('Notificação compulsória',(ch.checked?'marcada como notificada: ':'desmarcada: ')+k);
+  renderNotif()})}
+function notifExport(){const out=notifFiltrados().map(c=>({
+  Situação:NOTIF_SIT[c.sit][0],Agravo:c.ag.nome,'Prazo legal':notifPrazoTxt(c),'Prazo (situação)':notifRestaTxt(c),
+  'Limite para notificar':new Date(c.limite).toLocaleString('pt-BR'),
+  'Códigos na ficha':c.cods,
+  Paciente:c.p?c.p.nome:'(não localizado no cadastro)',Idade:c.p?idadeTxt(c.p.nasc):'',
+  CPF:c.p?c.p.cpf:'',CNS:c.p?c.p.cns:c.at.cns,Telefone:c.p?(c.p.tel||''):'',
+  Equipe:c.eq?(DB.eqById[c.eq]?DB.eqById[c.eq].nome:c.eq):'',Microárea:c.ma,ACS:(c.f&&c.eq)?acsOf(c.f):'',
+  Endereço:c.f?endereco(c.f):'',
+  'Data do atendimento':brDate(c.at.data),'Hora':c.at.hora||'',
+  'Quem atendeu':profNome(c.at.prof)||('CNS '+c.at.prof),'Categoria':profCat(c.at.prof,c.at.cbo),'CNS do profissional':c.at.prof,
+  Notificado:c.feito?'Sim':'Não','Notificado em':c.feito?new Date(c.feito.quando).toLocaleString('pt-BR'):''}));
+ const ws=XLSX.utils.json_to_sheet(out);const wb=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb,ws,'Notificacao');
+ XLSX.writeFile(wb,`notificacao_compulsoria_${new Date().toISOString().slice(0,10)}.xlsx`)}
 function vATEND(m){const a=UI.atend,all=todosAtends();
  const ines=[...new Set(all.map(x=>x.ine))].filter(Boolean).sort(),profs=[...new Set(all.map(x=>x.prof))].filter(Boolean).sort();const profCbo={};for(const x of all)if(x.prof&&!profCbo[x.prof])profCbo[x.prof]=x.cbo;
  m.innerHTML=head('Atendimentos e-SUS / Procedimentos','Fichas de Atendimento Individual (FAI), Odontológico (FAO) e de Procedimentos do e-SUS — importação acumulativa. Use para conferir os indicadores pela produção. As doses de vitamina A vêm na Ficha de Procedimentos e aparecem na aba Vitamina A.',`<button class="btn" id="atProf">Identificar profissionais</button><button class="btn" id="atPr">🖨 Imprimir / PDF</button>`)+
